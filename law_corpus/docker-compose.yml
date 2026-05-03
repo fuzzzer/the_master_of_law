@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-law_corpus}
+      POSTGRES_USER: ${POSTGRES_USER:-corpus}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-corpus_dev_pw}
+    ports:
+      - "${POSTGRES_BIND:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-corpus}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - internal
+
+  pipeline:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-corpus}:${POSTGRES_PASSWORD:-corpus_dev_pw}@postgres:5432/${POSTGRES_DB:-law_corpus}
+      VECTOR_STORE_BACKEND: chroma
+      CHROMA_PERSIST_DIR: /app/data/chroma
+      DATA_DIR: /app/data
+      CHECKPOINT_DIR: /app/data/checkpoints
+    volumes:
+      - ./data:/app/data
+    command: ["run", "--priority", "P0"]
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  pgdata:

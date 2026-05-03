@@ -1,0 +1,25 @@
+{
+  "document_id": "civil_code",
+  "title_ka": "საქართველოს სამოქალაქო კოდექსი",
+  "title_en": "Civil Code of Georgia",
+  "document_type": "code",
+  "priority": "P0",
+  "url": "https://matsne.gov.ge/ka/document/view/31702",
+  "articles_count": 4,
+  "sample_articles": [
+    {
+      "article_number": "მუხლი 1",
+      "article_title": "სამოქალაქო კანონმდებლობის მიზანი",
+      "book": "I - ზოგადი დებულებები",
+      "chapter": "I - სამოქალაქო კანონმდებლობის ძირითადი დებულებები"
+    },
+    {
+      "article_number": "მუხლი 2",
+      "article_title": "სამოქალაქო კანონმდებლობა"
+    },
+    {
+      "article_number": "მუხლი 3",
+      "article_title": "სამოქალაქო კანონმდებლობის ანალოგია"
+    }
+  ]
+}

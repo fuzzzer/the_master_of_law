@@ -1,0 +1,40 @@
+# Environment
+.env
+.env.local
+
+# Data (populated by pipeline — large)
+data/raw/
+data/parsed/
+data/chunks/
+data/embeddings/
+data/index/
+data/chroma/
+data/checkpoints/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# MyPy
+.mypy_cache/
