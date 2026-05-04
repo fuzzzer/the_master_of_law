@@ -1,0 +1,26 @@
+# ── Environment & Secrets ──
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*-sa-key.json
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# ── OS ──
+.DS_Store
+Thumbs.db
+
+# ── IDE ──
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── Logs ──
+*.log

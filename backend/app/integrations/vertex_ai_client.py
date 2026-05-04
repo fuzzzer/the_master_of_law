@@ -30,7 +30,6 @@ class VertexAIClient:
     def _get_client(self) -> genai.Client:
         if self._client is None:
             self._client = genai.Client(
-                api_key=settings.vertex_ai_api_key,
                 vertexai=True,
                 project=settings.google_cloud_project,
                 location=settings.google_cloud_location,

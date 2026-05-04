@@ -43,12 +43,19 @@ services:
       DATABASE_URL: postgresql+asyncpg://mol_user:${POSTGRES_PASSWORD}@postgres:5432/master_of_law
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       CHROMA_PERSIST_DIR: /app/law_corpus_data/chroma
+      # Vertex AI auth — ADC auto-discovers this. Billing goes through GCP.
+      # The host path is set via GCP_SA_KEY_PATH in .env (never committed).
+      GOOGLE_APPLICATION_CREDENTIALS: /app/secrets/gcp-sa-key.json
     volumes:
-      # Mount the pre-built law corpus as READ-ONLY
+      # Law corpus data (parsed, chunks, indices) — READ-ONLY
       - ../law_corpus/data:/app/law_corpus_data:ro
-      # Mount the GCP service account key as READ-ONLY
-      # Adjust path to wherever you placed the key on the VPS
-      - /etc/master-of-law/gcp-sa-key.json:/app/gcp-sa-key.json:ro
+      # ChromaDB (SQLite-backed) needs write access for WAL/journal files
+      # even during read-only queries. Mounted separately as rw.
+      - ../law_corpus/data/chroma:/app/law_corpus_data/chroma:rw
+      # GCP credentials — path controlled by .env, mounted READ-ONLY
+      # Local dev:  GCP_SA_KEY_PATH=~/.config/gcloud/application_default_credentials.json
+      # VPS prod:   GCP_SA_KEY_PATH=/etc/master-of-law/gcp-sa-key.json (chmod 600)
+      - ${GCP_SA_KEY_PATH}:/app/secrets/gcp-sa-key.json:ro
     depends_on:
       postgres:
         condition: service_healthy

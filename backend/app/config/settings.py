@@ -36,7 +36,8 @@ class Settings(BaseSettings):
     # ── Google Cloud / Vertex AI ─────────────────────────────
     google_cloud_project: str = Field(default="gen-lang-client-0225498420")
     google_cloud_location: str = Field(default="us-central1")
-    vertex_ai_api_key: str = Field(default="", description="Vertex AI API key")
+    # Note: Vertex AI authenticates via ADC (GOOGLE_APPLICATION_CREDENTIALS).
+    # No API key needed — set GCP_SA_KEY_PATH in .env for Docker.
     gemini_model: str = Field(default="gemini-3.1-pro")
     embedding_model: str = Field(default="gemini-embedding-001")
     embedding_dimensions: int = Field(default=768)
