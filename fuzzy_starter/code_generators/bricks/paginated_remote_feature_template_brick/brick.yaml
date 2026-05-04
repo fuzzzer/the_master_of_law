@@ -1,0 +1,39 @@
+name: paginated_remote_feature_template_brick
+description: Generates Repository + DataSource + Cubit for a paginated (optionally filterable) list service
+
+version: 0.1.0
+
+environment:
+  mason: ^0.1.0
+
+vars:
+  parentFeatureName:
+    type: string
+    description: Parent folder (under lib/src/features) where the feature will live
+    default: core
+    prompt: In which parent folder should the new feature be generated?
+  name:
+    type: string
+    description: Short feature name (e.g., product_list)
+    default: my_feature
+    prompt: What is the new service name (e.g., product_list)?
+  functionName:
+    type: string
+    description: Remote method that fetches the paginated list
+    default: fetch_items
+    prompt: What is the remote method name that fetches the list?
+  itemModelName:
+    type: string
+    description: Dart class representing a single list item returned by the endpoint
+    default: item_data
+    prompt: What is the Dart class name of each list item?
+  hasQuery:
+    type: boolean
+    description: Should the service accept a filter/search query object?
+    default: false
+    prompt: Does the endpoint accept filter or search query parameters?
+  queryName:
+    type: string
+    description: Class name for the query/filter object (ignored if hasQuery = false)
+    default: item_query
+    prompt: What is the query object class name? (Leave blank if none)

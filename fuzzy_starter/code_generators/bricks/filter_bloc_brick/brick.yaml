@@ -1,0 +1,22 @@
+name: filter_bloc_brick
+description: Generates a fully-wired FilterBloc skeleton with events, state & query.
+
+version: 0.1.0
+
+environment:
+  mason: ^0.1.0
+
+vars:
+  parentFeatureName:
+    type: string
+    description: parent feature folder name in which the feature is created in
+    default: Dash
+    prompt: What is the name of your parent folder name?
+  name:
+    type: string
+    description: Base entity name to be filtered (e.g. deal, product)
+    default: item
+  filterable_model:
+    type: string
+    description: The model collection that you need to filter
+    default: FilterableItemModelPlaceholder

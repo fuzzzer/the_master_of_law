@@ -1,0 +1,24 @@
+name: remote_template_brick
+description: Generated super app cubit
+
+version: 0.1.0
+
+environment:
+  mason: ^0.1.0
+
+vars:
+  name:
+    type: string
+    description: name of the remote service
+    default: Dash
+    prompt: What is the name of your remote service?
+  modelName:
+    type: string
+    description: model name that you want to get from the repository
+    default: Dash
+    prompt: What is the name of the model?
+  functionName:
+    type: string
+    description: function name that calls the remote service to get data
+    default: Dash
+    prompt: What is the name of the function that fetches the data?

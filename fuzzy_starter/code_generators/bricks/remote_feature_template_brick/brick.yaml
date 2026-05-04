@@ -1,0 +1,39 @@
+name: remote_feature_template_brick
+description: Generated super app cubit
+
+version: 0.1.0
+
+environment:
+  mason: ^0.1.0
+
+vars:
+  parentFeatureName:
+    type: string
+    description: parent feature folder name in which the feature is created in
+    default: Dash
+    prompt: What is the name of your parent folder name?
+  name:
+    type: string
+    description: name of the remote service
+    default: Dash
+    prompt: What is the name of your remote service?
+  modelName:
+    type: string
+    description: model name that you want to get from the repository
+    default: Dash
+    prompt: What is the name of the model?
+  functionName:
+    type: string
+    description: function name that calls the remote service to get data
+    default: Dash
+    prompt: What is the name of the function that fetches the data?
+  hasRequestData:
+    type: boolean
+    description: Does this method need a request data parameter?
+    prompt: Does your service need pass request data when sending the request?
+    default: false
+  requestDataName:
+    type: string
+    description: The name of the request data class (e.g., RegistrationRequestData)
+    prompt: What is your request data name, leave empty if not needed?
+    default: ""

@@ -1,0 +1,11 @@
+bricks:
+  remote_template_brick:
+    path: code_generators/bricks/remote_template_brick
+  remote_feature_template_brick:
+    path: code_generators/bricks/remote_feature_template_brick
+  filter_bloc_brick:
+    path: code_generators/bricks/filter_bloc_brick
+  form_page_brick:
+    path: code_generators/bricks/form_page_brick
+  paginated_remote_feature_template_brick:
+    path: code_generators/bricks/paginated_remote_feature_template_brick

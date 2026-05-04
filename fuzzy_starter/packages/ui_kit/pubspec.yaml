@@ -1,0 +1,31 @@
+name: ui_kit
+description: "A new Flutter package project."
+version: 0.1.0
+publish_to: none
+
+homepage:
+
+environment:
+  sdk: 3.8.0
+  flutter: 3.32.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  blur: 4.0.2
+  cached_network_image: 3.4.1
+  carousel_slider: 5.0.0
+  flutter_svg: 2.1.0
+  intl: 0.20.2
+  shimmer: 3.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: 5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icons/
+    - assets/images/

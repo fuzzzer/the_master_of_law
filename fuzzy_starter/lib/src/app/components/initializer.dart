@@ -1,0 +1,38 @@
+import 'package:bloc/bloc.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:fuzzystarter/src/src.dart';
+import 'package:logger/logger.dart';
+import 'package:ui_kit/ui_kit.dart';
+
+class Initializer {
+  static Future<void> preAppInit() async {
+    WidgetsFlutterBinding.ensureInitialized();
+
+    Bloc.observer = const AppBlocObserver();
+
+    await DependencyInjection.inject();
+
+    await logger.initLogSaving(
+      loggerLevel: kReleaseMode && appEnvironment.isProduction ? Level.error : Level.debug,
+    );
+
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+
+    if (kReleaseMode) {
+      ErrorWidget.builder = (FlutterErrorDetails details) {
+        return const PrimaryErrorPageView(
+          message: 'Unexpected App Crash',
+        );
+      };
+    }
+
+    await ApiCacheService().init();
+  }
+
+  static Future<void> postAppInit() async {}
+}

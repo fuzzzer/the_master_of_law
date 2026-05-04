@@ -1,0 +1,115 @@
+variables:
+  GIT_DEPTH: 0
+
+stages:
+  - changelog
+
+generate_and_post_changelog:
+  stage: changelog
+  only:
+    - tags
+  image: debian:latest
+  before_script:
+    - apt update && apt install -y bash git curl jq
+  script:
+    - chmod +x scripts/changelog_generator.sh
+    - git fetch --tags
+
+    #############################################
+    # General Version Update Block (Generates changelog on each tag)
+    #############################################
+    - |
+      echo "Generating general version update changelog..."
+
+      GENERAL_ALL_TAGS=$(git tag --list --sort=-creatordate)
+      GENERAL_CURRENT_TAG=$CI_COMMIT_TAG
+      GENERAL_PREVIOUS_TAG=$(echo "$GENERAL_ALL_TAGS" \
+                             | grep -A1 "^${GENERAL_CURRENT_TAG}$" | tail -n1)
+
+      if [ -z "$GENERAL_PREVIOUS_TAG" ]; then
+        echo "No previous tag found for general changelog. Exiting."
+        exit 1
+      fi
+
+      echo "General changelog: Previous Tag: $GENERAL_PREVIOUS_TAG, Current Tag: $GENERAL_CURRENT_TAG"
+    - ./scripts/changelog_generator.sh "$GENERAL_PREVIOUS_TAG" "$CI_COMMIT_TAG"
+    - |
+      echo "Reading general changelog content..."
+      GENERAL_CHANGELOG=$(cat \
+        scripts/changelog_outputs/CHANGELOG_${GENERAL_PREVIOUS_TAG}_to_${CI_COMMIT_TAG}.md)
+
+      echo "Formatting general changelog for Slack..."
+      GENERAL_SLACK_MESSAGE=$(echo "$GENERAL_CHANGELOG" \
+        | sed 's/\\/\\\\/g; s/"/\\"/g; s/$/\\n/' | tr -d '\n')
+      GENERAL_SLACK_MESSAGE='```'"$GENERAL_SLACK_MESSAGE"'```'
+
+      GENERAL_PAYLOAD=$(printf \
+        '{"blocks":[{"type":"section","text":{"type":"mrkdwn","text":"%s"}}]}' \
+        "$GENERAL_SLACK_MESSAGE")
+
+      echo "Sending general changelog to Slack as message:
+      --------- Beginning of the message ---------
+      $GENERAL_CHANGELOG
+      --------- End of the message ---------"
+
+      echo "GENERAL_PAYLOAD JSON: $GENERAL_PAYLOAD"
+
+      curl -X POST -H 'Content-type: application/json' \
+           --data "$GENERAL_PAYLOAD" \
+           https://hooks.slack.com/services/
+           //TODO setup slack url
+
+    #############################################
+    # Release Changelog Block (if version tag ends with -release, ex: v1.0.0+100-release)
+    #############################################
+    - |
+      echo "Checking if tag ends with '-release'..."
+      if [[ "$CI_COMMIT_TAG" != *-release ]]; then
+        echo "Tag '$CI_COMMIT_TAG' does not end with '-release'. Skipping changelog generation."
+        exit 0
+      fi
+
+      echo "Tag '$CI_COMMIT_TAG' is a release tag. Proceeding..."
+    - |
+      echo "Filtering release tags..."
+      RELEASE_TAGS=$(git tag --list '*-release' --sort=-creatordate)
+
+      echo "Determining current and previous release tags..."
+      CURRENT_TAG=$CI_COMMIT_TAG
+      PREVIOUS_TAG=$(echo "$RELEASE_TAGS" \
+                     | grep -A1 "^${CURRENT_TAG}$" | tail -n1)
+
+      if [ -z "$PREVIOUS_TAG" ]; then
+        echo "No previous release tag found. Exiting."
+        exit 1
+      fi
+
+      echo "Previous Release Tag: $PREVIOUS_TAG"
+      echo "Current Release Tag: $CURRENT_TAG"
+    - ./scripts/changelog_generator.sh "$PREVIOUS_TAG" "$CURRENT_TAG"
+    - |
+      echo "Reading changelog content..."
+      CHANGELOG_CONTENT=$(cat \
+        scripts/changelog_outputs/CHANGELOG_${PREVIOUS_TAG}_to_${CURRENT_TAG}.md)
+
+      echo "Formatting changelog for Slack..."
+      SLACK_MESSAGE=$(echo "$CHANGELOG_CONTENT" \
+        | sed 's/\\/\\\\/g; s/"/\\"/g; s/$/\\n/' | tr -d '\n')
+      SLACK_MESSAGE='```'"$SLACK_MESSAGE"'```'
+
+      PAYLOAD=$(printf \
+        '{"blocks":[{"type":"section","text":{"type":"mrkdwn","text":"%s"}}]}' \
+        "$SLACK_MESSAGE")
+
+      echo "Sending changelog to Slack as message: 
+      --------- Beginning of the message ---------
+      $CHANGELOG_CONTENT
+      --------- End of the message ---------"
+
+      # ⬇️  NEW: show the release-payload JSON as well
+      echo "RELEASE PAYLOAD JSON: $PAYLOAD"
+
+      curl -X POST -H 'Content-type: application/json' \
+           --data "$PAYLOAD" \
+           https://hooks.slack.com/services/
+           //TODO setup slack url

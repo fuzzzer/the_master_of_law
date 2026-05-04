@@ -1,0 +1,13 @@
+{{#hasQuery}}
+// TODO add correct query parameters
+class {{queryName.pascalCase()}} {
+  final String? searchText;
+  const {{queryName.pascalCase()}}({this.searchText});
+
+  {{queryName.pascalCase()}} copyWith({String? searchText}) =>
+      {{queryName.pascalCase()}}(searchText: searchText ?? this.searchText);
+
+  @override
+  String toString() => '{{queryName}}(searchText: $searchText)';
+}
+{{/hasQuery}}

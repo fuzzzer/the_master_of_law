@@ -1,0 +1,19 @@
+name: form_page_brick
+description: Generates a reusable Flutter form page
+
+version: 0.1.0
+
+environment:
+  mason: ^0.1.0
+
+vars:
+  parentFeatureName:
+    type: string
+    description: parent feature folder name in which the feature is created in
+    default: Dash
+    prompt: What is the name of your parent folder name?
+  name:
+    type: string
+    description: The name of the form page
+    default: Dash
+    prompt: What is the name of the form page?
