@@ -33,6 +33,7 @@ dependencies:
   shimmer: 3.0.0
   ui_kit:
     path: packages/ui_kit
+  google_fonts: 6.2.1
   url_launcher: 6.3.1
 
 dev_dependencies:
