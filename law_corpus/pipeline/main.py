@@ -198,18 +198,44 @@ def index(
 
     from pipeline.indexer.vector_store_indexer import VectorStoreIndexer
     from pipeline.indexer.search_index_builder import SearchIndexBuilder
+    from pipeline.embedder.embedding_cache import EmbeddingCache
     from pipeline.models.legal_chunk import LegalChunk
     import orjson
 
     store_backend = VectorStoreBackend(backend)
     indexer = VectorStoreIndexer(backend=store_backend)
     search_builder = SearchIndexBuilder()
+    cache = EmbeddingCache()
     all_chunks: list[LegalChunk] = []
 
     for json_file in sorted(settings.chunks_dir.glob("*.json")):
         raw = orjson.loads(json_file.read_bytes())
         chunks = [LegalChunk.model_validate(c) for c in raw]
         all_chunks.extend(chunks)
+
+    # Hydrate embeddings from cache — chunk JSON files exclude the embedding
+    # field (LegalChunk.embedding has exclude=True), so we must load them
+    # from the file-backed EmbeddingCache populated during the embed stage.
+    hydrated = 0
+    missing_embeddings: list[str] = []
+    for chunk in all_chunks:
+        embedding = cache.get(chunk.chunk_id, chunk.content_hash or "")
+        if embedding is not None:
+            chunk.embedding = embedding
+            hydrated += 1
+        else:
+            missing_embeddings.append(chunk.chunk_id)
+
+    if missing_embeddings:
+        console.print(
+            f"[yellow]⚠ {len(missing_embeddings)} chunks have no cached embedding[/yellow]"
+        )
+        for cid in missing_embeddings[:10]:
+            console.print(f"  Missing: {cid}")
+        if len(missing_embeddings) > 10:
+            console.print(f"  ... and {len(missing_embeddings) - 10} more")
+    else:
+        console.print(f"[green]✓[/green] Loaded {hydrated} embeddings from cache")
 
     count = indexer.index_chunks(all_chunks)
     search_builder.build(all_chunks)

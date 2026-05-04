@@ -11,7 +11,7 @@ DISCOVER → DOWNLOAD → PARSE → CHUNK → EMBED → INDEX
   │           │          │        │        │       ├─ Vertex AI Vector Search (prod)
   │           │          │        │        │       └─ PostgreSQL (metadata + FTS)
   │           │          │        │        │
-  │           │          │        │        └─ Vertex AI text-embedding-005
+  │           │          │        │        └─ gemini-embedding-001 (via google-genai SDK)
   │           │          │        │
   │           │          │        └─ Structure-aware legal chunking
   │           │          │
@@ -132,7 +132,7 @@ See `.env.example` for the full list. Key settings:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `VECTOR_STORE_BACKEND` | `chroma` or `vertex` | `chroma` |
-| `EMBEDDING_MODEL` | Vertex AI model | `text-embedding-005` |
+| `EMBEDDING_MODEL` | Gemini embedding model | `gemini-embedding-001` |
 | `SCRAPE_DELAY_SECONDS` | Min delay between requests | `2` |
 | `DATABASE_URL` | PostgreSQL connection string | — |
 | `GOOGLE_CLOUD_PROJECT` | GCP project for Vertex AI | — |

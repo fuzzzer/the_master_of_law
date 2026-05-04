@@ -1,6 +1,6 @@
 # კანონის ოსტატი — The Master of Law
 
-> Three ready-to-go prompts. Copy each one, attach the referenced file(s), and send to your AI agent.
+> Your AI Legal Advocate — because every Georgian citizen deserves adequate defense.
 
 ---
 
@@ -79,19 +79,21 @@ The backend spec is in `master_plan/02_backend_system_prompt.md`. Here's what it
 ### What the backend does
 
 ```
-User question → Intake flow (guided questions) → Legal classification
-    → Hybrid RAG search (vector + full-text) → Gemini 3.1 Pro analysis
-    → Citation verification → Plain-language response with law citations
+User's situation → Intake flow (guided questions) → Legal classification
+    → Hybrid RAG search (vector + full-text) → Gemini 3.1 Pro advocacy analysis
+    → Citation verification → Defense strategy with law citations
 ```
 
 ### Backend structure: `backend/`
 
 - **FastAPI** app with Clean Architecture (routes → services → repositories)
-- **Gemini 3.1 Pro** via Vertex AI for legal reasoning
+- **Gemini 3.1 Pro** via Vertex AI for legal advocacy reasoning
+- **Firebase Authentication** (no custom JWT — Flutter app handles sign-in)
+- **Credit system**: FREE tier (5/day), PRO (purchased), ADMIN (10,000)
 - **Hybrid search**: vector similarity (ChromaDB/Vertex) + PostgreSQL full-text
-- **Citation verification**: every law citation in Gemini's output is validated against the corpus
-- **JWT auth**, rate limiting, WebSocket streaming, health checks
-- **Docker**: API + PostgreSQL + Redis
+- **Citation verification**: every law citation is validated against the corpus
+- **Per-tier rate limiting**, credit gate middleware, WebSocket streaming
+- **Docker**: API + PostgreSQL + Redis (PostgreSQL not exposed externally)
 
 ### What must be done in Step 1 before starting Step 2
 

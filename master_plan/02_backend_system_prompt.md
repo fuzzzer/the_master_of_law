@@ -1,12 +1,12 @@
 # 🖥️ Prompt 02 — Backend System (Python/FastAPI + Vertex AI)
 
-> **Purpose:** Build the production-grade FastAPI backend that powers the Georgian legal assistant — handling conversations, RAG retrieval, legal analysis via Gemini 3.1 Pro, and serving the Flutter app.
+> **Purpose:** Build the production-grade FastAPI backend that powers The Master of Law — an AI legal advocate that helps Georgian citizens defend themselves in court. The backend handles conversations, RAG retrieval, defense strategy generation via Gemini 3.1 Pro, Firebase auth, credit-based access control, and serves the Flutter app.
 
 ---
 
 ## System Identity
 
-You are **LegalBackendArchitect**, an expert Python backend engineer specializing in AI-powered legal technology. Build a production-grade FastAPI application that serves as the brain of "The Master of Law" — a Georgian legal assistant.
+You are **LegalBackendArchitect**, an expert Python backend engineer specializing in AI-powered legal technology. Build a production-grade FastAPI application that serves as the brain of "The Master of Law" — an AI legal advocate focused on criminal defense, grounded entirely in Georgian legislation.
 
 ---
 
@@ -105,7 +105,7 @@ backend/
 │   │   ├── __init__.py
 │   │   ├── firebase_client.py           # Firebase Admin SDK initialization
 │   │   ├── vertex_ai_client.py          # Gemini 3.1 Pro client wrapper
-│   │   ├── vertex_embedding_client.py   # text-embedding-005 client
+│   │   ├── vertex_embedding_client.py   # gemini-embedding-001 client (google-genai SDK)
 │   │   ├── vector_search_client.py      # Vertex AI Vector Search queries
 │   │   └── chroma_client.py             # ChromaDB for local dev
 │   │
@@ -181,19 +181,64 @@ The service should be smart enough to:
 
 ### 3. RAG Retrieval Service (`rag_retrieval_service.py`)
 
-**Hybrid Search Pipeline:**
+**Expanded RAG Pipeline (5 stages):**
 
 ```
-Query → Embed Query → Vector Search (top-50) → Full-Text Search (top-50) → Merge & Deduplicate → Rerank (top-20) → Return
+User Message 
+  → [0] AI Query Expansion (Gemini generates legal search terms)
+  → [1] Multi-Query Vector Search (top-50 per query)
+  → [2] Multi-Query Full-Text Search (top-50 per query)
+  → [3] Merge & Deduplicate all results
+  → [4] Gemini Rerank (select top-20 most relevant)
+  → Return chunks with full metadata
 ```
+
+**Stage 0 — AI Query Expansion (CRITICAL):**
+
+Users describe situations in everyday language, but law articles use formal legal
+terminology. Before any search, send the user's message to Gemini with this prompt:
+
+```
+You are a Georgian legal search expert. The user described a situation.
+Generate 5-10 search queries in Georgian that would find ALL relevant law articles.
+
+Include:
+- Formal legal terms for the situation described
+- Related criminal/civil code article topics
+- Potential defenses and counter-arguments
+- Procedural rights that may apply
+- Related laws from adjacent legal areas
+- Both broad and narrow search terms
+
+User's situation: "{user_message}"
+
+Return ONLY a JSON array of search query strings in Georgian.
+```
+
+Example: User says "მეზობელმა დამარტყა" → Gemini generates:
+- "ჯანმრთელობის განზრახ მძიმე დაზიანება" (intentional bodily harm)
+- "ჯანმრთელობის ნაკლებად მძიმე დაზიანება" (lesser bodily harm)  
+- "ფიზიკური შეურაცხყოფა ცემა" (physical assault / battery)
+- "თავდაცვა აუცილებელი მოგერიება" (self-defense / necessary repulsion)
+- "სისხლისსამართლებრივი დევნა საჯარო ბრალდება" (criminal prosecution)
+- "ზიანის ანაზღაურება სამოქალაქო" (civil damages)
+- "ხანდაზმულობის ვადა" (statute of limitations)
+- "შერიგება მხარეთა" (reconciliation between parties)
+
+**Stage 1-2 — Multi-Query Search:**
+
+Each expanded query is searched independently via BOTH vector and full-text search.
+This produces 50+ candidate chunks per query, merged across all queries.
 
 Key requirements:
 - Use `RETRIEVAL_QUERY` task type for query embedding
-- Retrieve top-50 from vector search, top-50 from PostgreSQL full-text
-- Merge results, deduplicate by article ID
-- Rerank using Gemini (or a cross-encoder) to select the 15-20 most relevant articles
+- Retrieve top-50 from vector search PER expanded query
+- Retrieve top-50 from PostgreSQL full-text PER expanded query
+- Merge all results, deduplicate by article ID
+- Rerank using Gemini to select the 20-25 most relevant articles
 - Return chunks with full metadata (code name, article number, hierarchical path)
 - **Always over-retrieve** — it's better to have too many relevant laws than miss one
+- **Include counter-laws** — articles that could work AGAINST the user must also be retrieved
 
 ### 4. Legal Analysis Service (`legal_analysis_service.py`)
 
@@ -208,39 +253,66 @@ The core Gemini integration. This service:
 **Gemini System Prompt for Legal Analysis:**
 
 ```
-You are კანონის ოსტატი (The Master of Law), the most knowledgeable and strategic 
-legal advisor in Georgia. You have encyclopedic knowledge of ALL Georgian legislation 
-and decades of courtroom experience.
+You are კანონის ოსტატი (The Master of Law) — the fiercest, most knowledgeable 
+legal advocate in Georgia. You fight for the user's rights with every legal 
+tool available.
+
+YOUR MISSION:
+Every person deserves adequate legal defense — regardless of income. You exist 
+to ensure no Georgian citizen walks into court unprepared or undefended. You 
+think like the best criminal defense lawyer in the country, but you explain 
+everything so a regular person can understand and use it.
 
 YOUR ROLE:
-- You serve as a personal legal advisor to ordinary Georgian citizens
-- You ALWAYS advocate for the user's best interest
-- You find the MOST FAVORABLE legal interpretation for the user
-- You identify EVERY applicable law, defense, and legal strategy
+- You are the user's ADVOCATE, not a neutral observer
+- You find EVERY applicable defense, procedural right, and mitigating factor
+- You identify the MOST FAVORABLE legal interpretation for the user
+- You think adversarially — what would the prosecution argue, and how do you counter it?
 - You explain everything in simple, everyday Georgian language — no legalese
+- You are honest: if the law is not in the user's favor, you say so clearly,
+  but you STILL look for the best possible outcome
 
 CRITICAL RULES:
-1. EVERY claim you make MUST cite a specific Georgian law article 
-   (e.g., "სამოქალაქო კოდექსის მუხლი 316")
+1. EVERY claim MUST cite a specific Georgian law article 
+   (e.g., "სისხლის სამართლის კოდექსი, მუხლი 11" or "კონსტიტუციის მუხლი 42")
 2. NEVER fabricate or guess law articles — use ONLY the provided context
 3. If you're unsure about a specific article, say so explicitly
-4. Always present MULTIPLE legal strategies ranked from best to worst
-5. For each strategy, explain: success probability, risks, required steps, timeline
-6. Always mention relevant statutes of limitation (ხანდაზმულობის ვადა)
-7. When criminal charges are possible, ALWAYS identify potential defenses
-8. Distinguish between what the law says and what courts typically decide
+4. Always present MULTIPLE defense strategies ranked from strongest to weakest
+5. For each strategy: success likelihood, risks, required steps, timeline, costs
+6. Always check: statute of limitations (ხანდაზმულობის ვადა), procedural deadlines
+7. For criminal cases ALWAYS identify:
+   - All possible defenses (self-defense, necessity, insanity, provocation, etc.)
+   - Procedural violations by investigation/prosecution
+   - Rights of the accused that may have been violated
+   - Mitigating circumstances that reduce sentencing
+   - Possibility of plea bargain (საპროცესო შეთანხმება)
+   - Alternative sentencing options (probation, community service, fine)
+8. Distinguish between what the law says vs. what courts typically decide
+9. When the user faces criminal charges, treat this as URGENT — prioritize 
+   immediate rights (right to silence, right to lawyer, detention limits)
+10. ALWAYS present counter-laws — articles that work AGAINST the user. 
+    The user must see the full realistic picture: what the prosecution will cite,
+    what aggravating circumstances exist, what maximum penalties apply. 
+    An unprepared client is a losing client. Show dangers first, then the defense.
 
 RESPONSE STRUCTURE:
-1. 📋 SITUATION SUMMARY — Restate the user's situation in clear terms
-2. ⚖️ APPLICABLE LAWS — List all relevant articles with explanations
-3. 🛡️ RECOMMENDED STRATEGY — The optimal legal approach for the user
-4. 📊 ALTERNATIVE STRATEGIES — Other options ranked by favorability  
-5. ⚠️ RISKS & WARNINGS — What could go wrong
-6. 📅 NEXT STEPS — Concrete actions the user should take, with deadlines
-7. 📚 FULL CITATIONS — Complete list of all referenced law articles
+1. 📋 SITUATION SUMMARY — Restate the user's situation clearly
+2. ⚖️ APPLICABLE LAWS — Every relevant article with plain-language explanation
+3. 🛡️ PRIMARY DEFENSE STRATEGY — The strongest approach for the user
+4. 📊 ALTERNATIVE STRATEGIES — Other options ranked by strength
+5. ⚔️ PROSECUTION'S LIKELY ARGUMENTS — What the other side will say (and how to counter)
+6. ⚠️ RISKS & HONEST ASSESSMENT — What could go wrong, realistic probabilities
+7. 📅 IMMEDIATE NEXT STEPS — What to do RIGHT NOW, with deadlines
+8. 📚 FULL CITATIONS — Complete list of all referenced law articles with official matsne.gov.ge links
 
 LANGUAGE: Respond in Georgian (ქართული) by default. Switch to English 
 if the user writes in English.
+
+CRITICAL DISCLAIMER (include at the end of every response):
+"ეს არის AI-ის მიერ გენერირებული იურიდიული ინფორმაცია, არა ოფიციალური 
+იურიდიული კონსულტაცია. სერიოზულ შემთხვევებში აუცილებლად მიმართეთ ადვოკატს."
+("This is AI-generated legal information, not official legal advice. 
+In serious cases, always consult a licensed lawyer.")
 ```
 
 ### 5. Citation Service (`citation_service.py`)
@@ -251,6 +323,167 @@ After Gemini generates a response, this service:
 3. Fetches the full article text for each citation
 4. Flags any citations that couldn't be verified
 5. Appends verified citation details to the response
+
+### 6. Context Caching (`context_cache_service.py`)
+
+**Cost Optimization:** Vertex AI supports cached content for Gemini. Use this to avoid
+resending the system prompt + retrieved law chunks on every conversation turn.
+
+**How it works:**
+```
+Turn 1 (first message):
+  → Build context: system prompt + expanded queries + retrieved law chunks
+  → Create a Vertex AI CachedContent with TTL = 30 minutes
+  → Send user message referencing the cached context
+  → Store cache_id in the conversation session
+
+Turn 2+ (follow-up messages):
+  → Reuse the same cache_id (system prompt + law chunks already cached)
+  → Send ONLY the new user message + previous Q&A pairs
+  → If user changes topic → invalidate cache, rebuild with new law chunks
+  → If cache expired (>30 min) → rebuild automatically
+
+Turn with new legal area detected:
+  → Run new query expansion + retrieval for the new topic
+  → Create NEW cached context with merged old + new law chunks
+  → Continue conversation with broader context
+```
+
+**Cost savings:** System prompt (~800 tokens) + law chunks (~5,000 tokens) are sent once,
+not repeated on every turn. For a 10-turn conversation, this saves ~50,000 input tokens.
+
+**Implementation:**
+```python
+from google.cloud import aiplatform
+from vertexai.generative_models import GenerativeModel, Part
+from vertexai.caching import CachedContent
+
+# Create cache on first turn
+cache = CachedContent.create(
+    model_name="gemini-3.1-pro",
+    system_instruction=SYSTEM_PROMPT,
+    contents=[law_chunks_as_parts],
+    ttl=datetime.timedelta(minutes=30),
+    display_name=f"case_{conversation_id}",
+)
+
+# Use cache on subsequent turns
+model = GenerativeModel.from_cached_content(cached_content=cache)
+response = model.generate_content(new_user_message)
+```
+
+### 7. Defense Case Builder (`case_builder_service.py`)
+
+**The core differentiator.** This transforms the app from a chat into a full legal
+defense preparation system. After the conversation and analysis, the user can
+generate a **Defense Case File** — a structured document they can save, print,
+share with a lawyer, or bring to court.
+
+**Case File Structure (saved as a Note):**
+
+```
+═══════════════════════════════════════════════
+  📁 DEFENSE CASE FILE
+  Generated: 2026-05-04
+  Case: [Auto-generated title from situation]
+═══════════════════════════════════════════════
+
+📋 1. FACTS & SITUATION
+   ├── What happened (user's description)
+   ├── When (dates, timeline of events)
+   ├── Where (location)
+   ├── Who is involved (parties)
+   └── Key evidence mentioned
+
+🔍 2. EVIDENCE INVENTORY
+   ├── ✅ Evidence the user HAS
+   ├── ⚠️ Evidence the user NEEDS to collect
+   ├── 📸 Recommended evidence types
+   └── ⏰ Deadlines for evidence preservation
+
+⚖️ 3. APPLICABLE LAWS (with matsne.gov.ge links)
+   ├── 🟢 Laws IN YOUR FAVOR
+   │    ├── [Code], მუხლი [N] — [explanation] → [matsne link]
+   │    └── ...
+   ├── 🔴 Laws AGAINST YOU (prosecution will use)
+   │    ├── [Code], მუხლი [N] — [explanation] → [matsne link]
+   │    └── ...
+   └── 🟡 NEUTRAL / PROCEDURAL
+        ├── [Code], მუხლი [N] — [explanation] → [matsne link]
+        └── ...
+
+🛡️ 4. DEFENSE STRATEGIES (ranked)
+   ├── Strategy 1: [name] — Success: [%], Risk: [level]
+   │    ├── Legal basis: [articles]
+   │    ├── How it works: [plain explanation]
+   │    ├── What you need: [evidence/witnesses]
+   │    └── Risks: [what could go wrong]
+   ├── Strategy 2: ...
+   └── Strategy 3: ...
+
+⚔️ 5. PROSECUTION'S EXPECTED ARGUMENTS
+   ├── Argument 1: [what they'll say] → Counter: [your response]
+   ├── Argument 2: ...
+   └── Maximum penalty if convicted: [sentence range]
+
+📅 6. ACTION CHECKLIST (with deadlines)
+   ├── □ [Immediate] Right to remain silent — exercise now
+   ├── □ [Within 48h] File complaint at police station
+   ├── □ [Within 3 days] Collect medical evidence
+   ├── □ [Within 1 month] Statute of limitations for [X]
+   └── □ [Before court] Prepare witness statements
+
+👤 7. IF YOU HIRE A LAWYER — BRIEF
+   ├── Key points to tell your lawyer
+   ├── Questions to ask
+   └── Documents to bring to first meeting
+
+📚 8. FULL LAW CITATIONS
+   └── Complete list with matsne.gov.ge URLs
+```
+
+**How it works:**
+1. User has a conversation (chat mode)
+2. At any point, user taps "📁 Build Case File" button
+3. Backend sends entire conversation + all retrieved law chunks to Gemini
+4. Gemini generates the structured case file using the template above
+5. Case file is saved as a persistent Note that user can:
+   - Edit and annotate
+   - Share (export as PDF/text)
+   - Update as the case develops
+   - Show to a lawyer
+
+**Credit cost:** Building a case file = 3 credits (it's a comprehensive analysis)
+
+**Database model:**
+
+```python
+class CaseFile(Base):
+    __tablename__ = "case_files"
+    
+    id = Column(UUID, primary_key=True)
+    user_id = Column(String, ForeignKey("users.firebase_uid"), nullable=False)
+    conversation_id = Column(UUID, ForeignKey("conversations.id"))
+    title = Column(String(500), nullable=False)
+    
+    # Structured sections (JSONB for flexibility)
+    facts = Column(JSONB)              # Section 1: situation facts
+    evidence = Column(JSONB)           # Section 2: evidence inventory
+    applicable_laws = Column(JSONB)    # Section 3: laws for/against/neutral
+    defense_strategies = Column(JSONB) # Section 4: ranked strategies
+    prosecution_args = Column(JSONB)   # Section 5: counter-arguments
+    action_checklist = Column(JSONB)   # Section 6: todo items with deadlines
+    lawyer_brief = Column(JSONB)       # Section 7: lawyer summary
+    citations = Column(JSONB)          # Section 8: full law citations
+    
+    # Status tracking
+    status = Column(String(50), default="draft")  # draft, active, resolved
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, onupdate=utcnow)
+    
+    # User annotations
+    user_notes = Column(Text)          # User's own notes
+```
 
 ---
 
@@ -270,6 +503,8 @@ After Gemini generates a response, this service:
 |--------|---------|-------|
 | Send chat message (AI response) | 1 | The main interaction |
 | Deep legal analysis | 2 | When user explicitly requests detailed analysis |
+| **Build Defense Case File** | **3** | Full structured case document generation |
+| Update existing Case File | 1 | Re-analyze with new facts/evidence |
 | Browse/search laws | 0 | Always free — it's just DB queries |
 | Start conversation | 0 | Free |
 | View conversation history | 0 | Free |
@@ -435,7 +670,7 @@ FIREBASE_SERVICE_ACCOUNT_KEY=./firebase-service-account.json
 GOOGLE_CLOUD_PROJECT=your-project-id
 GOOGLE_CLOUD_LOCATION=us-central1
 GEMINI_MODEL=gemini-3.1-pro
-EMBEDDING_MODEL=text-embedding-005
+EMBEDDING_MODEL=gemini-embedding-001
 
 # Vector Store
 VECTOR_STORE_BACKEND=chroma

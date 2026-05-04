@@ -123,7 +123,7 @@ law_corpus/
 │   │
 │   ├── embedder/
 │   │   ├── __init__.py
-│   │   ├── vertex_embedder.py       # Vertex AI text-embedding-005
+│   │   ├── vertex_embedder.py       # gemini-embedding-001 via google-genai SDK
 │   │   ├── batch_embedder.py        # Batch processing with rate limiting
 │   │   └── embedding_cache.py       # Local cache to avoid re-embedding
 │   │
@@ -348,9 +348,9 @@ class LegalChunk(BaseModel):
 #### 4.1 Vertex AI Embedding Configuration
 
 ```python
-# Use Vertex AI text-embedding-005
-# Model: "text-embedding-005"
-# Dimensionality: 768
+# Use gemini-embedding-001 via google-genai SDK
+# Model: "gemini-embedding-001"
+# Dimensionality: 768 (downscaled from native 3,072)
 # Task types:
 #   - "RETRIEVAL_DOCUMENT" for indexing chunks
 #   - "RETRIEVAL_QUERY" for search queries
@@ -381,7 +381,7 @@ Use **Vertex AI Vector Search** for production and **ChromaDB** for local develo
 **Production (Vertex AI Vector Search):**
 ```python
 # - Create a Vector Search Index with:
-#   - Dimensions: 768 (matching text-embedding-005)
+#   - Dimensions: 768 (matching gemini-embedding-001 output_dimensionality setting)
 #   - Distance: COSINE_DISTANCE
 #   - Shard size: SHARD_SIZE_SMALL (for cost efficiency)
 #   - Update method: STREAM_UPDATE (for real-time updates)
@@ -498,7 +498,7 @@ python -m pipeline.main stats
 GOOGLE_CLOUD_PROJECT=your-project-id
 GOOGLE_CLOUD_LOCATION=us-central1
 VERTEX_AI_API_KEY=your-api-key
-EMBEDDING_MODEL=text-embedding-005
+EMBEDDING_MODEL=gemini-embedding-001
 EMBEDDING_DIMENSIONS=768
 
 # Vector Store

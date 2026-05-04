@@ -63,7 +63,7 @@ class SessionManager:
                 max_keepalive_connections=settings.scrape_max_concurrent,
             ),
             follow_redirects=True,
-            http2=True,
+            http2=False,  # HTTP/1.1 is fine for matsne.gov.ge
         )
         return self
 

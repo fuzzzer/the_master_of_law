@@ -3,9 +3,18 @@ HTML parser for Georgian legal documents from matsne.gov.ge.
 
 Converts raw HTML into structured ``LegalDocument`` objects with
 articles, paragraphs, and metadata properly extracted.
+
+Works directly with matsne.gov.ge CSS classes:
+  - muxlixml   → Article (მუხლი)
+  - tavixml    → Chapter (თავი)
+  - nawilixml  → Part (კარი)
+  - wignixml   → Book (წიგნი)
+  - abzacixml  → Paragraph text
 """
 
 from __future__ import annotations
+
+import re
 
 from bs4 import BeautifulSoup, Tag
 
@@ -15,19 +24,38 @@ from pipeline.models.legal_document import LegalDocument
 from pipeline.models.scrape_result import ContentFormat, ScrapeResult
 from pipeline.parser.base_parser import BaseParser
 from pipeline.parser.metadata_extractor import MetadataExtractor
-from pipeline.parser.structure_extractor import StructureExtractor
-from pipeline.utils.georgian_text import normalise_georgian
+from pipeline.utils.georgian_text import normalise_georgian, normalise_superscripts
 from pipeline.utils.legal_reference_parser import parse_references
 from pipeline.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+# Regex to extract article number and title from muxlixml text
+ARTICLE_RE = re.compile(
+    r"მუხლი\s+(\d+(?:[⁰¹²³⁴⁵⁶⁷⁸⁹]+|\-\d+)?)\s*[.\-–—]?\s*(.*)",
+    re.UNICODE,
+)
+
+CHAPTER_RE = re.compile(
+    r"თავი\s+([IVXLCDM\d]+)\s*[.\-–—]?\s*(.*)",
+    re.UNICODE,
+)
+
+BOOK_RE = re.compile(
+    r"წიგნი\s+([IVXLCDM\d]+)\s*[.\-–—]?\s*(.*)",
+    re.UNICODE,
+)
+
+PART_RE = re.compile(
+    r"კარი\s+([IVXLCDM\d]+)\s*[.\-–—]?\s*(.*)",
+    re.UNICODE,
+)
 
 
 class HtmlLegalParser(BaseParser):
     """Parse HTML legal documents from matsne.gov.ge."""
 
     def __init__(self) -> None:
-        self._structure_extractor = StructureExtractor()
         self._metadata_extractor = MetadataExtractor()
 
     def can_parse(self, result: ScrapeResult) -> bool:
@@ -41,68 +69,21 @@ class HtmlLegalParser(BaseParser):
         """
         Parse a scraped HTML page into a LegalDocument.
 
-        Parameters
-        ----------
-        result : ScrapeResult
-            Raw scrape result containing HTML bytes.
-        seed_meta : dict, optional
-            Pre-populated metadata from the seed list.
+        Uses matsne.gov.ge CSS classes directly:
+          - <p class="muxlixml"> for article headers
+          - <p class="abzacixml"> for article body paragraphs
+          - <p class="tavixml"> for chapter markers
         """
         html_text = result.content.decode(result.encoding, errors="replace")
         soup = BeautifulSoup(html_text, "lxml")
-
-        # Extract main content area
-        body_text = self._extract_body_text(soup)
 
         # Extract metadata
         metadata = self._metadata_extractor.extract(
             html_text, result.document_id, seed_meta,
         )
 
-        # Extract structure
-        nodes = self._structure_extractor.extract(body_text)
-        flat_articles = self._structure_extractor.flatten_articles(nodes)
-
-        # Build article models
-        articles: list[LegalArticle] = []
-        for art_data in flat_articles:
-            content_ka = normalise_georgian(art_data.get("content", ""))
-            article_number = f"მუხლი {art_data['number']}"
-
-            # Parse cross-references
-            refs = parse_references(content_ka)
-            cross_ref_ids = [
-                f"{result.document_id}.article_{r.article_number}"
-                for r in refs
-            ]
-
-            # Build hierarchical article ID
-            parts = [result.document_id]
-            if art_data.get("book"):
-                parts.append(f"book_{art_data['book'].split('.')[0].strip()}")
-            if art_data.get("chapter"):
-                parts.append(f"chapter_{art_data['chapter'].split('.')[0].strip()}")
-            parts.append(f"article_{art_data['number']}")
-            article_id = ".".join(parts)
-
-            # Parse paragraphs from content
-            paragraphs = self._parse_paragraphs(content_ka)
-
-            articles.append(LegalArticle(
-                article_id=article_id,
-                document_id=result.document_id,
-                code_name=metadata.title_ka,
-                book=art_data.get("book"),
-                part=art_data.get("part"),
-                chapter=art_data.get("chapter"),
-                article_number=article_number,
-                article_title=art_data.get("title") or None,
-                content_ka=content_ka,
-                paragraphs=paragraphs,
-                cross_references=cross_ref_ids,
-                effective_date=metadata.effective_date,
-                is_repealed="გაუქმებული" in content_ka,
-            ))
+        # Extract articles using CSS classes
+        articles = self._extract_articles_from_classes(soup, result.document_id, metadata)
 
         logger.info(
             "Parsed %s: %d articles extracted",
@@ -115,34 +96,155 @@ class HtmlLegalParser(BaseParser):
             raw_html=html_text,
         )
 
-    # ── Private helpers ──────────────────────────────────────
+    def _extract_articles_from_classes(
+        self,
+        soup: BeautifulSoup,
+        document_id: str,
+        metadata: DocumentMetadata,
+    ) -> list[LegalArticle]:
+        """
+        Walk all <p> elements in order. Use CSS classes to detect
+        structural markers (book, chapter, article) and collect
+        paragraph text for each article.
+        """
+        articles: list[LegalArticle] = []
 
-    @staticmethod
-    def _extract_body_text(soup: BeautifulSoup) -> str:
-        """
-        Extract the main legal text from the page, stripping navigation,
-        headers, footers, and other non-content elements.
-        """
-        # matsne.gov.ge typically wraps law content in specific containers
-        content_div = (
-            soup.find("div", {"id": "documentText"})
-            or soup.find("div", class_="law-body")
-            or soup.find("div", class_="document-content")
-            or soup.find("article")
-            or soup.find("main")
+        # Current hierarchy
+        current_book: str | None = None
+        current_part: str | None = None
+        current_chapter: str | None = None
+
+        # Current article being built
+        current_article_num: str | None = None
+        current_article_title: str | None = None
+        current_paragraphs: list[str] = []
+
+        # Walk ALL <p> tags in document order
+        for p in soup.find_all("p"):
+            classes = p.get("class", [])
+            text = normalise_georgian(p.get_text(strip=True))
+            if not text:
+                continue
+
+            if "wignixml" in classes:
+                # Book marker
+                self._flush_article(
+                    articles, document_id, metadata,
+                    current_article_num, current_article_title,
+                    current_paragraphs, current_book, current_part, current_chapter,
+                )
+                current_article_num = None
+                current_paragraphs = []
+                m = BOOK_RE.search(text)
+                current_book = f"{m.group(1)}. {m.group(2).strip()}" if m else text
+
+            elif "nawilixml" in classes:
+                # Part marker
+                self._flush_article(
+                    articles, document_id, metadata,
+                    current_article_num, current_article_title,
+                    current_paragraphs, current_book, current_part, current_chapter,
+                )
+                current_article_num = None
+                current_paragraphs = []
+                m = PART_RE.search(text)
+                current_part = f"{m.group(1)}. {m.group(2).strip()}" if m else text
+
+            elif "tavixml" in classes:
+                # Chapter marker
+                self._flush_article(
+                    articles, document_id, metadata,
+                    current_article_num, current_article_title,
+                    current_paragraphs, current_book, current_part, current_chapter,
+                )
+                current_article_num = None
+                current_paragraphs = []
+                m = CHAPTER_RE.search(text)
+                current_chapter = f"{m.group(1)}. {m.group(2).strip()}" if m else text
+
+            elif "muxlixml" in classes:
+                # Article header — flush previous article, start new one
+                self._flush_article(
+                    articles, document_id, metadata,
+                    current_article_num, current_article_title,
+                    current_paragraphs, current_book, current_part, current_chapter,
+                )
+                m = ARTICLE_RE.search(text)
+                if m:
+                    current_article_num = normalise_superscripts(m.group(1))
+                    current_article_title = m.group(2).strip() or None
+                else:
+                    current_article_num = text
+                    current_article_title = None
+                current_paragraphs = []
+
+            elif "abzacixml" in classes:
+                # Paragraph text — append to current article
+                if current_article_num is not None:
+                    current_paragraphs.append(text)
+
+        # Flush last article
+        self._flush_article(
+            articles, document_id, metadata,
+            current_article_num, current_article_title,
+            current_paragraphs, current_book, current_part, current_chapter,
         )
-        if content_div:
-            return content_div.get_text(separator="\n", strip=True)
 
-        # Fallback: use the whole body
-        body = soup.find("body")
-        if body:
-            # Remove script/style/nav elements
-            for tag in body.find_all(["script", "style", "nav", "footer", "header"]):
-                tag.decompose()
-            return body.get_text(separator="\n", strip=True)
+        return articles
 
-        return soup.get_text(separator="\n", strip=True)
+    def _flush_article(
+        self,
+        articles: list[LegalArticle],
+        document_id: str,
+        metadata: DocumentMetadata,
+        article_num: str | None,
+        article_title: str | None,
+        paragraph_texts: list[str],
+        book: str | None,
+        part: str | None,
+        chapter: str | None,
+    ) -> None:
+        """Build a LegalArticle from accumulated data and append to list."""
+        if article_num is None:
+            return
+
+        content_ka = "\n".join(paragraph_texts).strip()
+        article_number = f"მუხლი {article_num}"
+
+        # Parse cross-references
+        refs = parse_references(content_ka)
+        cross_ref_ids = [
+            f"{document_id}.article_{r.article_number}"
+            for r in refs
+        ]
+
+        # Build hierarchical article ID
+        parts = [document_id]
+        if book:
+            parts.append(f"book_{book.split('.')[0].strip()}")
+        if chapter:
+            parts.append(f"chapter_{chapter.split('.')[0].strip()}")
+        parts.append(f"article_{article_num}")
+        article_id = ".".join(parts)
+
+        # Parse numbered paragraphs from the collected text
+        paragraphs = self._parse_paragraphs(content_ka)
+
+        articles.append(LegalArticle(
+            article_id=article_id,
+            document_id=document_id,
+            code_name=metadata.title_ka,
+            book=book,
+            part=part,
+            chapter=chapter,
+            article_number=article_number,
+            article_title=article_title,
+            content_ka=content_ka,
+            paragraphs=paragraphs,
+            cross_references=cross_ref_ids,
+            effective_date=metadata.effective_date,
+            is_repealed="გაუქმებული" in content_ka,
+        ))
 
     @staticmethod
     def _parse_paragraphs(content: str) -> list[ArticleParagraph]:
@@ -155,8 +257,6 @@ class HtmlLegalParser(BaseParser):
           ა) text...
           ბ) text...
         """
-        import re
-
         paragraphs: list[ArticleParagraph] = []
         lines = content.split("\n")
         current_num: str | None = None
@@ -171,7 +271,6 @@ class HtmlLegalParser(BaseParser):
             let_m = letter_pattern.match(stripped)
 
             if num_m:
-                # Flush previous paragraph
                 if current_num is not None and current_lines:
                     paragraphs.append(ArticleParagraph(
                         number=current_num,
@@ -190,7 +289,6 @@ class HtmlLegalParser(BaseParser):
             else:
                 current_lines.append(stripped)
 
-        # Flush last paragraph
         if current_num is not None and current_lines:
             paragraphs.append(ArticleParagraph(
                 number=current_num,

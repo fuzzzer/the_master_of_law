@@ -60,8 +60,8 @@ class Settings(BaseSettings):
         description="Vertex AI API key (if using key-based auth)",
     )
     embedding_model: str = Field(
-        default="text-embedding-005",
-        description="Vertex AI embedding model name",
+        default="gemini-embedding-001",
+        description="Gemini embedding model name (via Google Gen AI SDK)",
     )
     embedding_dimensions: int = Field(
         default=768,
@@ -136,7 +136,7 @@ class Settings(BaseSettings):
         default=100,
         ge=1,
         le=250,
-        description="Number of texts per Vertex AI embedding request",
+        description="Number of texts per embedding API request",
     )
     embedding_requests_per_minute: int = Field(
         default=600,
