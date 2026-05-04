@@ -31,7 +31,7 @@ For specific tasks, also load:
 - **Step 1** — Law corpus: 9,450 chunks in ChromaDB, 12 Georgian legal codes
 - **Step 2** — Backend: 25 endpoints, 10 services, 124 tests, Docker ready
 - **Step 3a** — Design system: DESIGN.md created, case-centric architecture defined
-- **Flutter rename** — `fuzzystarter` → `master_of_law`, bundle: `ge.fuzzycore.masteroflaw`
+- **Flutter rename** — `themasteroflaw` → `master_of_law`, bundle: `ge.fuzzycore.masteroflaw`
 
 ### In Progress 🔄
 - Generating visual mockups via open-design (chat screen, case builder, laws, etc.)

@@ -28,7 +28,7 @@
 - ⬜ Extract design tokens → Flutter ui_kit
 
 ### Step 3b — Flutter App
-- ✅ Renamed: `fuzzystarter` → `master_of_law` (`ge.fuzzycore.masteroflaw`)
+- ✅ Renamed: `themasteroflaw` → `master_of_law` (`ge.fuzzycore.masteroflaw`)
 - ✅ 5-tab navigation: Chat, Cases ⭐, Laws, Notes, Profile
 - ✅ Localization: Georgian (ka) + English (en)
 - ⬜ Inject design tokens into ui_kit

@@ -51,7 +51,7 @@
 
 ### 3b. Flutter App Setup
 - ✅ `fuzzy_starter` project cloned and configured
-- ✅ Renamed: `fuzzystarter` → `master_of_law`
+- ✅ Renamed: `themasteroflaw` → `master_of_law`
 - ✅ Bundle ID: `ge.fuzzycore.masteroflaw` (+ `.stg`, `.dev` flavors)
 - ✅ Class names: `MasterOfLawApp`, `MasterOfLawHttpClient`, `MasterOfLawLocalizations`
 - ✅ All barrel exports regenerated via `./exp.sh`

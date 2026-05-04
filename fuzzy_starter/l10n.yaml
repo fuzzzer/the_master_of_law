@@ -1,6 +1,0 @@
-arb-dir: lib/src/core/l10n
-template-arb-file: app_en.arb
-output-localization-file: fuzzystarter_localizations.dart
-output-class: FuzzystarterLocalizations
-output-dir: lib/src/core/l10n/generated_localizations
-synthetic-package: false

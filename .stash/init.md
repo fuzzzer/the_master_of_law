@@ -41,7 +41,7 @@ Built a production-grade backend with 25 endpoints, 10 services, 5-stage RAG pip
 
 ### What's Done
 - Comprehensive DESIGN.md with case-centric architecture
-- Flutter app renamed: `fuzzystarter` → `master_of_law` (`ge.fuzzycore.masteroflaw`)
+- Flutter app renamed: `themasteroflaw` → `master_of_law` (`ge.fuzzycore.masteroflaw`)
 - 5-tab navigation defined: Chat, Cases (★), Laws, Notes, Profile
 - Feature roadmap with 6 phases
 - User needs analysis
