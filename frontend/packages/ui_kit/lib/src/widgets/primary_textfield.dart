@@ -219,9 +219,9 @@ class _PrimaryTextFieldState extends State<PrimaryTextField> with SingleTickerPr
 
     final labelStyle = widget.labelStyle ?? uiTextStyles.body16.copyWith(color: uiColors.backgroundSecondaryColor);
     final floatingLabelStyle =
-        widget.floatingLabelStyle ?? uiTextStyles.bodySmall12.copyWith(color: uiColors.backgroundSecondaryColor);
+        widget.floatingLabelStyle ?? uiTextStyles.body14.copyWith(color: uiColors.backgroundSecondaryColor);
     final valueStyle = widget.valueStyle ?? uiTextStyles.body16.copyWith(color: uiColors.primaryColor);
-    final errorStyle = widget.errorStyle ?? uiTextStyles.bodySmall12.copyWith(color: uiColors.errorColor);
+    final errorStyle = widget.errorStyle ?? uiTextStyles.body14.copyWith(color: uiColors.errorColor);
 
     final width = widget.width ?? double.maxFinite;
     final hasPrefixWidget = widget.prefixWidget != null;

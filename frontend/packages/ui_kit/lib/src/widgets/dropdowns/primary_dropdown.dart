@@ -128,7 +128,7 @@ class _PrimaryDropdownState<T> extends State<PrimaryDropdown<T>> with SingleTick
                     padding: uiFormStyles.widgetContentPadding,
                     child: Text(
                       item.label,
-                      style: uiTextStyles.bodySmall12.copyWith(
+                      style: uiTextStyles.body14.copyWith(
                         color: isSelected ? uiColors.primaryColor : uiColors.backgroundPrimaryColor,
                       ),
                     ),

@@ -71,7 +71,7 @@ class DropdownOverlay<T> {
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
                             child: Text(
                               item.label,
-                              style: uiTextStyles.bodySmall12.copyWith(
+                              style: uiTextStyles.body14.copyWith(
                                 color: isSelected ? uiColors.primaryColor : uiColors.backgroundSecondaryColor,
                               ),
                             ),

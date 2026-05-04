@@ -6,8 +6,8 @@ publish_to: none
 homepage:
 
 environment:
-  sdk: 3.8.0
-  flutter: 3.32.0
+  sdk: ^3.8.0
+  flutter: ^3.32.0
 
 dependencies:
   flutter:
@@ -17,6 +17,7 @@ dependencies:
   carousel_slider: 5.0.0
   flutter_svg: 2.1.0
   intl: 0.20.2
+  google_fonts: 6.2.1
   shimmer: 3.0.0
 
 dev_dependencies:
