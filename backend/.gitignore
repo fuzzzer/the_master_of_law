@@ -1,0 +1,78 @@
+# --- Project-Specific Generated Content ---
+# Ignore all generated book data, images, state files, and prompts.
+/storage/
+/stories/
+.config/
+
+# Ignore custom user directories for temporary work.
+/stash/
+/.0_stash/
+/scripts/data_prep/stories/
+
+# Ignore outputs from custom scripts.
+/scripts/outputs/
+
+
+# --- Environment Variables ---
+# Ignore environment variable files.
+.env
+.env.*
+!.env.example
+
+
+# --- Python Virtual Environments ---
+# Ignore common virtual environment directories.
+venv/
+env/
+.venv/
+.env/
+.tox/
+
+
+# --- Python Artifacts ---
+# Ignore Python cache files and compiled/optimized bytecode.
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignore distribution and build artifacts.
+/build/
+/dist/
+*.egg-info/
+*.egg
+
+# Ignore installer logs.
+pip-log.txt
+pip-delete-this-directory.txt
+
+
+# --- Testing & Coverage ---
+# Ignore testing-related cache and report files.
+.pytest_cache/
+.coverage
+.coverage.*
+/htmlcov/
+nosetests.xml
+coverage.xml
+
+
+# --- IDE / Editor Files ---
+# Ignore configurations for common editors.
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+
+
+# --- Operating System Files ---
+# Ignore macOS and Windows specific files.
+.DS_Store
+Thumbs.db
+
+
+# --- Log Files ---
+# Ignore general log files.
+*.log
+*.log.*

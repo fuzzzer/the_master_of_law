@@ -1,0 +1,128 @@
+# ═══════════════════════════════════════════════════════════════
+#  THE MASTER OF LAW — Docker Compose (Production)
+#
+#  SECURITY MODEL:
+#  ┌─────────────────────────────────────────────────────────┐
+#  │  VPS Host Machine                                       │
+#  │                                                         │
+#  │  ┌───────────────── mol_internal network ──────────────┐│
+#  │  │                                                     ││
+#  │  │  ┌─────────┐    ┌────────────┐    ┌─────────┐      ││
+#  │  │  │   API   │───▶│ PostgreSQL │    │  Redis  │      ││
+#  │  │  │ :8000   │    │ :5432      │    │ :6379   │      ││
+#  │  │  │ (exposed│    │ (internal  │    │(internal│      ││
+#  │  │  │  to host│    │  only, NO  │    │ only,NO │      ││
+#  │  │  │  only)  │    │  port map) │    │port map)│      ││
+#  │  │  └─────────┘    └────────────┘    └─────────┘      ││
+#  │  │       │                                             ││
+#  │  └───────┼─────────────────────────────────────────────┘│
+#  │          │ 127.0.0.1:8000                               │
+#  │          ▼                                              │
+#  │    ┌───────────┐                                        │
+#  │    │  Nginx /  │  ← reverse proxy, TLS termination     │
+#  │    │  Caddy    │  ← exposed to internet on :443        │
+#  │    └───────────┘                                        │
+#  └─────────────────────────────────────────────────────────┘
+#
+#  - PostgreSQL: ZERO port exposure. Only API can reach it.
+#  - Redis: ZERO port exposure. Only API can reach it.
+#  - API: Bound to 127.0.0.1:8000 — only reachable from the
+#    host machine. Put Nginx/Caddy in front for HTTPS.
+# ═══════════════════════════════════════════════════════════════
+
+services:
+  api:
+    build: .
+    # SECURITY: Only bind to localhost — not 0.0.0.0!
+    # A reverse proxy (Nginx/Caddy) handles TLS and forwards here.
+    ports:
+      - "127.0.0.1:8000:8000"
+    env_file: .env
+    environment:
+      # Override DB/Redis URLs to use Docker internal hostnames
+      DATABASE_URL: postgresql+asyncpg://mol_user:${POSTGRES_PASSWORD}@postgres:5432/master_of_law
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CHROMA_PERSIST_DIR: /app/law_corpus_data/chroma
+    volumes:
+      # Mount the pre-built law corpus as READ-ONLY
+      - ../law_corpus/data:/app/law_corpus_data:ro
+      # Mount the GCP service account key as READ-ONLY
+      # Adjust path to wherever you placed the key on the VPS
+      - /etc/master-of-law/gcp-sa-key.json:/app/gcp-sa-key.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - mol_internal
+    restart: unless-stopped
+    # Drop all capabilities, run as non-root
+    security_opt:
+      - no-new-privileges:true
+    read_only: false  # App needs /tmp for chromadb
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: master_of_law
+      POSTGRES_USER: mol_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Reject connections from non-internal networks
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mol_user -d master_of_law"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    # ╔═══════════════════════════════════════════════════════╗
+    # ║  NO 'ports:' BLOCK — PostgreSQL is INVISIBLE to     ║
+    # ║  the host machine and the internet. Only the API    ║
+    # ║  container can reach it via mol_internal network.    ║
+    # ╚═══════════════════════════════════════════════════════╝
+    networks:
+      - mol_internal
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+  redis:
+    image: redis:7-alpine
+    # Password-protected, append-only for durability
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+      --save ""
+      --appendonly no
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # ╔═══════════════════════════════════════════════════════╗
+    # ║  NO 'ports:' BLOCK — Redis is INVISIBLE to the      ║
+    # ║  host and internet. Internal only.                   ║
+    # ╚═══════════════════════════════════════════════════════╝
+    networks:
+      - mol_internal
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  mol_internal:
+    driver: bridge
+    # Private network — only containers in this compose file
+    # can communicate. No external access.
+    internal: false  # API needs outbound for Vertex AI calls
+
+volumes:
+  pgdata:
+    # Named volume — persisted across container restarts
+    # Back this up regularly!

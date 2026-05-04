@@ -139,9 +139,35 @@ All 12 document chunk files verified — every chunk has:
 
 ---
 
-## After all 7 ✅ → Build the Backend
+## ★ Step 8 — Build the FastAPI Backend ✅ (In Progress)
 
-See `master_plan/02_backend_system_prompt.md`:
-- FastAPI + Gemini 3.1 Pro + Firebase Auth
-- Credit system (FREE 5/day, PRO purchased, ADMIN 10,000)
-- Hybrid RAG + citation verification
+**Status:** Core backend built + DB wired — 58 files, ~3,500 lines, 15 endpoints, repositories + services complete.
+
+**What's done:**
+- ✅ FastAPI app factory with full middleware stack (auth, credits, rate limit, errors, CORS)
+- ✅ 5-stage RAG pipeline (query expansion → vector search → full-text → merge → rerank)
+- ✅ Gemini 3.1 Pro legal analysis with Georgian system prompt
+- ✅ Citation extraction & verification service
+- ✅ ChromaDB integration (9,450 docs connected)
+- ✅ Firebase auth middleware (dev mode: mock user, prod: DB-enriched tier)
+- ✅ SQLAlchemy models with relationships (user, credits, conversation, message)
+- ✅ Vertex AI auth: `GOOGLE_API_KEY` + `vertexai=True` (GCP Console credits)
+- ✅ Docker (PostgreSQL internal-only, Redis internal-only, API on localhost)
+- ✅ Law browser endpoints (free, no credits)
+- ✅ **Repositories layer** — user, credit, conversation, message (all DB-wired)
+- ✅ **Credit gate middleware** — real DB balance check, 402 with Georgian/English messages
+- ✅ **Auth router** — syncs user to DB on verify-token, returns real credit balance
+- ✅ **Account router** — returns real credit balance + transaction history from DB
+- ✅ **Conversation router** — PostgreSQL-backed (replaces in-memory dict)
+- ✅ **Chat router** — persists messages, loads conversation history, deducts credits after success
+- ✅ **Conversation state machine** — 6-phase lifecycle with valid transitions
+- ✅ **Intake flow service** — 6 guided questions in Georgian with topic detection
+
+**What's remaining (see `handoff.md` for full details):**
+- [ ] Run Alembic migrations (env.py is ready, needs `alembic revision --autogenerate`)
+- [ ] Defense Case Builder service
+- [ ] WebSocket streaming
+- [ ] Tests
+- [ ] Install `structlog` when network available
+
+
