@@ -1,18 +1,18 @@
-# 🤖 AI Agent Guide — The Master of Law Backend
+# 🤖 AI Agent Guide — The Master of Law
 
 > **Read this first.** This document gives you everything you need to work on the codebase without reading every file. It's structured for fast onboarding.
+> **Last updated:** 2026-05-05
 
 ---
 
 ## 1. What Is This Project?
 
-**კანონის ოსტატი (The Master of Law)** — an AI-powered legal advocate that helps Georgian citizens defend themselves in court. The backend is a FastAPI app that:
+**კანონის ოსტატი (The Master of Law)** — an AI-powered legal advocate that helps Georgian citizens defend themselves in court. The system consists of:
 
-- Accepts user legal questions via REST/WebSocket
-- Retrieves relevant Georgian law articles via a 5-stage RAG pipeline (ChromaDB + Gemini)
-- Generates grounded legal analysis with citations
-- Manages user credits and conversation state
-- Serves a Flutter mobile app
+- **Law Corpus** (✅ DONE) — 9,450 chunks of Georgian legislation in ChromaDB
+- **Backend** (✅ DONE) — FastAPI with 5-stage RAG pipeline, Gemini 3.1 Pro, 25 endpoints
+- **Flutter App** (🔄 IN PROGRESS) — Mobile app with case-centric architecture
+- **Design System** (🔄 IN PROGRESS) — Generating via open-design, injecting into Flutter ui_kit
 
 **Working directory:** `/Users/fuzzzer/programming/fuzzzy_organisation/the_master_of_law/`
 
@@ -22,29 +22,40 @@
 
 ```
 the_master_of_law/
-├── master_plan/                      # Design specs (READ-ONLY reference)
-│   └── 02_backend_system_prompt.md   # Full 863-line backend spec
+├── master_plan/                      # Design specs + roadmap
+│   ├── 01_law_corpus_agent_prompt.md # ✅ Step 1 spec (DONE)
+│   ├── 02_backend_system_prompt.md   # ✅ Step 2 spec (DONE)
+│   ├── 03_design_system_prompt.md    # 🔄 Step 3 spec (IN PROGRESS)
+│   ├── 04_feature_roadmap.md         # Feature roadmap (6 phases) + user needs
+│   └── design/                       # Design assets + open-design brief
 ├── law_corpus/                       # ✅ DONE — DO NOT MODIFY
 │   └── data/chroma/                  # ChromaDB: 9,450 chunks, "georgian_laws"
-├── backend/                          # ★ FastAPI backend (WORK HERE)
+├── backend/                          # ✅ DONE — FastAPI backend
 │   ├── app/
 │   │   ├── main.py                   # App factory — entry point
 │   │   ├── config/                   # settings.py, constants.py
 │   │   ├── models/                   # SQLAlchemy ORM models
 │   │   ├── schemas/                  # Pydantic request/response DTOs
 │   │   ├── routes/                   # FastAPI routers (REST + WebSocket)
-│   │   ├── services/                 # Business logic layer
-│   │   ├── repositories/            # Data access layer (DB queries)
+│   │   ├── services/                 # Business logic layer (10 services)
+│   │   ├── repositories/            # Data access layer (5 repos)
 │   │   ├── middleware/               # Auth, credits, rate limit, errors
-│   │   ├── integrations/            # External services (Gemini, ChromaDB, Firebase)
+│   │   ├── integrations/            # Gemini, ChromaDB, Firebase
+│   │   ├── prompts/                  # Typed prompt templates
 │   │   └── utils/                    # Logger, security, Georgian text utils
-│   ├── alembic/                      # DB migrations
-│   ├── tests/                        # Pytest test suite (90 tests)
-│   ├── docker-compose.yml            # Production deployment
-│   └── pyproject.toml                # Dependencies
+│   ├── tests/                        # 124 tests passing
+│   └── docker-compose.yml            # Production deployment
+├── fuzzy_starter/                    # 🔄 Flutter app (package: master_of_law)
+│   ├── lib/src/app/                  # MasterOfLawApp entry point
+│   ├── lib/src/core/                 # DI, HTTP clients, l10n, extensions
+│   ├── packages/ui_kit/              # Design system (colors, typography, themes)
+│   └── packages/open-design/         # Open-design tool (cloned)
 ├── AI_GUIDE.md                       # ★ THIS FILE
-├── handoff.md                        # Detailed handoff with full status
-└── current_steps.md                  # Pipeline progress tracker
+├── current_steps.md                  # Overall progress tracker
+├── RESUME_PROMPT.md                  # Session resume prompt
+├── handoff.md                        # Backend handoff document
+├── startup_handoff.md                # Backend startup guide
+└── PRODUCTION_SETUP.md               # VPS deployment guide
 ```
 
 ---

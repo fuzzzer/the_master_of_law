@@ -30,6 +30,12 @@ But intent without precision produces garbage. These skill files are **executabl
 ├── README.md                          ← You are here
 ├── init_prompt.md                     ← 🔥 THE MASTER PROMPT — initializes all skills
 │
+├── context/                           ← 📍 PROJECT CONTEXT (load by task)
+│   ├── project_status.md             ← ★ Always read first — current state
+│   ├── backend.md                     ← Backend architecture, endpoints, patterns
+│   ├── law_corpus.md                  ← Law data: 9,450 chunks, ChromaDB schema
+│   └── production.md                  ← VPS deployment guide (Caddy, Docker, backups)
+│
 ├── code_architect/                    ← System design + code quality superpowers
 │   └── context.md                     ← Deep patterns, anti-patterns, templates
 │
@@ -75,11 +81,15 @@ Then read the relevant skill context from `.agents/<skill>/context.md`.
 
 | Task | Load These Skills |
 |------|------------------|
-| Writing new backend code | `code_architect` |
-| Debugging a production issue | `debug_surgeon` |
-| Improving search/retrieval quality | `rag_specialist` |
-| Deploying / hardening for production | `security_hardener` |
-| Working with Georgian law content | `georgian_legal` |
+| **Starting any task** | `context/project_status.md` (always first) |
+| Working on the backend | `context/backend.md` + `code_architect` |
+| Working on Flutter app | `fuzzy_starter/.agents/orchestrator.md` |
+| Working on design system | `packages/open-design/design-systems/kanonis-ostati/DESIGN.md` |
+| Debugging a production issue | `debug_surgeon` + `context/backend.md` |
+| Improving search/retrieval quality | `rag_specialist` + `context/law_corpus.md` |
+| Deploying / hardening for production | `security_hardener` + `context/production.md` |
+| Working with Georgian law content | `georgian_legal` + `context/law_corpus.md` |
+| Feature planning | `master_plan/04_feature_roadmap.md` |
 | Improving your AI collaboration | `context_engineer` |
 | **Any specific task** | Use a workflow from `workflows/` |
 | **Full context (new agent onboarding)** | `init_prompt.md` (loads all) |
