@@ -22,7 +22,7 @@ class LoggingInterceptor extends Interceptor {
           '\n';
 
       logger.i(log);
-      AppLogger.logManager.saveLog(log);
+      AppLogger.logManager?.saveLog(log);
     }
 
     try {
@@ -34,7 +34,7 @@ class LoggingInterceptor extends Interceptor {
           '\n';
 
       logger.i(log);
-      AppLogger.logManager.saveLog(log);
+      AppLogger.logManager?.saveLog(log);
     } catch (ex) {
       logger.i('ERROR: Could Not log REQUEST $ex');
     }
@@ -58,7 +58,7 @@ class LoggingInterceptor extends Interceptor {
 
       logger.i(log);
 
-      AppLogger.logManager.saveLog(log);
+      AppLogger.logManager?.saveLog(log);
     } catch (ex) {
       logger.i('ERROR: Could Not log RESPONSE $ex');
     }
@@ -83,7 +83,7 @@ class LoggingInterceptor extends Interceptor {
           '\n';
 
       logger.i(log);
-      AppLogger.logManager.saveLog(log);
+      AppLogger.logManager?.saveLog(log);
     } catch (ex) {
       logger.i('ERROR: Could Not log RESPONSE ERROR $ex');
     }

@@ -14,8 +14,7 @@ class ApiCacheService {
   ApiCacheService._internal();
 
   Future<void> init() async {
-    await Hive.initFlutter();
-    // Register adapters when needed
-    // Hive.registerAdapter(CustomLocalStorageClass());
+    // Hive is already initialized in Initializer.preAppInit()
+    // Register additional adapters here when needed.
   }
 }

@@ -1,4 +1,3 @@
-import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -21,7 +20,7 @@ class ThemasteroflawApiInterceptor implements Interceptor {
 
     headers['HostVersion'] = packageInfo.version;
     headers['HostBuildNumber'] = packageInfo.buildNumber;
-    headers['Platform'] = Platform.operatingSystem;
+    headers['Platform'] = kIsWeb ? 'web' : defaultTargetPlatform.name;
     headers['Debug'] = kDebugMode.toString();
 
     handler.next(options);

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:logger/web.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -147,11 +148,13 @@ class DevPanelScreen extends StatelessWidget {
                     ),
                     title: 'Clear Logs',
                     trailingIcon: ElevatedButton(
-                      onPressed: () async {
-                        LogStorageService(
-                          appStoragePath: sl.get<AppSupportDirectory>().directory.path,
-                        ).clearLogs();
-                      },
+                      onPressed: kIsWeb
+                          ? null
+                          : () async {
+                              LogStorageService(
+                                appStoragePath: sl.get<AppSupportDirectory>().directory.path,
+                              ).clearLogs();
+                            },
                       child: const Text(
                         'Clear',
                       ),

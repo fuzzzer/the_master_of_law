@@ -1,11 +1,10 @@
-// ignore_for_file: unused_local_variable
-
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:themasteroflaw/src/src.dart';
 
 part 'consultation_state.dart';
 
 /// Manages AI consultation chat state: conversation lifecycle + messages.
+/// Emits typed failure states — UI handles presentation.
 class ConsultationCubit extends Cubit<ConsultationState> {
   final ConsultationRepository _repository;
 
@@ -28,13 +27,8 @@ class ConsultationCubit extends Cubit<ConsultationState> {
             messages: [],
           ),
         );
-      case ConsultationFailure<Map<String, dynamic>>(:final type, :final message):
-        emit(
-          state.copyWith(
-            status: StateStatus.failed,
-            errorMessage: message ?? type.name,
-          ),
-        );
+      case ConsultationFailure<Map<String, dynamic>>(:final type):
+        emit(state.copyWith(status: StateStatus.failed, failureType: type));
     }
   }
 
@@ -58,14 +52,9 @@ class ConsultationCubit extends Cubit<ConsultationState> {
           );
         }).toList();
 
-        emit(
-          state.copyWith(
-            status: StateStatus.success,
-            messages: messages,
-          ),
-        );
-      case ConsultationFailure<Map<String, dynamic>>(:final message):
-        emit(state.copyWith(status: StateStatus.failed, errorMessage: message));
+        emit(state.copyWith(status: StateStatus.success, messages: messages));
+      case ConsultationFailure<Map<String, dynamic>>(:final type):
+        emit(state.copyWith(status: StateStatus.failed, failureType: type));
     }
   }
 
@@ -80,12 +69,7 @@ class ConsultationCubit extends Cubit<ConsultationState> {
       isUser: true,
       timestamp: DateTime.now(),
     );
-    emit(
-      state.copyWith(
-        messages: [...state.messages, userMsg],
-        isSending: true,
-      ),
-    );
+    emit(state.copyWith(messages: [...state.messages, userMsg], isSending: true));
 
     final result = await _repository.sendMessage(
       conversationId: state.conversationId!,
@@ -102,32 +86,18 @@ class ConsultationCubit extends Cubit<ConsultationState> {
           citations: _parseCitations(data['citations']),
           trustLevel: data['trust_level']?.toString(),
         );
-        emit(
-          state.copyWith(
-            messages: [...state.messages, aiMsg],
-            isSending: false,
-          ),
-        );
-      case ConsultationFailure<Map<String, dynamic>>(:final type, :final message):
-        // Add error message to chat
+        emit(state.copyWith(messages: [...state.messages, aiMsg], isSending: false));
+      case ConsultationFailure<Map<String, dynamic>>(:final type):
+        // Emit failure type as an error message in the chat stream
         final errorMsg = ChatMessage(
           id: 'error_${DateTime.now().millisecondsSinceEpoch}',
-          text: switch (type) {
-            ConsultationFailureType.noCredits => 'კრედიტები ამოიწურა. შეიძინეთ დამატებითი.',
-            ConsultationFailureType.network => 'ინტერნეტთან კავშირი ვერ მოხერხდა.',
-            ConsultationFailureType.unauthorized => 'სესია ვადაგასულია. გთხოვთ ხელახლა შეხვიდეთ.',
-            _ => 'შეცდომა მოხდა. ხელახლა სცადეთ.',
-          },
+          text: type.name, // UI will map this to Georgian
           isUser: false,
           timestamp: DateTime.now(),
           isError: true,
+          failureType: type,
         );
-        emit(
-          state.copyWith(
-            messages: [...state.messages, errorMsg],
-            isSending: false,
-          ),
-        );
+        emit(state.copyWith(messages: [...state.messages, errorMsg], isSending: false));
     }
   }
 

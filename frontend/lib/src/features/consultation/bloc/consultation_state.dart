@@ -9,6 +9,7 @@ class ChatMessage {
   final List<CitationData>? citations;
   final String? trustLevel;
   final bool isError;
+  final ConsultationFailureType? failureType;
 
   const ChatMessage({
     required this.id,
@@ -18,6 +19,7 @@ class ChatMessage {
     this.citations,
     this.trustLevel,
     this.isError = false,
+    this.failureType,
   });
 }
 
@@ -43,14 +45,14 @@ class ConsultationState {
   final String? conversationId;
   final List<ChatMessage> messages;
   final bool isSending;
-  final String? errorMessage;
+  final ConsultationFailureType? failureType;
 
   const ConsultationState({
     this.status = StateStatus.initial,
     this.conversationId,
     this.messages = const [],
     this.isSending = false,
-    this.errorMessage,
+    this.failureType,
   });
 
   ConsultationState copyWith({
@@ -58,14 +60,14 @@ class ConsultationState {
     String? conversationId,
     List<ChatMessage>? messages,
     bool? isSending,
-    String? errorMessage,
+    ConsultationFailureType? failureType,
   }) {
     return ConsultationState(
       status: status ?? this.status,
       conversationId: conversationId ?? this.conversationId,
       messages: messages ?? this.messages,
       isSending: isSending ?? this.isSending,
-      errorMessage: errorMessage ?? this.errorMessage,
+      failureType: failureType ?? this.failureType,
     );
   }
 }

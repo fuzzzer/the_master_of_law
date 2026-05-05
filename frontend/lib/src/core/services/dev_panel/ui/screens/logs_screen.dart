@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -11,6 +12,18 @@ class LogsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final uiColors = theme.extension<UiColors>()!;
+
+    if (kIsWeb) {
+      return Scaffold(
+        backgroundColor: uiColors.backgroundPrimaryColor,
+        body: Center(
+          child: Text(
+            'Logs not available on web',
+            style: TextStyle(color: uiColors.primaryColor),
+          ),
+        ),
+      );
+    }
 
     return BlocProvider(
       create: (context) => LogReaderCubit(

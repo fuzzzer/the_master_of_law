@@ -1,26 +1,16 @@
-import 'dart:io';
-
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:themasteroflaw/src/src.dart';
+
+// Conditional import: web has no file system, native does.
+import 'dependency_injection_web.dart' if (dart.library.io) 'dependency_injection_native.dart' as platform_di;
 
 class DependencyInjection {
   static Future<void> inject() async {
-    late final Directory documentsDirectory;
-    late final Directory supportDirectory;
+    final packageInfo = await PackageInfo.fromPlatform();
 
-    late final PackageInfo packageInfo;
-
-    await Future.wait<void>([
-      (() async => documentsDirectory = await getApplicationDocumentsDirectory())(),
-      (() async => supportDirectory = await getApplicationSupportDirectory())(),
-      (() async => packageInfo = await PackageInfo.fromPlatform())(),
-    ]);
-
-    sl.safeRegisterSingleton<AppDocumentsDirectory>(AppDocumentsDirectory(directory: documentsDirectory));
-
-    sl.safeRegisterSingleton<AppSupportDirectory>(AppSupportDirectory(directory: supportDirectory));
+    // Register platform-specific directories (skipped on web).
+    await platform_di.registerPlatformDependencies();
 
     sl.safeRegisterSingleton<PackageInfo>(packageInfo);
 

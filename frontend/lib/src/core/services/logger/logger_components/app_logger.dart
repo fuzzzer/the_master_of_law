@@ -8,7 +8,7 @@ class AppLogger {
     printer: SimpleLogPrinter(),
   );
 
-  static late final LogManager logManager;
+  static LogManager? logManager;
   static bool _isInitialized = false;
 
   static final ValueNotifier<Level> loggerLevelThreshold = ValueNotifier(Level.error);
@@ -25,7 +25,7 @@ class AppLogger {
       return;
     }
 
-    if (!_isInitialized) {
+    if (!_isInitialized && !kIsWeb) {
       logManager = await LogManager.create(
         appStoragePath: sl.get<AppSupportDirectory>().directory.path,
       );
@@ -34,9 +34,9 @@ class AppLogger {
     _logger = Logger(
       filter: ProductionFilter(),
       printer: SimpleLogPrinter(),
-      output: savingAllLogs
+      output: (savingAllLogs && !kIsWeb && logManager != null)
           ? LogSavingOutput(
-              logManager: logManager,
+              logManager: logManager!,
             )
           : null,
       level: loggerLevel,

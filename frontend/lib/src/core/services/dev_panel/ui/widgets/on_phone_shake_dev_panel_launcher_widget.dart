@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:shake/shake.dart';
 import 'package:themasteroflaw/src/core/services/dev_panel/ui/screens/dev_panel_screen.dart';
 import 'package:themasteroflaw/src/core/services/dev_panel/ui/ui.dart';
+
+// Conditionally import shake — only on native platforms with accelerometer.
+import 'shake_web.dart' if (dart.library.io) 'shake_native.dart' as shake_impl;
 
 class OnPhoneShakeDevPanelLauncherWidget extends StatefulWidget {
   const OnPhoneShakeDevPanelLauncherWidget({
@@ -16,23 +19,21 @@ class OnPhoneShakeDevPanelLauncherWidget extends StatefulWidget {
 }
 
 class _OnPhoneShakeDevPanelLauncherWidgetState extends State<OnPhoneShakeDevPanelLauncherWidget> {
-  ShakeDetector? _detector;
+  Object? _detector;
 
   @override
   void initState() {
     super.initState();
-    _detector = ShakeDetector.autoStart(
-      onPhoneShake: onPhoneShake,
-    );
-  }
-
-  void onPhoneShake(ShakeEvent shakeEvent) {
-    openDevPanel();
+    if (!kIsWeb) {
+      _detector = shake_impl.createShakeDetector(onShake: openDevPanel);
+    }
   }
 
   @override
   void dispose() {
-    _detector?.stopListening();
+    if (_detector != null) {
+      shake_impl.stopDetector(_detector!);
+    }
     super.dispose();
   }
 
