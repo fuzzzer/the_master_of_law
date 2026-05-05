@@ -92,7 +92,7 @@ class ProfilePage extends StatelessWidget {
           _ToolTile(
             icon: Icons.contact_phone,
             title: 'სასარგებლო კონტაქტები',
-            subtitle: 'იურისტები, ხოტლაინი, ორგანიზაციები',
+            subtitle: 'იურისტები, ჰოთლაინი, ორგანიზაციები',
             uiColors: uiColors,
             uiTextStyles: uiTextStyles,
             onTap: () {},
