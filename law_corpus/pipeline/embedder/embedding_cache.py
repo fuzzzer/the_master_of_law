@@ -7,6 +7,7 @@ cached embedding is reused.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -16,6 +17,10 @@ from pipeline.config import settings
 from pipeline.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+# macOS HFS+/APFS filename limit is 255 bytes (UTF-8).
+# We leave headroom for the `.emb.json` suffix.
+_MAX_FILENAME_BYTES = 240
 
 
 class EmbeddingCache:
@@ -44,6 +49,24 @@ class EmbeddingCache:
     def _key(chunk_id: str, content_hash: str) -> str:
         return f"{chunk_id}:{content_hash}"
 
+    @staticmethod
+    def _safe_filename(chunk_id: str) -> str:
+        """Generate a filesystem-safe filename from a chunk_id.
+
+        If the raw name (with dots → underscores) fits within the macOS
+        255-byte limit, use it directly for readability.  Otherwise,
+        fall back to a SHA-256 hash prefix to guarantee uniqueness.
+        """
+        raw = chunk_id.replace(".", "_")
+        candidate = f"{raw}.emb.json"
+        if len(candidate.encode("utf-8")) <= _MAX_FILENAME_BYTES:
+            return candidate
+        # Hash-based fallback: keep a readable prefix + hash for uniqueness
+        short_hash = hashlib.sha256(chunk_id.encode("utf-8")).hexdigest()[:16]
+        # Truncate raw prefix to keep total under limit
+        prefix = raw[:60]  # short enough for any encoding
+        return f"{prefix}_{short_hash}.emb.json"
+
     def get(self, chunk_id: str, content_hash: str) -> list[float] | None:
         """Return cached embedding or None."""
         key = self._key(chunk_id, content_hash)
@@ -61,7 +84,7 @@ class EmbeddingCache:
     def put(self, chunk_id: str, content_hash: str, embedding: list[float]) -> None:
         """Store an embedding in the cache."""
         key = self._key(chunk_id, content_hash)
-        filename = f"{chunk_id.replace('.', '_')}.emb.json"
+        filename = self._safe_filename(chunk_id)
         path = self._dir / filename
         path.write_bytes(orjson.dumps(embedding))
         self._index[key] = filename
@@ -76,3 +99,4 @@ class EmbeddingCache:
     @property
     def size(self) -> int:
         return len(self._index)
+

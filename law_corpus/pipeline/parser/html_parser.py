@@ -106,6 +106,11 @@ class HtmlLegalParser(BaseParser):
         Walk all <p> elements in order. Use CSS classes to detect
         structural markers (book, chapter, article) and collect
         paragraph text for each article.
+
+        Supports two HTML templates from matsne.gov.ge:
+          1. Standard: muxlixml / abzacixml / tavixml CSS classes
+          2. Old-style: ``oldStyleDocumentPart`` anchors inside plain
+             ``<p>`` tags with body text in ``<p style="text-align:…">``
         """
         articles: list[LegalArticle] = []
 
@@ -119,6 +124,13 @@ class HtmlLegalParser(BaseParser):
         current_article_title: str | None = None
         current_paragraphs: list[str] = []
 
+        # Detect old-style format: many oldStyleDocumentPart anchors
+        # but few/no muxlixml <p> elements around articles 4+
+        uses_old_style = (
+            len(soup.find_all("a", class_="oldStyleDocumentPart")) > 10
+            and len(soup.find_all("p", class_="muxlixml")) < 10
+        )
+
         # Walk ALL <p> tags in document order
         for p in soup.find_all("p"):
             classes = p.get("class", [])
@@ -126,6 +138,11 @@ class HtmlLegalParser(BaseParser):
             if not text:
                 continue
 
+            # ── Check for oldStyleDocumentPart anchors inside this <p> ──
+            old_style_anchor = p.find("a", class_="oldStyleDocumentPart") if uses_old_style else None
+            anchor_text = normalise_georgian(old_style_anchor.get_text(strip=True)) if old_style_anchor else None
+
+            # ── Structural markers (standard classes) ──
             if "wignixml" in classes:
                 # Book marker
                 self._flush_article(
@@ -182,6 +199,62 @@ class HtmlLegalParser(BaseParser):
                 # Paragraph text — append to current article
                 if current_article_num is not None:
                     current_paragraphs.append(text)
+
+            # ── Old-style fallback: detect structure from anchor text ──
+            elif anchor_text and uses_old_style:
+                # Check for article header
+                m_art = ARTICLE_RE.search(anchor_text)
+                m_chap = CHAPTER_RE.search(anchor_text)
+                m_part = PART_RE.search(anchor_text)
+                m_book = BOOK_RE.search(anchor_text)
+
+                if m_art:
+                    self._flush_article(
+                        articles, document_id, metadata,
+                        current_article_num, current_article_title,
+                        current_paragraphs, current_book, current_part, current_chapter,
+                    )
+                    current_article_num = normalise_superscripts(m_art.group(1))
+                    current_article_title = m_art.group(2).strip() or None
+                    current_paragraphs = []
+                elif m_chap:
+                    self._flush_article(
+                        articles, document_id, metadata,
+                        current_article_num, current_article_title,
+                        current_paragraphs, current_book, current_part, current_chapter,
+                    )
+                    current_article_num = None
+                    current_paragraphs = []
+                    current_chapter = f"{m_chap.group(1)}. {m_chap.group(2).strip()}"
+                elif m_part:
+                    self._flush_article(
+                        articles, document_id, metadata,
+                        current_article_num, current_article_title,
+                        current_paragraphs, current_book, current_part, current_chapter,
+                    )
+                    current_article_num = None
+                    current_paragraphs = []
+                    current_part = f"{m_part.group(1)}. {m_part.group(2).strip()}"
+                elif m_book:
+                    self._flush_article(
+                        articles, document_id, metadata,
+                        current_article_num, current_article_title,
+                        current_paragraphs, current_book, current_part, current_chapter,
+                    )
+                    current_article_num = None
+                    current_paragraphs = []
+                    current_book = f"{m_book.group(1)}. {m_book.group(2).strip()}"
+
+            # ── Old-style body text: plain <p> with content ──
+            elif uses_old_style and not classes and current_article_num is not None:
+                # In old-style docs, body text lives in plain <p> tags
+                # (often with style="text-align: justify" but not always).
+                # Skip amendment/footnote lines (italic citation links).
+                if not p.find("a", class_="oldStyleDocumentPart"):
+                    # Skip amendment footnotes (italic text with law references)
+                    is_footnote = bool(p.find("i") and p.find("a") and "კანონი" in text)
+                    if not is_footnote:
+                        current_paragraphs.append(text)
 
         # Flush last article
         self._flush_article(

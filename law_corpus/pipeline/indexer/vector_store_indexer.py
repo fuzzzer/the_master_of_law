@@ -51,15 +51,26 @@ class ChromaVectorStore(BaseVectorStore):
 
     def upsert(self, chunks: list[LegalChunk]) -> int:
         """Upsert chunks with their embeddings and metadata."""
+        # Deduplicate by chunk_id — keep last occurrence (most specific context)
+        seen_ids: dict[str, int] = {}
         ids: list[str] = []
         embeddings: list[list[float]] = []
         documents: list[str] = []
         metadatas: list[dict] = []
 
+        dedup_count = 0
         for chunk in chunks:
             if chunk.embedding is None:
                 logger.warning("Skipping chunk %s — no embedding", chunk.chunk_id)
                 continue
+            if chunk.chunk_id in seen_ids:
+                # Replace the previous entry with this one
+                prev_idx = seen_ids[chunk.chunk_id]
+                embeddings[prev_idx] = chunk.embedding
+                documents[prev_idx] = chunk.content
+                dedup_count += 1
+                continue
+            seen_ids[chunk.chunk_id] = len(ids)
             ids.append(chunk.chunk_id)
             embeddings.append(chunk.embedding)
             documents.append(chunk.content)
@@ -81,6 +92,9 @@ class ChromaVectorStore(BaseVectorStore):
                 "adoption_date": chunk.adoption_date.isoformat() if chunk.adoption_date else "",
                 "citation_text": chunk.citation_text,
             })
+
+        if dedup_count:
+            logger.info("Deduplicated %d chunk IDs", dedup_count)
 
         if not ids:
             return 0
