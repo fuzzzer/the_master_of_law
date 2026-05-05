@@ -82,6 +82,14 @@ class ProgressTracker:
             "timestamp": datetime.now(timezone.utc).isoformat(),
         })
 
+    def mark_pending(self, item_id: str) -> None:
+        """Remove *item_id* from completed list so it will be re-processed."""
+        completed = self._state["completed_items"]
+        if item_id in completed:
+            completed.remove(item_id)
+            self._state["completed_count"] = len(completed)
+            logger.info("Marked %s as pending for re-processing", item_id)
+
     def set_metadata(self, key: str, value: Any) -> None:
         self._state["metadata"][key] = value
 

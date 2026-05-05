@@ -2,16 +2,25 @@
 matsne.gov.ge — Georgian Legislative Herald scraper.
 
 Primary data source for consolidated Georgian legal texts.
+
+IMPORTANT — matsne.gov.ge URL versioning:
+  - No ``?publication=`` param  → latest consolidated version (საბოლოო)
+  - ``?publication=0``          → ORIGINAL text as first enacted (პირველადი სახე)
+  - ``?publication=N`` (N > 0)  → specific consolidated revision
+
+We ALWAYS want the latest consolidated version, so we must NOT append
+``?publication=0`` and instead strip any existing publication parameter.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, parse_qs, urlencode
 
 from bs4 import BeautifulSoup
 
@@ -26,6 +35,11 @@ from pipeline.utils.progress_tracker import ProgressTracker
 logger = get_logger(__name__)
 
 BASE_URL = "https://matsne.gov.ge"
+
+# Label that matsne.gov.ge shows on the latest consolidated version page.
+CONSOLIDATED_LABEL = "კონსოლიდირებული ვერსია (საბოლოო)"
+# Label for the original (initial) version — we must NEVER have this.
+ORIGINAL_LABEL = "პირველადი სახე"
 
 SEED_LAWS: list[dict[str, Any]] = [
     {"document_id": "constitution", "title_ka": "საქართველოს კონსტიტუცია", "title_en": "Constitution of Georgia", "url": "https://matsne.gov.ge/ka/document/view/30346", "priority": "P0", "document_type": "constitution"},
@@ -44,6 +58,11 @@ SEED_LAWS: list[dict[str, Any]] = [
     {"document_id": "election_code", "title_ka": "საარჩევნო კოდექსი", "title_en": "Election Code", "url": "https://matsne.gov.ge/ka/document/view/1557168", "priority": "P2", "document_type": "code"},
     {"document_id": "customs_code", "title_ka": "საბაჟო კოდექსი", "title_en": "Customs Code", "url": "https://matsne.gov.ge/ka/document/view/4596066", "priority": "P2", "document_type": "code"},
 ]
+
+
+class ConsolidatedVersionError(Exception):
+    """Raised when scraped HTML does not contain the consolidated version."""
+    pass
 
 
 class MatsneScraper(BaseScraper):
@@ -65,15 +84,37 @@ class MatsneScraper(BaseScraper):
     async def scrape_document(self, url: str, document_id: str) -> ScrapeResult:
         cached = self._read_cache(document_id)
         if cached is not None:
-            logger.info("Cache hit for %s", document_id)
-            return cached
+            # Validate that the cached version is actually consolidated.
+            cached_text = cached.content.decode("utf-8", errors="replace")
+            if self._is_consolidated(cached_text):
+                logger.info("Cache hit for %s (consolidated ✓)", document_id)
+                return cached
+            else:
+                logger.warning(
+                    "Cache for %s contains NON-consolidated version — re-scraping!",
+                    document_id,
+                )
+                # Delete stale cache so we fetch fresh
+                self._cache_path(document_id).unlink(missing_ok=True)
 
         consolidated_url = self._to_consolidated_url(url)
+        logger.info("Scraping consolidated version: %s", consolidated_url)
         response = await self.session.get(consolidated_url)
         raw_bytes = response.content
         encoding = response.encoding or "utf-8"
         text = raw_bytes.decode(encoding, errors="replace")
         soup = BeautifulSoup(text, "lxml")
+
+        # ── Verify we got the consolidated version ───────────
+        version_label = self._detect_version_label(text)
+        if not self._is_consolidated(text):
+            raise ConsolidatedVersionError(
+                f"Scraped {document_id} but got version '{version_label}' "
+                f"instead of '{CONSOLIDATED_LABEL}'. URL: {consolidated_url}"
+            )
+        logger.info(
+            "Verified %s: %s", document_id, version_label or "consolidated ✓",
+        )
 
         result = ScrapeResult(
             url=consolidated_url,
@@ -104,13 +145,28 @@ class MatsneScraper(BaseScraper):
                 logger.info("Skipping %s (already completed)", doc_id)
                 cached = self._read_cache(doc_id)
                 if cached:
-                    results.append(cached)
-                continue
+                    # Re-validate even completed items
+                    cached_text = cached.content.decode("utf-8", errors="replace")
+                    if not self._is_consolidated(cached_text):
+                        logger.warning(
+                            "Completed %s has non-consolidated cache — re-scraping!",
+                            doc_id,
+                        )
+                        self._tracker.mark_pending(doc_id)
+                        self._cache_path(doc_id).unlink(missing_ok=True)
+                    else:
+                        results.append(cached)
+                        continue
+                else:
+                    continue
             try:
                 result = await self.scrape_document(law["url"], doc_id)
                 results.append(result)
                 self._tracker.mark_completed(doc_id)
                 self._save_law_metadata(law, result)
+            except ConsolidatedVersionError as exc:
+                logger.error("Version error for %s: %s", doc_id, exc)
+                self._tracker.mark_failed(doc_id, str(exc))
             except Exception as exc:
                 logger.error("Failed to scrape %s: %s", doc_id, exc)
                 self._tracker.mark_failed(doc_id, str(exc))
@@ -123,9 +179,52 @@ class MatsneScraper(BaseScraper):
 
     @staticmethod
     def _to_consolidated_url(url: str) -> str:
+        """
+        Return URL that fetches the **latest consolidated version**.
+
+        On matsne.gov.ge:
+        - No ``?publication=`` → latest consolidated version (საბოლოო)
+        - ``?publication=0``   → ORIGINAL version (პირველადი სახე) ← WRONG!
+        - ``?publication=N``   → specific historical revision
+
+        We strip any ``publication`` parameter so the server returns the
+        latest consolidated version by default.
+        """
         parsed = urlparse(url)
-        base = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
-        return f"{base}?publication=0" if "?" not in url else url
+        # Remove the 'publication' parameter if present
+        if parsed.query:
+            params = parse_qs(parsed.query)
+            params.pop("publication", None)
+            new_query = urlencode(params, doseq=True)
+            return f"{parsed.scheme}://{parsed.netloc}{parsed.path}" + (
+                f"?{new_query}" if new_query else ""
+            )
+        # Base URL without query params — already returns consolidated
+        return f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+
+    @staticmethod
+    def _is_consolidated(html_text: str) -> bool:
+        """Check if the HTML page contains the consolidated version label."""
+        # If it has the "final consolidated" label, it's correct.
+        if CONSOLIDATED_LABEL in html_text:
+            return True
+        # If it has the "original version" label, it's definitely wrong.
+        if ORIGINAL_LABEL in html_text:
+            return False
+        # Some documents may only have a single version (no amendments),
+        # in which case neither label appears. That's acceptable.
+        return True
+
+    @staticmethod
+    def _detect_version_label(html_text: str) -> str | None:
+        """Extract the version label from the HTML for logging."""
+        if CONSOLIDATED_LABEL in html_text:
+            return CONSOLIDATED_LABEL
+        # Try to find "პირველადი სახე (DATE - DATE)" pattern
+        match = re.search(r"პირველადი სახე\s*\([^)]+\)", html_text)
+        if match:
+            return match.group(0)
+        return None
 
     @staticmethod
     def _extract_title(soup: BeautifulSoup) -> str | None:
@@ -170,9 +269,15 @@ class MatsneScraper(BaseScraper):
         self._meta_path(doc_id).write_text(json.dumps({
             "url": result.url, "document_id": doc_id, "title": result.discovered_title,
             "scraped_at": result.scraped_at.isoformat(), "content_hash": result.content_hash,
+            "version": "consolidated_final",
         }, ensure_ascii=False, indent=2), encoding="utf-8")
 
     def _save_law_metadata(self, law: dict, result: ScrapeResult) -> None:
-        merged = {**law, "scraped_at": result.scraped_at.isoformat(), "content_hash": result.content_hash}
+        merged = {
+            **law,
+            "scraped_at": result.scraped_at.isoformat(),
+            "content_hash": result.content_hash,
+            "version": "consolidated_final",
+        }
         (self._metadata_dir / f"{law['document_id']}.json").write_text(
             json.dumps(merged, ensure_ascii=False, indent=2), encoding="utf-8")
