@@ -15,7 +15,7 @@ docker compose exec api alembic upgrade head
 # 3. Verify it works
 curl -s http://localhost:8000/api/v1/conversations \
   -X POST -H "Content-Type: application/json" \
-  -d '{"title": "test"}' | python3 -c \
+  -d '{"title": "test 01"}' | python3 -c \
   "import sys,json; print(json.dumps(json.load(sys.stdin), indent=2, ensure_ascii=False))"
 ```
 
