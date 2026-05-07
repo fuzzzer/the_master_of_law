@@ -6,8 +6,9 @@
 
 | Component | Status | Key File |
 |-----------|--------|----------|
-| Law Corpus (9,450 chunks) | ✅ Done | `law_corpus/data/chroma/` |
-| Backend (25 endpoints) | ✅ Done | `.agents/context/backend.md` |
+| Law Corpus (20,712 chunks, 3 collections) | ✅ Done | `law_corpus/data/chroma/` |
+| Backend (27 endpoints) | ✅ Done | `.agents/context/backend.md` |
+| Eval Pipeline (50 cases) | ✅ Done | `eval/steps.md` |
 | Design System | 🔄 In Progress | `packages/open-design/design-systems/kanonis-ostati/DESIGN.md` |
 | Flutter App | 🔄 In Progress | `fuzzy_starter/` (package: `master_of_law`) |
 
@@ -25,6 +26,7 @@
 | **Feature planning** | `master_plan/04_feature_roadmap.md` |
 | **Production deploy** | `.agents/context/production.md` |
 | **Law corpus** | `.agents/context/law_corpus.md` |
+| **Evaluation** | `eval/steps.md` |
 | **Original specs** | `master_plan/01_...`, `02_...`, `03_...` |
 
 ## Architecture (compact)
@@ -32,14 +34,18 @@
 ```
 Flutter App (master_of_law, ge.fuzzycore.masteroflaw)
   │ 5 tabs: Chat │ Cases ⭐ │ Laws │ Notes │ Profile
-  │ HTTPS / WebSocket
+  │ HTTPS / WebSocket + RAGCollectionConfig (feature flags)
   ▼
-FastAPI Backend (25 endpoints, 10 services)
+FastAPI Backend (27 endpoints, 10 services)
   │ Firebase Auth → Credit Gate → Rate Limit
-  │ 5-stage RAG: Expand → Vector → FullText → Merge → Rerank
+  │ 5-stage RAG: Expand → Vector (multi-collection) → FullText → Merge → Rerank
+  │ Source-specific prompt injection (court practice / Grand Chamber)
   │ Gemini 3.1 Pro legal analysis
   ▼
-Data: PostgreSQL + ChromaDB (9,450 law chunks) + Redis
+Data: PostgreSQL + ChromaDB (3 collections, 20,712 chunks) + Redis
+  │ georgian_laws: 15,338 (12 legal codes)
+  │ court_practice: 5,197 (Supreme Court rulings)
+  │ grand_chamber: 177 (binding decisions)
 ```
 
 ## Core Decision: Cases = Projects

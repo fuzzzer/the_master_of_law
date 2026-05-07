@@ -1,7 +1,8 @@
 # Backend Context — The Master of Law
 
-> FastAPI backend with RAG pipeline + Gemini 3.1 Pro legal analysis.
-> **Status:** ✅ Complete (25 endpoints, 10 services, 124 tests)
+> FastAPI backend with multi-source RAG pipeline + Gemini 3.1 Pro legal analysis.
+> **Status:** ✅ Complete (27 endpoints, 10 services, 124 tests)
+> **Last updated:** 2026-05-07
 
 ---
 
@@ -15,24 +16,40 @@ Flutter App → HTTP/WS with Firebase ID token
 
 ### RAG Pipeline (core feature)
 ```
-User Message
+User Message + RAGCollectionConfig (feature flags)
   → [Stage 0] Gemini Query Expansion (5-10 formal Georgian legal terms)
-  → [Stage 1] Multi-Query Vector Search (ChromaDB, top-50 per query)
+  → [Stage 1] Multi-Query Vector Search (ChromaDB, top-50 per query × N collections)
   → [Stage 2] Multi-Query Full-Text Search (JSON indices, top-50 per query)
   → [Stage 3] Merge & Deduplicate by chunk_id
   → [Stage 4] Gemini Rerank (select top-20 most relevant)
-  → Legal Analysis (Gemini 3.1 Pro + system prompt + context)
+  → Legal Analysis (Gemini 3.1 Pro + source-specific system prompt + context)
   → Citation Verification (regex + corpus validation)
 ```
 
+### RAG Collection Feature Flags
+```python
+# Per-request control of which knowledge sources to search
+class RAGCollectionConfig(BaseModel):
+    legal_codes: bool = True       # georgian_laws (15,338 chunks)
+    court_practice: bool = True    # court_practice (5,197 chunks)
+    grand_chamber: bool = True     # grand_chamber (177 chunks)
+    
+# Usage in chat request:
+{"message": "...", "rag_config": {"legal_codes": true, "court_practice": false}}
+```
+
+**Source-specific prompt injection:** When court_practice/grand_chamber chunks are retrieved,
+source-specific instructions are appended to the system prompt (e.g., "Grand Chamber
+decisions are BINDING and override all lower court interpretations").
+
 ---
 
-## API Endpoints (25 total)
+## API Endpoints (27 total)
 
 | Method | Path | Credits | Description |
 |--------|------|---------|-------------|
 | GET | `/api/v1/health` | 0 | Liveness |
-| GET | `/api/v1/health/ready` | 0 | Readiness |
+| GET | `/api/v1/health/ready` | 0 | Readiness (reports collection count) |
 | POST | `/api/v1/auth/verify-token` | 0 | Firebase token → user |
 | GET | `/api/v1/auth/me` | 0 | Current user |
 | GET | `/api/v1/account/credits` | 0 | Credit balance |
@@ -41,9 +58,10 @@ User Message
 | GET | `/api/v1/conversations` | 0 | List conversations |
 | GET | `/api/v1/conversations/{id}` | 0 | Get with messages |
 | DELETE | `/api/v1/conversations/{id}` | 0 | Delete |
-| POST | `/api/v1/chat/{id}/send` | **1** | Send → AI response |
-| WS | `/api/v1/chat/{id}/ws` | 1 | WebSocket streaming |
-| POST | `/api/v1/case-files/build` | **3** | Build defense case |
+| POST | `/api/v1/chat/{id}/send` | **1** | Send → AI response (accepts `rag_config`) |
+| WS | `/api/v1/chat/{id}/ws` | 1 | WebSocket streaming (accepts `rag_config`) |
+| **GET** | **`/api/v1/rag/collections`** | 0 | **List RAG sources + availability** |
+| POST | `/api/v1/case-files/build` | **3** | Build defense case (accepts `rag_config`) |
 | GET | `/api/v1/case-files` | 0 | List case files |
 | GET | `/api/v1/case-files/{id}` | 0 | Get case file |
 | PATCH | `/api/v1/case-files/{id}` | 0 | Update notes/status |
@@ -115,6 +133,7 @@ client = genai.Client(api_key=settings.vertex_ai_api_key, vertexai=True,
 | Region | `us-central1` |
 | LLM | `gemini-3.1-pro` |
 | Embeddings | `gemini-embedding-001` (768 dims) |
+| ChromaDB | 3 collections: `georgian_laws` (15,338), `court_practice` (5,197), `grand_chamber` (177) |
 | DB | PostgreSQL 16 (6 tables: users, credits, conversations, messages, case_files, credit_transactions) |
 | State Machine | GREETING → INTAKE → CLARIFICATION → ANALYSIS → ADVICE → FOLLOW_UP |
 

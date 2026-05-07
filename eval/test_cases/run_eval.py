@@ -285,6 +285,9 @@ def evaluate_case(client, case: dict, case_num: int, total: int,
     emoji = "🟢" if overall >= 4 else "🟡" if overall >= 3 else "🔴"
     print(f"    {emoji} Score: {overall}/5 — {scores.get('explanation', '')[:80]}")
 
+    # Save generation to file
+    save_generation(case_id, case["category"], verdict, ai_response, scores)
+
     # Rate limit pause
     time.sleep(2)
 
@@ -298,6 +301,28 @@ def evaluate_case(client, case: dict, case_num: int, total: int,
     }
 
 
+def save_generation(case_id: str, category: str, verdict: str,
+                    ai_response: str, scores: dict):
+    """Save AI generation + scores to a separate file in generations/evaluated/."""
+    gen_dir = BASE_DIR / "generations" / "evaluated"
+    gen_dir.mkdir(parents=True, exist_ok=True)
+
+    filepath = gen_dir / f"{case_id}.txt"
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write(f"საქმე: {case_id}\n")
+        f.write(f"კატეგორია: {category}\n")
+        f.write(f"მოსალოდნელი ვერდიქტი: {verdict}\n")
+        f.write(f"შეფასების თარიღი: {datetime.now().isoformat()}\n")
+        f.write(f"{'=' * 60}\n\n")
+        f.write(f"=== AI-ს სამართლებრივი ანალიზი ===\n\n")
+        f.write(ai_response)
+        f.write(f"\n\n{'=' * 60}\n")
+        f.write(f"=== მოსამართლის შეფასება ===\n\n")
+        for key, val in scores.items():
+            f.write(f"  {key}: {val}\n")
+    print(f"    💾 Saved: {filepath.name}")
+
+
 # ─────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────
@@ -308,6 +333,8 @@ def main():
     parser.add_argument("--limit", type=int, help="Max cases to evaluate")
     parser.add_argument("--only", choices=["criminal", "civil", "administrative", "constitutional"])
     parser.add_argument("--resume-from", type=str, help="Resume from case_id")
+    parser.add_argument("--cases", type=str, help="Comma-separated case IDs to evaluate (e.g. CRIM-1051ap-24,CRIM-311ap-23)")
+    parser.add_argument("--output", type=str, help="Custom output file path (default: eval_results.json)")
     parser.add_argument("--model", type=str, default="gemini-3.1-pro-preview", help="Gemini model")
     args = parser.parse_args()
 
@@ -323,7 +350,13 @@ def main():
     cases = data["cases"]
     print(f"Loaded: {len(cases)} cases from {CASES_FILE.name}")
 
-    # Filter
+    # Filter by specific case IDs
+    if args.cases:
+        case_ids = {cid.strip() for cid in args.cases.split(",")}
+        cases = [c for c in cases if c["case_id"] in case_ids]
+        print(f"Filtered to {len(cases)} specific cases: {', '.join(c['case_id'] for c in cases)}")
+
+    # Filter by category
     if args.only:
         cases = [c for c in cases if c["category"] == args.only]
         print(f"Filtered to {args.only}: {len(cases)} cases")
@@ -349,10 +382,13 @@ def main():
     print(f"\n🔌 Connecting to Gemini...")
     client = get_gemini_client()
 
+    # Use custom output file if specified
+    output_file = Path(args.output) if args.output else RESULTS_FILE
+
     # Load existing results for resume
     existing_results = []
-    if RESULTS_FILE.exists():
-        with open(RESULTS_FILE, "r", encoding="utf-8") as f:
+    if output_file.exists():
+        with open(output_file, "r", encoding="utf-8") as f:
             existing_data = json.load(f)
             existing_results = existing_data.get("results", [])
             done_ids = {r["case_id"] for r in existing_results if r.get("status") == "ok"}
@@ -370,14 +406,16 @@ def main():
         results.append(result)
 
         # Save after each case (crash-safe)
-        save_results(results, args.model)
+        save_results(results, args.model, output_file)
 
     # Final report
     print_report(results)
 
 
-def save_results(results: list, model: str):
+def save_results(results: list, model: str, output_file: Path = None):
     """Save results to disk (crash-safe)."""
+    if output_file is None:
+        output_file = RESULTS_FILE
     ok_results = [r for r in results if r.get("status") == "ok"]
     output = {
         "evaluated_at": datetime.now().isoformat(),
@@ -394,7 +432,7 @@ def save_results(results: list, model: str):
             vals = [r["scores"].get(metric, 0) for r in ok_results if r.get("scores")]
             output[f"avg_{metric}"] = round(sum(vals) / len(vals), 2) if vals else 0
 
-    with open(RESULTS_FILE, "w", encoding="utf-8") as f:
+    with open(output_file, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False)
 
 

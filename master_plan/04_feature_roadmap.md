@@ -14,10 +14,11 @@ is the central organizing unit. Everything connects to a case.
 ## Current State (as of Sprint 1)
 
 ### Completed
-- ✅ Law corpus scraped, structured, and stored (MongoDB)
-- ✅ Backend API architecture defined (FastAPI)
+- ✅ Law corpus scraped, structured, embedded, and stored in ChromaDB (3 collections, 20,712 chunks)
+- ✅ Backend API complete (FastAPI, 27 endpoints, multi-collection RAG with feature flags)
+- ✅ Evaluation pipeline (50 Supreme Court cases, LLM-as-judge scoring)
 - ✅ Design system created and integrated with open-design
-- ✅ Flutter app skeleton to be renamed and configured (`master_of_law` / `ge.fuzzycore.masteroflaw`)
+- ✅ Flutter app skeleton renamed and configured (`master_of_law` / `ge.fuzzycore.masteroflaw`)
 - ✅ UI Kit package ready for design token injection
 - ✅ Comprehensive DESIGN.md with full case-centric specification
 
@@ -183,10 +184,11 @@ Case
 
 ## Next Steps (Immediate)
 
-1. **Finish design mockups** in open-design (Chat, Case Builder, Laws, Onboarding)
-2. **Extract design tokens** from generated mockups → inject into Flutter ui_kit
-3. **Scaffold Flutter features** using gen.sh (chat, case_builder, laws, notes, profile)
-4. **Implement navigation** — 5-tab bottom nav with GoRouter
-5. **Connect law browser** to MongoDB backend API
-6. **Build basic AI chat** — connect to FastAPI backend
-7. **Implement basic case creation** — title, domain, manual facts
+1. **Implement RAG collection feature flags** in Flutter chat UI (toggle laws/court/GC)
+2. **Finish design mockups** in open-design (Chat, Case Builder, Laws, Onboarding)
+3. **Extract design tokens** from generated mockups → inject into Flutter ui_kit
+4. **Scaffold Flutter features** using gen.sh (chat, case_builder, laws, notes, profile)
+5. **Implement navigation** — 5-tab bottom nav with GoRouter
+6. **Connect law browser** to FastAPI backend
+7. **Build basic AI chat** — connect to FastAPI backend with RAG collection toggles
+8. **Implement basic case creation** — title, domain, manual facts
