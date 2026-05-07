@@ -424,18 +424,3 @@ Reference for Flutter architecture: `fuzzy_starter/.agents/orchestrator.md`
 - [ ] Eval score improves from 3.47/5 baseline (re-run eval to verify)
 
 ---
-
-## Estimated Scope
-
-| Phase | Work | Time Est. |
-|-------|------|-----------|
-| Grand Chamber download + extract | Script + run | 1-2 hours |
-| SC 2022 + Civil 2023 download | Script update | 30 min |
-| Chunking pipeline | New script | 2-3 hours |
-| Embedding pipeline | New script | 1-2 hours |
-| ChromaClient refactor | Code change | 1-2 hours |
-| RAG service update | Code change | 1-2 hours |
-| API schema + endpoint | Code change | 1 hour |
-| Frontend toggles | Flutter widget | 2-3 hours |
-| Testing + eval | Run eval | 1-2 hours |
-| **Total** | | **~12-18 hours** |
