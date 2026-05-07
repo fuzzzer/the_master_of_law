@@ -67,14 +67,33 @@ class RAGRetrievalService:
             self._gemini = get_vertex_ai_client()
         return self._gemini
 
-    async def retrieve(self, user_message: str, top_k: int = RAG_RERANK_TOP_K) -> list[dict]:
-        """Run the full 5-stage RAG pipeline."""
-        logger.info("rag_pipeline_start", message_length=len(user_message))
+    async def retrieve(
+        self,
+        user_message: str,
+        top_k: int = RAG_RERANK_TOP_K,
+        collections: list[str] | None = None,
+    ) -> list[dict]:
+        """Run the full 5-stage RAG pipeline.
+
+        Parameters
+        ----------
+        user_message : str
+            The user's legal question.
+        top_k : int
+            Max results after reranking.
+        collections : list[str] | None
+            Which ChromaDB collections to search. None = all available.
+        """
+        logger.info(
+            "rag_pipeline_start",
+            message_length=len(user_message),
+            collections=collections,
+        )
 
         expanded = await self._stage_0_expand_queries(user_message)
         logger.info("rag_stage_0_done", query_count=len(expanded))
 
-        vector_hits = await self._stage_1_vector_search(expanded)
+        vector_hits = await self._stage_1_vector_search(expanded, collections=collections)
         logger.info("rag_stage_1_done", hit_count=len(vector_hits))
 
         fulltext_hits = self._stage_2_fulltext_search(expanded)
@@ -109,7 +128,11 @@ class RAGRetrievalService:
             logger.error("query_expansion_failed", error=str(e))
             return [user_message]
 
-    async def _stage_1_vector_search(self, queries: list[str]) -> list[dict]:
+    async def _stage_1_vector_search(
+        self,
+        queries: list[str],
+        collections: list[str] | None = None,
+    ) -> list[dict]:
         """Stage 1: Embed queries and search ChromaDB by vector similarity."""
         all_hits: list[dict] = []
         try:
@@ -122,7 +145,11 @@ class RAGRetrievalService:
                 except Exception:
                     pass
         for i, emb in enumerate(embeddings):
-            hits = self.chroma.vector_search(query_embedding=emb, top_k=RAG_VECTOR_SEARCH_TOP_K)
+            hits = self.chroma.vector_search(
+                query_embedding=emb,
+                top_k=RAG_VECTOR_SEARCH_TOP_K,
+                collections=collections,
+            )
             for h in hits:
                 h["source"] = "vector"
                 h["query_index"] = i
@@ -156,7 +183,7 @@ class RAGRetrievalService:
         """Load the pre-built article index from disk."""
         if self._article_index is not None:
             return self._article_index
-        path = Path(settings.chroma_persist_dir).parent / "index" / "article_index.json"
+        path = Path(settings.chroma_persist_dir).parent / "georgian_laws" / "index" / "article_index.json"
         if not path.exists():
             return {}
         try:

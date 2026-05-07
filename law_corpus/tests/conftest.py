@@ -25,6 +25,7 @@ def sample_html_bytes() -> bytes:
 def sample_law_meta() -> dict:
     """Load the sample law metadata fixture."""
     import json
+
     return json.loads((FIXTURES_DIR / "sample_law.json").read_text("utf-8"))
 
 
@@ -32,4 +33,5 @@ def sample_law_meta() -> dict:
 def sample_chunk_data() -> dict:
     """Load the sample chunk fixture."""
     import json
+
     return json.loads((FIXTURES_DIR / "sample_chunk.json").read_text("utf-8"))

@@ -8,10 +8,16 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from app.schemas.rag_schema import RAGCollectionConfig
+
 
 class CaseFileBuildRequest(BaseModel):
     """Request for POST /case-files/build."""
     conversation_id: str = Field(..., description="Conversation to build the case file from")
+    rag_config: RAGCollectionConfig | None = Field(
+        default=None,
+        description="Optional config to toggle which knowledge sources to use. Default: all enabled.",
+    )
 
 
 class CaseFileUpdateRequest(BaseModel):

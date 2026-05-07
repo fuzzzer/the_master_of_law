@@ -25,10 +25,16 @@ Thumbs.db
 # ── Logs ──
 *.log
 
+# ── Law corpus data (all pipeline-generated — large) ──
+law_corpus/data/
+
 # ── Eval corpus data (large, downloaded/generated) ──
 eval/test_cases/raw/
+eval/test_cases/extracted/
 eval/test_cases/processed/
 eval/test_cases/processed_v2/
 eval/test_cases/processing_manifest.json
+
+
 
 

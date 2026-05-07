@@ -50,13 +50,24 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str):
                 await websocket.send_json({"type": "error", "message": "Empty message"})
                 continue
 
+            # Parse optional rag_config from WS message
+            rag_config_data = payload.get("rag_config")
+            collections = None
+            if rag_config_data and isinstance(rag_config_data, dict):
+                from app.schemas.rag_schema import RAGCollectionConfig
+                try:
+                    rag_cfg = RAGCollectionConfig(**rag_config_data)
+                    collections = rag_cfg.to_collection_names()
+                except Exception:
+                    pass  # Invalid config — default to all collections
+
             # Send processing status
             await websocket.send_json({"type": "status", "message": "Searching laws..."})
 
             try:
                 # Step 1: RAG retrieval
                 rag = get_rag_service()
-                chunks = await rag.retrieve(user_message)
+                chunks = await rag.retrieve(user_message, collections=collections)
 
                 await websocket.send_json({
                     "type": "status",

@@ -115,7 +115,7 @@ class Settings(BaseSettings):
         description="Root directory for all pipeline data",
     )
     checkpoint_dir: Path = Field(
-        default=Path("./data/checkpoints"),
+        default=Path("./data/georgian_laws/checkpoints"),
         description="Directory for pipeline checkpoint files",
     )
 
@@ -147,32 +147,41 @@ class Settings(BaseSettings):
     # ── Derived paths ────────────────────────────────────────
 
     @property
+    def georgian_laws_dir(self) -> Path:
+        """Root for the georgian_laws module data."""
+        return self.data_dir / "georgian_laws"
+
+    @property
     def raw_html_dir(self) -> Path:
-        return self.data_dir / "raw" / "html"
+        return self.georgian_laws_dir / "raw" / "html"
 
     @property
     def raw_pdf_dir(self) -> Path:
-        return self.data_dir / "raw" / "pdf"
+        return self.georgian_laws_dir / "raw" / "pdf"
 
     @property
     def raw_metadata_dir(self) -> Path:
-        return self.data_dir / "raw" / "metadata"
+        return self.georgian_laws_dir / "raw" / "metadata"
 
     @property
     def parsed_dir(self) -> Path:
-        return self.data_dir / "parsed"
+        return self.georgian_laws_dir / "parsed"
 
     @property
     def chunks_dir(self) -> Path:
-        return self.data_dir / "chunks"
+        return self.georgian_laws_dir / "chunks"
 
     @property
     def embeddings_dir(self) -> Path:
-        return self.data_dir / "embeddings"
+        return self.georgian_laws_dir / "embeddings"
 
     @property
     def index_dir(self) -> Path:
-        return self.data_dir / "index"
+        return self.georgian_laws_dir / "index"
+
+    def module_data_dir(self, module_id: str) -> Path:
+        """Return the data directory for a given corpus module."""
+        return self.data_dir / module_id
 
     def ensure_dirs(self) -> None:
         """Create every data directory that the pipeline needs."""

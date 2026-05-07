@@ -74,7 +74,8 @@ async def send_message(
 
     # Step 1: RAG Retrieval
     rag = get_rag_service()
-    chunks = await rag.retrieve(body.message)
+    collections = body.rag_config.to_collection_names() if body.rag_config else None
+    chunks = await rag.retrieve(body.message, collections=collections)
 
     # Step 2: Legal Analysis
     analysis = get_legal_analysis_service()

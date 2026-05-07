@@ -8,11 +8,17 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from app.schemas.rag_schema import RAGCollectionConfig
+
 
 class ChatSendRequest(BaseModel):
     """Request body for POST /chat/{conversation_id}/send."""
     message: str = Field(..., min_length=1, max_length=10000)
     conversation_history: list[dict[str, str]] = Field(default_factory=list)
+    rag_config: RAGCollectionConfig | None = Field(
+        default=None,
+        description="Optional config to toggle which knowledge sources to search. Default: all enabled.",
+    )
 
 
 class CitationInfo(BaseModel):

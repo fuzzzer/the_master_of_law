@@ -42,10 +42,11 @@ async def readiness():
     try:
         chroma = get_chroma_client()
         count = chroma.count()
+        n_collections = len(chroma.available_collections)
         components.append(ReadinessDetail(
             name="chromadb",
             status="ok",
-            detail=f"{count} documents in collection",
+            detail=f"{count} documents across {n_collections} collection(s)",
         ))
     except Exception as e:
         logger.error("readiness_chroma_failed", error=str(e))

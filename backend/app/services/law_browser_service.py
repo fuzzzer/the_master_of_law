@@ -96,13 +96,14 @@ class LawBrowserService:
         return self.chroma.vector_search(
             query_embedding=embedding,
             top_k=top_k,
+            collections=["georgian_laws"],
             where=where,
         )
 
     def _load_code_index(self) -> dict:
         if self._code_index is not None:
             return self._code_index
-        path = Path(settings.chroma_persist_dir).parent / "index" / "code_index.json"
+        path = Path(settings.chroma_persist_dir).parent / "georgian_laws" / "index" / "code_index.json"
         if not path.exists():
             return {}
         try:

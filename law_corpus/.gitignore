@@ -3,13 +3,24 @@
 .env.local
 
 # Data (populated by pipeline — large)
-data/raw/
-data/parsed/
-data/chunks/
-data/embeddings/
-data/index/
+# Shared
 data/chroma/
-data/checkpoints/
+
+# Module: georgian_laws
+data/georgian_laws/raw/
+data/georgian_laws/parsed/
+data/georgian_laws/chunks/
+data/georgian_laws/embeddings/
+data/georgian_laws/index/
+data/georgian_laws/checkpoints/
+
+# Module: court_practice
+data/court_practice/raw/
+data/court_practice/extracted/
+
+# Module: grand_chamber
+data/grand_chamber/raw/
+data/grand_chamber/extracted/
 
 # Python
 __pycache__/

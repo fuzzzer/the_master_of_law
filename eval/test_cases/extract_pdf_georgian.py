@@ -253,7 +253,10 @@ def split_cases_from_text(text: str, source_pdf: str) -> list:
 
     matches = list(case_start.finditer(text))
     if not matches:
-        return [{'text': text, 'case_id': None, 'source': source_pdf}]
+        # No split markers found — treat entire PDF as a single case.
+        # Use the PDF filename (without extension) as case_id.
+        fallback_id = Path(source_pdf).stem
+        return [{'text': text, 'case_id': fallback_id, 'source': source_pdf}]
 
     cases = []
     for i, match in enumerate(matches):
@@ -318,6 +321,7 @@ def process_pdf(pdf_path: Path, output_dir: Path, preview: bool = False) -> dict
         if case_id:
             output_file = output_dir / f"{case_id}.txt"
             output_file.parent.mkdir(parents=True, exist_ok=True)
+            # Overwrite if file already exists (idempotent pipeline)
             output_file.write_text(case['text'], encoding='utf-8')
 
     stats['cases_extracted'] = len(cases)
@@ -333,8 +337,8 @@ def main():
     parser.add_argument("--preview", action="store_true", help="Preview without writing")
     parser.add_argument(
         "--output-dir", type=str,
-        default=str(BASE_DIR / "processed_v2"),
-        help="Output directory (default: processed_v2/)"
+        default=str(BASE_DIR / "extracted"),
+        help="Output directory (default: extracted/)"
     )
     args = parser.parse_args()
 
@@ -358,7 +362,7 @@ def main():
             continue
 
         # Determine output subdirectory based on input path
-        # raw/supreme_court/criminal/file.pdf → processed_v2/supreme_court/criminal/
+        # raw/supreme_court/criminal/file.pdf → extracted/supreme_court/criminal/
         try:
             rel = pdf_path.relative_to(BASE_DIR / "raw")
             out_dir = Path(args.output_dir) / rel.parent
