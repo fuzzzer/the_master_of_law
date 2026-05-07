@@ -1,0 +1,28 @@
+[
+  {
+    "case_id": "CASE_001",
+    "category": "criminal",
+    "subcategory": "assault",
+    "title_ka": "ფიზიკური შეურაცხყოფის საქმე",
+    "title_en": "Physical Assault Case (Placeholder)",
+    "source_url": "",
+    "source_name": "PLACEHOLDER — Replace with real case from agent search",
+    "year": 2024,
+    "court_instance": "",
+    "situation_description_ka": "",
+    "situation_description_en": "",
+    "user_question_ka": "მეზობელმა დამარტყა, თავში მარტყა და წავიქეცი. პოლიციას დავურეკე მაგრამ ჯერ არ მოსულან. რა უფლებები მაქვს და რა ვქნა?",
+    "user_question_en": "My neighbor hit me, struck me on the head and I fell. I called the police but they haven't come yet. What are my rights and what should I do?",
+    "applicable_laws": [],
+    "actual_outcome": {
+      "verdict": "",
+      "sentence": "",
+      "sentence_en": "",
+      "key_reasoning": "",
+      "key_articles_applied": []
+    },
+    "difficulty": "medium",
+    "tags": ["criminal", "assault"],
+    "verification_notes": "PLACEHOLDER — Must be replaced with real case data"
+  }
+]
