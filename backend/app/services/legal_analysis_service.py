@@ -3,6 +3,9 @@ Legal Analysis Service — Gemini-powered legal reasoning.
 
 Constructs the system prompt, builds context from retrieved law chunks,
 sends to Gemini 2.5 Pro, and returns a structured legal analysis.
+
+Supports multi-source context: georgian_laws, court_practice, grand_chamber.
+Injects source-specific instructions when court/GC chunks are present.
 """
 
 from __future__ import annotations
@@ -16,38 +19,137 @@ from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+# ── Source-specific RAG instructions ─────────────────────────
+# Injected into the system prompt when chunks from these sources
+# appear in the retrieved context.
+
+_RAG_INSTRUCTIONS: dict[str, str] = {
+    "court_practice": (
+        "\n[სასამართლო პრაქტიკა / Court Practice]\n"
+        "When citing retrieved COURT PRACTICE chunks:\n"
+        "- Always cite the full case number (e.g., \"ბს-245-242(კ-24)\")\n"
+        "- Specify the category: criminal/civil/administrative\n"
+        "- Note the decision year — more recent decisions carry more weight\n"
+        "- These are INTERPRETIVE — they show how courts APPLY the law\n"
+        "- They are NOT formally binding precedent (unlike Grand Chamber)\n"
+        "- Use to strengthen arguments: \"სასამართლო პრაქტიკის მიხედვით...\"\n"
+        "- If a court interpretation differs from the literal text, present BOTH\n"
+        "- Connect court practice back to the specific law articles being interpreted\n"
+    ),
+    "grand_chamber": (
+        "\n[დიდი პალატა / Grand Chamber (Binding)]\n"
+        "When citing retrieved GRAND CHAMBER chunks:\n"
+        "- ⚠️ These are BINDING decisions — they override ALL lower court interpretations\n"
+        "- Always cite as: \"დიდი პალატის გადაწყვეტილება, [case_number]\"\n"
+        "- Grand Chamber carries the HIGHEST judicial authority in Georgia\n"
+        "- If a GC decision interprets a specific article, that IS the authoritative meaning\n"
+        "- If GC contradicts regular court practice, GC ALWAYS prevails\n"
+        "- Present the binding rule from the resolution (სარეზოლუციო) section\n"
+        "- When supporting the user: \"დიდი პალატის სავალდებულო განმარტებით...\"\n"
+    ),
+}
+
 
 class LawContextFormatter:
-    """Formats retrieved law chunks into context for Gemini prompts."""
+    """Formats retrieved chunks into context for Gemini prompts.
+
+    Handles multiple source types: georgian_laws, court_practice, grand_chamber.
+    Groups chunks by source and formats each with source-appropriate headers.
+    """
 
     @staticmethod
     def format(chunks: list[dict[str, Any]]) -> str:
-        """Format retrieved law chunks into a numbered context block."""
+        """Format retrieved chunks into a numbered, source-grouped context block."""
         if not chunks:
-            return "No relevant law articles were found."
+            return "No relevant legal context was found."
 
-        parts = ["RELEVANT GEORGIAN LAW ARTICLES:\n"]
+        # Group by source collection
+        by_source: dict[str, list[tuple[int, dict]]] = {}
         for i, chunk in enumerate(chunks, 1):
-            meta = chunk.get("metadata", {})
-            code = meta.get("code_name", "Unknown")
-            article = meta.get("article_number", "")
-            title = meta.get("article_title", "")
-            citation = meta.get("citation_text", "")
-            url = meta.get("article_url", "")
-            content = chunk.get("content", "")
+            source = chunk.get("metadata", {}).get("_collection", "georgian_laws")
+            by_source.setdefault(source, []).append((i, chunk))
 
-            header = f"[{i}] {code}, {article}"
-            if title:
-                header += f" — {title}"
-            parts.append(header)
-            if citation:
-                parts.append(f"   Citation: {citation}")
-            if url:
-                parts.append(f"   URL: {url}")
-            parts.append(f"   Text: {content[:2000]}")
-            parts.append("")
+        parts = []
+
+        # Format georgian_laws chunks
+        if "georgian_laws" in by_source:
+            parts.append("RELEVANT GEORGIAN LAW ARTICLES:\n")
+            for i, chunk in by_source["georgian_laws"]:
+                meta = chunk.get("metadata", {})
+                code = meta.get("code_name", "Unknown")
+                article = meta.get("article_number", "")
+                title = meta.get("article_title", "")
+                citation = meta.get("citation_text", "")
+                url = meta.get("article_url", "")
+                content = chunk.get("content", "")
+
+                header = f"[{i}] {code}, {article}"
+                if title:
+                    header += f" — {title}"
+                parts.append(header)
+                if citation:
+                    parts.append(f"   Citation: {citation}")
+                if url:
+                    parts.append(f"   URL: {url}")
+                parts.append(f"   Text: {content[:2000]}")
+                parts.append("")
+
+        # Format court_practice chunks
+        if "court_practice" in by_source:
+            parts.append("\nRELEVANT COURT PRACTICE (სასამართლო პრაქტიკა):\n")
+            for i, chunk in by_source["court_practice"]:
+                meta = chunk.get("metadata", {})
+                case_id = meta.get("case_id", "Unknown")
+                category = meta.get("category", "")
+                year = meta.get("year", "")
+                section = meta.get("section", "")
+                content = chunk.get("content", "")
+
+                header = f"[{i}] Case {case_id}"
+                if category:
+                    header += f" ({category})"
+                if year:
+                    header += f" [{year}]"
+                if section and section != "general":
+                    header += f" — {section}"
+                parts.append(header)
+                parts.append(f"   Text: {content[:2000]}")
+                parts.append("")
+
+        # Format grand_chamber chunks
+        if "grand_chamber" in by_source:
+            parts.append("\nBINDING GRAND CHAMBER DECISIONS (დიდი პალატა — სავალდებულო):\n")
+            for i, chunk in by_source["grand_chamber"]:
+                meta = chunk.get("metadata", {})
+                case_id = meta.get("case_id", "Unknown")
+                category = meta.get("category", "")
+                year = meta.get("year", "")
+                norm = meta.get("norm_interpreted", "")
+                binding_rule = meta.get("binding_rule", "")
+                content = chunk.get("content", "")
+
+                header = f"[{i}] ⚠️ Grand Chamber: {case_id}"
+                if category:
+                    header += f" ({category})"
+                if year:
+                    header += f" [{year}]"
+                parts.append(header)
+                if norm:
+                    parts.append(f"   Norm interpreted: {norm}")
+                if binding_rule:
+                    parts.append(f"   Binding rule: {binding_rule}")
+                parts.append(f"   Text: {content[:2000]}")
+                parts.append("")
 
         return "\n".join(parts)
+
+    @staticmethod
+    def get_source_types(chunks: list[dict[str, Any]]) -> set[str]:
+        """Return the set of source collections present in the chunks."""
+        return {
+            chunk.get("metadata", {}).get("_collection", "georgian_laws")
+            for chunk in chunks
+        }
 
 
 class ConversationHistoryFormatter:
@@ -103,15 +205,19 @@ class LegalAnalysisService:
             user_message, retrieved_chunks, conversation_history,
         )
 
+        # Build system prompt with source-specific RAG instructions
+        system_prompt = self._build_system_prompt(retrieved_chunks)
+
         logger.info(
             "legal_analysis_start",
             chunks_count=len(retrieved_chunks),
             prompt_length=len(user_prompt),
+            sources=list(self._law_formatter.get_source_types(retrieved_chunks)),
         )
 
         response = await self.gemini.generate(
             prompt=user_prompt,
-            system_instruction=LEGAL_ANALYSIS_SYSTEM.template,
+            system_instruction=system_prompt,
             temperature=LEGAL_ANALYSIS_SYSTEM.temperature,
             max_output_tokens=LEGAL_ANALYSIS_SYSTEM.max_output_tokens,
         )
@@ -120,6 +226,34 @@ class LegalAnalysisService:
 
         logger.info("legal_analysis_done", response_length=len(response))
         return response
+
+    def _build_system_prompt(
+        self,
+        chunks: list[dict[str, Any]],
+    ) -> str:
+        """Build system prompt with dynamic source-specific instructions.
+
+        When only georgian_laws chunks are present, this returns the base
+        system prompt unchanged (fully backward compatible). When court_practice
+        or grand_chamber chunks are present, source-specific instructions
+        are appended.
+        """
+        base = LEGAL_ANALYSIS_SYSTEM.template
+        sources = self._law_formatter.get_source_types(chunks)
+
+        extra = []
+        for source in sorted(sources):
+            if source in _RAG_INSTRUCTIONS:
+                extra.append(_RAG_INSTRUCTIONS[source])
+
+        if not extra:
+            return base
+
+        return (
+            base
+            + "\n\nSOURCE-SPECIFIC INSTRUCTIONS FOR RETRIEVED CONTEXT:\n"
+            + "\n".join(extra)
+        )
 
     def _build_user_prompt(
         self,
