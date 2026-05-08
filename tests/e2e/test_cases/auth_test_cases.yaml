@@ -1,0 +1,81 @@
+---
+# Auth Test Cases (5 cases)
+test_cases:
+  - id: AUTH-001
+    name: "Register new user with valid credentials"
+    category: auth
+    priority: high
+    steps:
+      - action: navigate
+        target: "/register"
+      - action: fill
+        target: "[data-testid='email-input']"
+        value: "newuser@masteroflaw.ge"
+      - action: fill
+        target: "[data-testid='password-input']"
+        value: "SecurePass123!"
+      - action: click
+        target: "[data-testid='register-button']"
+      - action: wait_for_text
+        target: "body"
+        value: "წარმატებით"
+    expected_result: "User is registered and redirected to dashboard"
+
+  - id: AUTH-002
+    name: "Login with valid credentials"
+    category: auth
+    priority: high
+    steps:
+      - action: navigate
+        target: "/login"
+      - action: fill
+        target: "[data-testid='email-input']"
+        value: "e2e-tester@masteroflaw.ge"
+      - action: fill
+        target: "[data-testid='password-input']"
+        value: "TestPass123!"
+      - action: click
+        target: "[data-testid='login-button']"
+      - action: wait_for_selector
+        target: "[data-testid='dashboard-heading']"
+    expected_result: "User is logged in and dashboard is visible"
+
+  - id: AUTH-003
+    name: "Token refresh on expiry"
+    category: auth
+    priority: medium
+    steps:
+      - action: login
+        email: "e2e-tester@masteroflaw.ge"
+        password: "TestPass123!"
+      - action: mock_token_expiry
+      - action: navigate
+        target: "/chat"
+      - action: wait_for_selector
+        target: "[data-testid='chat-input']"
+    expected_result: "Token is refreshed silently and chat loads"
+
+  - id: AUTH-004
+    name: "Login with empty inputs shows validation"
+    category: auth
+    priority: high
+    steps:
+      - action: navigate
+        target: "/login"
+      - action: click
+        target: "[data-testid='login-button']"
+      - action: wait_for_selector
+        target: "[data-testid='email-error']"
+    expected_result: "Validation errors are shown for empty email and password"
+
+  - id: AUTH-005
+    name: "Unauthorized access redirects to login"
+    category: auth
+    priority: high
+    steps:
+      - action: clear_storage
+      - action: navigate
+        target: "/cases"
+      - action: wait_for_url
+        target: "/login"
+    expected_result: "User is redirected to login page"

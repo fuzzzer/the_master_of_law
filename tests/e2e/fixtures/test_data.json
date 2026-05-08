@@ -1,0 +1,47 @@
+{
+  "users": {
+    "valid": {
+      "email": "e2e-tester@masteroflaw.ge",
+      "password": "TestPass123!",
+      "displayName": "E2E Tester"
+    },
+    "invalid": {
+      "email": "not-an-email",
+      "password": "123"
+    },
+    "nonexistent": {
+      "email": "does-not-exist@masteroflaw.ge",
+      "password": "WrongPass123!"
+    }
+  },
+  "cases": {
+    "sample": {
+      "title": "E2E Test Case — სატესტო საქმე",
+      "domain": "civil",
+      "facts": ["ფაქტი 1: მხარეები შეთანხმდნენ", "ფაქტი 2: ხელშეკრულება დაირღვა"]
+    }
+  },
+  "chat": {
+    "greeting_message": "გამარჯობა",
+    "legal_question": "რა არის საქართველოში ჯანმრთელობის განზრახ მძიმე დაზიანების სანქცია?",
+    "empty_message": "",
+    "very_long_message": "ა".repeat(5000)
+  },
+  "laws": {
+    "search_term": "სისხლის სამართლის კოდექსი",
+    "article": "მუხლი 120",
+    "invalid_search": "კანონი რომელიც არ არსებობს 12345"
+  },
+  "feedback": {
+    "rating": 4,
+    "category": "accuracy",
+    "comment": "ძალიან კარგი ანალიზი, მადლობა!"
+  },
+  "georgian_edge_cases": {
+    "mixed_text": "Test with ქართული ტექსტი inside English.",
+    "special_chars": "გამარჯობა! @#$%^&*() მეორე ნაწილი",
+    "long_georgian": "ა".repeat(2000),
+    "only_numbers": "12345",
+    "emoji_text": "გამარჯობა 😊 👍 საქართველო"
+  }
+}
