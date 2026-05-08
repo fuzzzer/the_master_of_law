@@ -197,6 +197,7 @@ class LawArticlePage extends StatelessWidget {
     cubit.loadCase(caseData.id).then((_) {
       cubit.linkArticle(linkedArticle).then((_) {
         cubit.close();
+        if (!context.mounted) return;
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

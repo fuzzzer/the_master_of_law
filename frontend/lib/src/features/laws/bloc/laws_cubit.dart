@@ -38,7 +38,6 @@ class LawsCubit extends Cubit<LawsState> {
     _searchDebounce?.cancel();
     if (query.trim().length < 2) {
       emit(state.copyWith(
-        searchResults: null,
         searchQuery: query,
         searchStatus: StateStatus.initial,
       ));
@@ -109,7 +108,6 @@ class LawsCubit extends Cubit<LawsState> {
   void clearSearch() {
     _searchDebounce?.cancel();
     emit(state.copyWith(
-      searchResults: null,
       searchQuery: '',
       searchStatus: StateStatus.initial,
     ));

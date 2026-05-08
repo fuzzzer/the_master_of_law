@@ -98,7 +98,13 @@ class ConsultationCubit extends Cubit<ConsultationState> {
           citations: _parseChatCitations(data['citations']),
           trustLevel: data['trust_level']?.toString(),
         );
-        emit(state.copyWith(messages: [...state.messages, aiMsg], isSending: false));
+        final updatedMessages = [...state.messages, aiMsg];
+        final shouldShowChoice = !state.showIntakeChoice && updatedMessages.length == 2;
+        emit(state.copyWith(
+          messages: updatedMessages,
+          isSending: false,
+          showIntakeChoice: shouldShowChoice || state.showIntakeChoice,
+        ));
       case ConsultationFailure<Map<String, dynamic>>(:final type):
         final errorMsg = ChatMessage(
           id: 'error_${DateTime.now().millisecondsSinceEpoch}',
@@ -110,6 +116,8 @@ class ConsultationCubit extends Cubit<ConsultationState> {
   }
 
   void switchMode(ChatMode mode) => emit(state.copyWith(chatMode: mode));
+
+  void dismissIntakeChoice() => emit(state.copyWith(showIntakeChoice: false));
 
   List<CitationData>? _parseCitations(dynamic raw) {
     if (raw is! List) return null;

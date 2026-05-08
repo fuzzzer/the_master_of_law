@@ -25,11 +25,12 @@ logger = get_logger(__name__)
 # Valid phase transitions
 _VALID_TRANSITIONS: dict[ConversationPhase, list[ConversationPhase]] = {
     ConversationPhase.GREETING: [ConversationPhase.INTAKE],
-    ConversationPhase.INTAKE: [ConversationPhase.CLARIFICATION, ConversationPhase.ANALYSIS],
+    ConversationPhase.INTAKE: [ConversationPhase.QUESTIONNAIRE, ConversationPhase.CLARIFICATION, ConversationPhase.ANALYSIS],
+    ConversationPhase.QUESTIONNAIRE: [ConversationPhase.CLARIFICATION, ConversationPhase.ANALYSIS],
     ConversationPhase.CLARIFICATION: [ConversationPhase.ANALYSIS, ConversationPhase.INTAKE],
     ConversationPhase.ANALYSIS: [ConversationPhase.ADVICE],
     ConversationPhase.ADVICE: [ConversationPhase.FOLLOW_UP, ConversationPhase.ANALYSIS],
-    ConversationPhase.FOLLOW_UP: [ConversationPhase.ANALYSIS, ConversationPhase.FOLLOW_UP],
+    ConversationPhase.FOLLOW_UP: [ConversationPhase.ANALYSIS, ConversationPhase.QUESTIONNAIRE, ConversationPhase.FOLLOW_UP],
 }
 
 
@@ -237,8 +238,11 @@ class ConversationService:
         if current == ConversationPhase.GREETING.value and message_count >= 1:
             return ConversationPhase.INTAKE
 
-        # After enough intake → move to ANALYSIS
-        if current == ConversationPhase.INTAKE.value and message_count >= 3:
+        # INTAKE stays as INTAKE — user explicitly chooses when to proceed
+        # (via questionnaire, free-text extract, or skip-to-analysis)
+
+        # After questionnaire → move to ANALYSIS
+        if current == ConversationPhase.QUESTIONNAIRE.value:
             return ConversationPhase.ANALYSIS
 
         # After analysis → ADVICE

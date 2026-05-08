@@ -24,6 +24,7 @@ class ConversationPhase(str, enum.Enum):
     """State machine phases for conversations."""
     GREETING = "GREETING"
     INTAKE = "INTAKE"
+    QUESTIONNAIRE = "QUESTIONNAIRE"
     CLARIFICATION = "CLARIFICATION"
     ANALYSIS = "ANALYSIS"
     ADVICE = "ADVICE"

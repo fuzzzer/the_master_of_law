@@ -15,6 +15,7 @@ from app.prompts.rag_pipeline import QUERY_EXPANSION, RERANK
 from app.prompts.case_builder import CASE_BUILDER
 from app.prompts.classifier import LEGAL_CLASSIFIER
 from app.prompts.explanation import SIMPLIFY_TEXT, EXPLAIN_ARTICLE
+from app.prompts.questionnaire import QUESTIONNAIRE_GENERATOR, NARRATIVE_EXTRACTOR
 
 # Build the global registry
 prompts = PromptRegistry()
@@ -26,6 +27,8 @@ prompts.register(CASE_BUILDER)
 prompts.register(LEGAL_CLASSIFIER)
 prompts.register(SIMPLIFY_TEXT)
 prompts.register(EXPLAIN_ARTICLE)
+prompts.register(QUESTIONNAIRE_GENERATOR)
+prompts.register(NARRATIVE_EXTRACTOR)
 
 # Validate on import — fails fast if any template is malformed
 _issues = prompts.validate_all()

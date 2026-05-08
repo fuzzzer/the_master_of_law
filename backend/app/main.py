@@ -33,6 +33,7 @@ from app.routes import (
     conversation_router,
     health_router,
     law_browser_router,
+    questionnaire_router,
     rag_router,
     ws_chat_router,
 )
@@ -123,6 +124,7 @@ def create_app() -> FastAPI:
     app.include_router(law_browser_router.router)
     app.include_router(case_file_router.router)
     app.include_router(rag_router.router)
+    app.include_router(questionnaire_router.router)
     app.include_router(ws_chat_router.router)
 
     return app

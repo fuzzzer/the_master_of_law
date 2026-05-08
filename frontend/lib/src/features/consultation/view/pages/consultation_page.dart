@@ -98,6 +98,7 @@ class _ConsultationPageState extends State<ConsultationPage> {
           return Column(
             children: [
               Expanded(child: _buildMessageList(context, state)),
+              if (state.showIntakeChoice) _buildIntakeChoiceCard(context, state),
               _buildInputBar(context, state),
             ],
           );
@@ -295,6 +296,222 @@ class _ConsultationPageState extends State<ConsultationPage> {
         ))),
       ),
     );
+  }
+
+  Widget _buildIntakeChoiceCard(BuildContext context, ConsultationState state) {
+    final uiColors = context.uiColors;
+    final uiTextStyles = context.uiTextStyles;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: uiColors.backgroundSecondaryColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: uiColors.accentColor.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'როგორ გსურთ დეტალების მოწოდება?',
+            style: uiTextStyles.bodyBold14.copyWith(color: uiColors.primaryTextColor),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'მეტი ინფორმაცია = უფრო ზუსტი ანალიზი',
+            style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor),
+          ),
+          const SizedBox(height: 12),
+          _buildIntakeOption(
+            context,
+            icon: Icons.edit_note,
+            title: 'მომიყევი მეტი',
+            subtitle: 'თავისუფლად აღწერეთ — AI ამოიღებს ინფორმაციას',
+            onTap: () => _openNarrativeMode(context, state),
+          ),
+          const SizedBox(height: 8),
+          _buildIntakeOption(
+            context,
+            icon: Icons.quiz_outlined,
+            title: 'კითხვარი',
+            subtitle: 'სტრუქტურირებული კითხვები ნაბიჯ-ნაბიჯ',
+            onTap: () => _openQuestionnaireMode(context, state),
+          ),
+          const SizedBox(height: 8),
+          _buildIntakeOption(
+            context,
+            icon: Icons.bolt,
+            title: 'გააანალიზე ახლავე',
+            subtitle: 'შესაძლოა ნაკლებად ზუსტი იყოს',
+            isWarning: true,
+            onTap: () => _skipToAnalysis(context, state),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIntakeOption(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    bool isWarning = false,
+  }) {
+    final uiColors = context.uiColors;
+    final uiTextStyles = context.uiTextStyles;
+    final color = isWarning ? uiColors.secondaryTextColor : uiColors.accentColor;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.15)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: color),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: uiTextStyles.bodyBold14.copyWith(color: uiColors.primaryTextColor)),
+                  Text(subtitle, style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor)),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 18, color: uiColors.secondaryTextColor),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openNarrativeMode(BuildContext context, ConsultationState state) {
+    context.read<ConsultationCubit>().dismissIntakeChoice();
+    _showNarrativeSheet(context, state);
+  }
+
+  void _openQuestionnaireMode(BuildContext context, ConsultationState state) {
+    context.read<ConsultationCubit>().dismissIntakeChoice();
+    final conversationId = state.conversationId;
+    if (conversationId == null) return;
+
+    final firstUserMessage = state.messages.firstWhere((m) => m.isUser, orElse: () => state.messages.first);
+
+    Navigator.of(context).push(MaterialPageRoute<bool>(
+      builder: (_) => BlocProvider(
+        create: (_) => QuestionnaireCubit(
+          repository: QuestionnaireRepository(
+            remoteDataSource: QuestionnaireRemoteDataSource(),
+          ),
+        )..generateQuestionnaire(
+            conversationId: conversationId,
+            domain: 'civil',
+            userDescription: firstUserMessage.text,
+          ),
+        child: QuestionnairePage(
+          conversationId: conversationId,
+          domain: 'civil',
+          userDescription: firstUserMessage.text,
+        ),
+      ),
+    ));
+  }
+
+  void _skipToAnalysis(BuildContext context, ConsultationState state) {
+    context.read<ConsultationCubit>().dismissIntakeChoice();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('⚠️ ანალიზი შესაძლოა ნაკლებად ზუსტი იყოს დამატებითი ინფორმაციის გარეშე'),
+        duration: const Duration(seconds: 3),
+        backgroundColor: Colors.orange.shade700,
+      ),
+    );
+  }
+
+  void _showNarrativeSheet(BuildContext context, ConsultationState state) {
+    final narrativeController = TextEditingController();
+    final uiColors = context.uiColors;
+    final uiTextStyles = context.uiTextStyles;
+    final conversationId = state.conversationId;
+    if (conversationId == null) return;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          20, 20, 20, MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'მომიყევით ყველაფერი',
+              style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'აღწერეთ სიტუაცია დეტალურად — AI ავტომატურად ამოიღებს საჭირო ინფორმაციას.',
+              style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: narrativeController,
+              maxLines: 8,
+              minLines: 4,
+              style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor),
+              decoration: InputDecoration(
+                hintText: 'რა მოხდა? როდის? ვინ მონაწილეობდა? რა მტკიცებულებები გაქვთ?...',
+                hintStyle: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
+                filled: true,
+                fillColor: uiColors.backgroundSecondaryColor,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: uiColors.secondaryTextColor.withValues(alpha: 0.2)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  final text = narrativeController.text.trim();
+                  if (text.length < 10) return;
+                  Navigator.of(sheetContext).pop();
+                  _processNarrative(context, conversationId, text);
+                },
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: Text(
+                  'ინფორმაციის დამუშავება',
+                  style: uiTextStyles.bodyBold14,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _processNarrative(BuildContext context, String conversationId, String narrative) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('ინფორმაცია მუშავდება...'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+    context.read<ConsultationCubit>().sendMessage(narrative);
   }
 
   Widget _buildInputBar(BuildContext context, ConsultationState state) {
