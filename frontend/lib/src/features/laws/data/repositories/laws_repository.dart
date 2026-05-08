@@ -25,7 +25,7 @@ class LawsRepository {
   LawsRepository({required LawsRemoteDataSource remoteDataSource})
       : _remoteDataSource = remoteDataSource;
 
-  Future<LawsResult<List<dynamic>>> searchLaws(String query) async {
+  Future<LawsResult<LawSearchResults>> searchLaws(String query) async {
     try {
       final data = await _remoteDataSource.searchLaws(query);
       return LawsSuccess(data);
@@ -36,7 +36,7 @@ class LawsRepository {
     }
   }
 
-  Future<LawsResult<List<dynamic>>> getCodes() async {
+  Future<LawsResult<List<LawCode>>> getCodes() async {
     try {
       final data = await _remoteDataSource.getCodes();
       return LawsSuccess(data);
@@ -58,7 +58,7 @@ class LawsRepository {
     }
   }
 
-  Future<LawsResult<Map<String, dynamic>>> getArticle(String articleId) async {
+  Future<LawsResult<LawArticleDetail>> getArticle(String articleId) async {
     try {
       final data = await _remoteDataSource.getArticle(articleId);
       return LawsSuccess(data);

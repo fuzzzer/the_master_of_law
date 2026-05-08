@@ -1,6 +1,5 @@
 import 'package:themasteroflaw/src/src.dart';
 
-/// Sealed result type for consultation operations.
 sealed class ConsultationResult<T> {
   const ConsultationResult();
 }
@@ -16,31 +15,20 @@ class ConsultationFailure<T> extends ConsultationResult<T> {
   const ConsultationFailure({required this.type, this.message});
 }
 
-enum ConsultationFailureType {
-  network,
-  unauthorized,
-  noCredits,
-  notFound,
-  serverError,
-  unknown,
-}
+enum ConsultationFailureType { network, unauthorized, noCredits, notFound, serverError, unknown }
 
-/// Repository for consultation data. Never throws.
 class ConsultationRepository {
   final ConsultationRemoteDataSource _remoteDataSource;
 
   ConsultationRepository({required ConsultationRemoteDataSource remoteDataSource})
-      : _remoteDataSource = remoteDataSource;
+    : _remoteDataSource = remoteDataSource;
 
   Future<ConsultationResult<Map<String, dynamic>>> createConversation({String? caseId}) async {
     try {
       final data = await _remoteDataSource.createConversation(caseId: caseId);
       return ConsultationSuccess(data);
     } on HttpClientException catch (e) {
-      return ConsultationFailure(
-        type: _mapHttpError(e),
-        message: e.toString(),
-      );
+      return ConsultationFailure(type: _mapHttpError(e), message: e.toString());
     } catch (e) {
       return ConsultationFailure(type: ConsultationFailureType.unknown, message: e.toString());
     }
@@ -82,11 +70,13 @@ class ConsultationRepository {
   Future<ConsultationResult<Map<String, dynamic>>> sendMessage({
     required String conversationId,
     required String message,
+    Map<String, dynamic>? ragConfig,
   }) async {
     try {
       final data = await _remoteDataSource.sendMessage(
         conversationId: conversationId,
         message: message,
+        ragConfig: ragConfig,
       );
       return ConsultationSuccess(data);
     } on HttpClientException catch (e) {

@@ -1,6 +1,5 @@
 part of 'consultation_cubit.dart';
 
-/// Single chat message (user or AI).
 class ChatMessage {
   final String id;
   final String text;
@@ -23,7 +22,6 @@ class ChatMessage {
   });
 }
 
-/// Parsed citation from AI response.
 class CitationData {
   final String articleId;
   final String articleTitle;
@@ -46,6 +44,7 @@ class ConsultationState {
   final List<ChatMessage> messages;
   final bool isSending;
   final ConsultationFailureType? failureType;
+  final ChatMode chatMode;
 
   const ConsultationState({
     this.status = StateStatus.initial,
@@ -53,6 +52,7 @@ class ConsultationState {
     this.messages = const [],
     this.isSending = false,
     this.failureType,
+    this.chatMode = ChatMode.allSources,
   });
 
   ConsultationState copyWith({
@@ -61,6 +61,7 @@ class ConsultationState {
     List<ChatMessage>? messages,
     bool? isSending,
     ConsultationFailureType? failureType,
+    ChatMode? chatMode,
   }) {
     return ConsultationState(
       status: status ?? this.status,
@@ -68,6 +69,7 @@ class ConsultationState {
       messages: messages ?? this.messages,
       isSending: isSending ?? this.isSending,
       failureType: failureType ?? this.failureType,
+      chatMode: chatMode ?? this.chatMode,
     );
   }
 }

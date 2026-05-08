@@ -11,7 +11,6 @@ class AppRouter {
     initialLocation: '/cases',
     observers: [NavigationLogger()],
     routes: <RouteBase>[
-      // 3-tab shell: Cases, Laws, Profile
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return MainShell(navigationShell: navigationShell);
@@ -24,9 +23,7 @@ class AppRouter {
                 path: '/cases',
                 builder: (context, state) => BlocProvider(
                   create: (_) => CasesCubit(
-                    repository: CaseRepository(
-                      localDataSource: CaseLocalDataSource(),
-                    ),
+                    repository: CaseRepository(localDataSource: CaseLocalDataSource()),
                   )..loadCases(),
                   child: const MyCasesPage(),
                 ),
@@ -39,16 +36,12 @@ class AppRouter {
                         providers: [
                           BlocProvider(
                             create: (_) => CaseDetailCubit(
-                              repository: CaseRepository(
-                                localDataSource: CaseLocalDataSource(),
-                              ),
+                              repository: CaseRepository(localDataSource: CaseLocalDataSource()),
                             )..loadCase(caseId),
                           ),
                           BlocProvider(
                             create: (_) => CasesCubit(
-                              repository: CaseRepository(
-                                localDataSource: CaseLocalDataSource(),
-                              ),
+                              repository: CaseRepository(localDataSource: CaseLocalDataSource()),
                             ),
                           ),
                         ],
@@ -61,16 +54,32 @@ class AppRouter {
             ],
           ),
 
-          // ── Tab 1: Laws ─────────────────────────────────────
+          // ── Tab 1: Chat (AI Consultation) ────────────────────
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/chat',
+                builder: (context, state) => BlocProvider(
+                  create: (_) => ConsultationCubit(
+                    repository: ConsultationRepository(
+                      remoteDataSource: ConsultationRemoteDataSource(),
+                    ),
+                    chatMode: ChatMode.lawsOnly,
+                  ),
+                  child: const ConsultationPage(),
+                ),
+              ),
+            ],
+          ),
+
+          // ── Tab 2: Laws ─────────────────────────────────────
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: '/laws',
                 builder: (context, state) => BlocProvider(
                   create: (_) => LawsCubit(
-                    repository: LawsRepository(
-                      remoteDataSource: LawsRemoteDataSource(),
-                    ),
+                    repository: LawsRepository(remoteDataSource: LawsRemoteDataSource()),
                   )..loadCodes(),
                   child: const LawsHomePage(),
                 ),
@@ -78,7 +87,7 @@ class AppRouter {
             ],
           ),
 
-          // ── Tab 2: Profile ──────────────────────────────────
+          // ── Tab 3: Profile ──────────────────────────────────
           StatefulShellBranch(
             routes: [
               GoRoute(

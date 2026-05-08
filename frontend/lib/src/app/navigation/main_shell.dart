@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-/// Main app shell with 3-tab bottom navigation.
-/// Tabs: საქმეები (Cases), კანონები (Laws), პროფილი (Profile)
+/// Main app shell with 4-tab bottom navigation.
+/// Tabs: საქმეები (Cases), ჩატი (Chat), კანონები (Laws), პროფილი (Profile)
 class MainShell extends StatelessWidget {
   const MainShell({
     super.key,
@@ -32,11 +32,17 @@ class MainShell extends StatelessWidget {
             index,
             initialLocation: index == navigationShell.currentIndex,
           ),
+          type: BottomNavigationBarType.fixed,
           items: const [
             BottomNavigationBarItem(
               icon: Icon(Icons.folder_special_outlined),
               activeIcon: Icon(Icons.folder_special),
               label: 'საქმეები',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.chat_outlined),
+              activeIcon: Icon(Icons.chat),
+              label: 'ჩატი',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.menu_book_outlined),

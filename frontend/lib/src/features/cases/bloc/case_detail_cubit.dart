@@ -170,6 +170,24 @@ class CaseDetailCubit extends Cubit<CaseDetailState> {
     await _save(caseData);
   }
 
+  // ── Linked Articles ────────────────────────────────────────────────
+
+  Future<void> linkArticle(LinkedArticleData article) async {
+    final caseData = state.caseData;
+    if (caseData == null) return;
+    final alreadyLinked = caseData.linkedArticles.any((a) => a.articleId == article.articleId);
+    if (alreadyLinked) return;
+    caseData.linkedArticles.add(article);
+    await _save(caseData);
+  }
+
+  Future<void> unlinkArticle(String articleId) async {
+    final caseData = state.caseData;
+    if (caseData == null) return;
+    caseData.linkedArticles.removeWhere((a) => a.articleId == articleId);
+    await _save(caseData);
+  }
+
   // ── Conversations ─────────────────────────────────────────────────
 
   Future<void> linkConversation(String conversationId) async {

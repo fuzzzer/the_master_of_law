@@ -50,6 +50,9 @@ class CaseData extends HiveObject {
   @HiveField(13)
   final List<String> linkedConversationIds;
 
+  @HiveField(14)
+  final List<LinkedArticleData> linkedArticles;
+
   CaseData({
     required this.id,
     required this.title,
@@ -65,13 +68,15 @@ class CaseData extends HiveObject {
     List<RiskData>? risks,
     List<ActionItemData>? actionItems,
     List<String>? linkedConversationIds,
+    List<LinkedArticleData>? linkedArticles,
   }) : facts = facts ?? [],
        arguments = arguments ?? [],
        evidence = evidence ?? [],
        timeline = timeline ?? [],
        risks = risks ?? [],
        actionItems = actionItems ?? [],
-       linkedConversationIds = linkedConversationIds ?? [];
+       linkedConversationIds = linkedConversationIds ?? [],
+       linkedArticles = linkedArticles ?? [];
 
   LegalDomain get domain => LegalDomain.values[domainIndex];
   set domain(LegalDomain d) => domainIndex == d.index;
@@ -388,4 +393,31 @@ class ActionItemData extends HiveObject {
   });
 
   ActionPriority get priority => ActionPriority.values[priorityIndex];
+}
+
+/// A law article saved to a case for reference.
+@HiveType(typeId: 8)
+class LinkedArticleData extends HiveObject {
+  @HiveField(0)
+  final String articleId;
+
+  @HiveField(1)
+  final String title;
+
+  @HiveField(2)
+  final String codeName;
+
+  @HiveField(3)
+  final String snippet;
+
+  @HiveField(4)
+  final DateTime savedAt;
+
+  LinkedArticleData({
+    required this.articleId,
+    required this.title,
+    required this.codeName,
+    this.snippet = '',
+    required this.savedAt,
+  });
 }
