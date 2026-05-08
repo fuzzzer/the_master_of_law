@@ -1,20 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:themasteroflaw/src/core/core.dart';
+import 'package:themasteroflaw/src/features/laws/laws.dart';
 
 /// Laws browser home page — lists all legal codes with search.
 class LawsHomePage extends StatelessWidget {
   const LawsHomePage({super.key});
 
-  static const _legalCodes = [
-    ('🏛️', 'სამოქალაქო კოდექსი', 'Civil Code'),
-    ('⚖️', 'სისხლის სამართლის კოდექსი', 'Criminal Code'),
-    ('📋', 'ადმინისტრაციულ სამართალდარღვევათა კოდექსი', 'Administrative Code'),
-    ('👷', 'შრომის კოდექსი', 'Labor Code'),
-    ('💰', 'საგადასახადო კოდექსი', 'Tax Code'),
-    ('👨‍👩‍👧', 'ოჯახის კანონი', 'Family Law'),
-    ('🏠', 'საკუთრების კანონი', 'Property Law'),
-    ('📜', 'კონსტიტუცია', 'Constitution'),
-  ];
+  static const _codeIcons = <String, String>{
+    'სამოქალაქო': '🏛️',
+    'სისხლის': '⚖️',
+    'ადმინისტრაციულ': '📋',
+    'შრომის': '👷',
+    'საგადასახადო': '💰',
+    'ოჯახის': '👨‍👩‍👧',
+    'საკუთრების': '🏠',
+    'კონსტიტუცია': '📜',
+    'საპროცესო': '📄',
+    'სამეწარმეო': '🏢',
+  };
+
+  String _iconForCode(String codeName) {
+    for (final entry in _codeIcons.entries) {
+      if (codeName.contains(entry.key)) return entry.value;
+    }
+    return '📚';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,16 +42,54 @@ class LawsHomePage extends StatelessWidget {
           IconButton(
             icon: Icon(Icons.search, color: uiColors.secondaryTextColor),
             onPressed: () {
-              // TODO: Search across all codes
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => BlocProvider.value(
+                    value: context.read<LawsCubit>(),
+                    child: const LawSearchPage(),
+                  ),
+                ),
+              );
             },
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Search banner
-          Container(
+      body: BlocBuilder<LawsCubit, LawsState>(
+        buildWhen: (prev, curr) =>
+            prev.codesStatus != curr.codesStatus || prev.codes != curr.codes,
+        builder: (context, state) {
+          return StatusBuilder.buildByStatus(
+            status: state.codesStatus,
+            onInitial: () => const SizedBox.shrink(),
+            onLoading: () => const Center(child: CircularProgressIndicator()),
+            onSuccess: () => _buildCodesList(context, state),
+            onFailure: () => _buildErrorState(context, state),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCodesList(BuildContext context, LawsState state) {
+    final uiColors = context.uiColors;
+    final uiTextStyles = context.uiTextStyles;
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // Search banner
+        GestureDetector(
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => BlocProvider.value(
+                  value: context.read<LawsCubit>(),
+                  child: const LawSearchPage(),
+                ),
+              ),
+            );
+          },
+          child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: uiColors.accentColor.withValues(alpha: 0.1),
@@ -60,7 +109,7 @@ class LawsHomePage extends StatelessWidget {
                         style: uiTextStyles.bodyBold14.copyWith(color: uiColors.accentColor),
                       ),
                       Text(
-                        '9,450 სტატია ინდექსირებულია',
+                        '${state.codes.fold<int>(0, (sum, c) => sum + c.articleCount)} სტატია ინდექსირებულია',
                         style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor),
                       ),
                     ],
@@ -69,15 +118,14 @@ class LawsHomePage extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 20),
-          Text(
-            'კოდექსები',
-            style: uiTextStyles.bodyBold16.copyWith(color: uiColors.primaryTextColor),
-          ),
-          const SizedBox(height: 12),
-          ...List.generate(_legalCodes.length, (index) {
-            final (icon, titleKa, titleEn) = _legalCodes[index];
-            return Padding(
+        ),
+        const SizedBox(height: 20),
+        Text(
+          'კოდექსები',
+          style: uiTextStyles.bodyBold16.copyWith(color: uiColors.primaryTextColor),
+        ),
+        const SizedBox(height: 12),
+        ...state.codes.map((code) => Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Container(
                 decoration: BoxDecoration(
@@ -85,24 +133,58 @@ class LawsHomePage extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: ListTile(
-                  leading: Text(icon, style: const TextStyle(fontSize: 28)),
+                  leading: Text(_iconForCode(code.name), style: const TextStyle(fontSize: 28)),
                   title: Text(
-                    titleKa,
+                    code.name,
                     style: uiTextStyles.bodyBold14.copyWith(color: uiColors.primaryTextColor),
                   ),
                   subtitle: Text(
-                    titleEn,
+                    '${code.articleCount} მუხლი',
                     style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor),
                   ),
                   trailing: Icon(Icons.chevron_right, color: uiColors.secondaryTextColor),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   onTap: () {
-                    // TODO: Navigate to code structure
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => BlocProvider.value(
+                          value: context.read<LawsCubit>()..loadCodeStructure(code.id),
+                          child: LawCodeDetailPage(code: code),
+                        ),
+                      ),
+                    );
                   },
                 ),
               ),
-            );
-          }),
+            )),
+      ],
+    );
+  }
+
+  Widget _buildErrorState(BuildContext context, LawsState state) {
+    final uiColors = context.uiColors;
+    final uiTextStyles = context.uiTextStyles;
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 48, color: uiColors.accentColor.withValues(alpha: 0.5)),
+          const SizedBox(height: 16),
+          Text(
+            'მონაცემების ჩატვირთვა ვერ მოხერხდა',
+            style: uiTextStyles.bodyBold14.copyWith(color: uiColors.primaryTextColor),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'სცადეთ ხელახლა',
+            style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () => context.read<LawsCubit>().loadCodes(),
+            child: const Text('ხელახლა ცდა'),
+          ),
         ],
       ),
     );

@@ -47,13 +47,18 @@ class ConsultationRemoteDataSource {
   }
 
   /// POST /api/v1/chat/{id}/send — send message, get AI response (1 credit).
+  /// Accepts optional [ragConfig] to control which knowledge sources to search.
   Future<Map<String, dynamic>> sendMessage({
     required String conversationId,
     required String message,
+    Map<String, dynamic>? ragConfig,
   }) async {
     final response = await _httpClient.post<Map<String, dynamic>>(
       _uri('/api/v1/chat/$conversationId/send'),
-      body: {'message': message},
+      body: {
+        'message': message,
+        if (ragConfig != null) 'rag_config': ragConfig,
+      },
     );
     return response.data!;
   }

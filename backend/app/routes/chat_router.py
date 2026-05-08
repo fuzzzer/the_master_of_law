@@ -21,8 +21,10 @@ from app.schemas.chat_schema import (
     CitationInfo,
     RetrievedChunk,
 )
+from app.schemas.guardrail_schema import GuardrailDecision
 from app.services.citation_service import get_citation_service
 from app.services.conversation_service import ConversationService
+from app.services.guardrail_service import get_guardrail_service
 from app.services.legal_analysis_service import get_legal_analysis_service
 from app.services.rag_retrieval_service import get_rag_service
 from app.utils.logger import get_logger
@@ -71,6 +73,44 @@ async def send_message(
 
     # Get conversation history from DB for multi-turn context
     history = await conv_svc.get_conversation_history(conversation_id)
+
+    # ── Guardrail pre-filter (Task 03) ────────────────────────
+    # Check if message is legal/greeting/off-topic/harmful BEFORE spending credits on RAG.
+    # ADMIN users bypass this check entirely.
+    guardrail = get_guardrail_service()
+    user_tier = (getattr(request.state, "user", None) or {}).get("tier", "FREE")
+    if guardrail.should_bypass(user_tier):
+        guardrail.log_decision(
+            user_id=(getattr(request.state, "user", None) or {}).get("uid", "anonymous"),
+            message=body.message,
+            decision=GuardrailDecision.legal(confidence=1.0),
+            bypassed=True,
+        )
+    else:
+        decision = await guardrail.classify(body.message)
+        guardrail.log_decision(
+            user_id=(getattr(request.state, "user", None) or {}).get("uid", "anonymous"),
+            message=body.message,
+            decision=decision,
+            bypassed=False,
+        )
+        if not decision.is_legal:
+            # Return a pre-canned response — no credits deducted, no RAG cost
+            response_text = guardrail.get_response(decision) or ""
+            await conv_svc.save_assistant_message(
+                conversation_id=conversation_id,
+                content=response_text,
+                citations=[],
+                retrieved_chunk_ids=[],
+                credit_cost=0,
+            )
+            await db.commit()
+            return ChatSendResponse(
+                response=response_text,
+                citations=[],
+                retrieved_chunks=[],
+                credits_remaining=None,
+            )
 
     # Step 1: RAG Retrieval
     rag = get_rag_service()

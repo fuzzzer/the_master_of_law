@@ -82,11 +82,13 @@ class ConsultationRepository {
   Future<ConsultationResult<Map<String, dynamic>>> sendMessage({
     required String conversationId,
     required String message,
+    Map<String, dynamic>? ragConfig,
   }) async {
     try {
       final data = await _remoteDataSource.sendMessage(
         conversationId: conversationId,
         message: message,
+        ragConfig: ragConfig,
       );
       return ConsultationSuccess(data);
     } on HttpClientException catch (e) {

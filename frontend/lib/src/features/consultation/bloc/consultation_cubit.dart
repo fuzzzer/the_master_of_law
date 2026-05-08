@@ -3,14 +3,51 @@ import 'package:themasteroflaw/src/src.dart';
 
 part 'consultation_state.dart';
 
+/// RAG config presets for different chat modes.
+class RagConfigPresets {
+  RagConfigPresets._();
+
+  /// Laws only — no court practice or grand chamber.
+  static const lawsOnly = <String, dynamic>{
+    'legal_codes': true,
+    'court_practice': false,
+    'grand_chamber': false,
+  };
+
+  /// All sources enabled.
+  static const allSources = <String, dynamic>{
+    'legal_codes': true,
+    'court_practice': true,
+    'grand_chamber': true,
+  };
+}
+
+/// Chat mode determines which RAG sources are searched.
+enum ChatMode {
+  lawsOnly,
+  allSources;
+
+  Map<String, dynamic> get ragConfig => switch (this) {
+    ChatMode.lawsOnly => RagConfigPresets.lawsOnly,
+    ChatMode.allSources => RagConfigPresets.allSources,
+  };
+
+  String get labelKa => switch (this) {
+    ChatMode.lawsOnly => 'კანონები',
+    ChatMode.allSources => 'ყველა წყარო',
+  };
+}
+
 /// Manages AI consultation chat state: conversation lifecycle + messages.
 /// Emits typed failure states — UI handles presentation.
 class ConsultationCubit extends Cubit<ConsultationState> {
   final ConsultationRepository _repository;
 
-  ConsultationCubit({required ConsultationRepository repository})
-    : _repository = repository,
-      super(const ConsultationState());
+  ConsultationCubit({
+    required ConsultationRepository repository,
+    ChatMode chatMode = ChatMode.allSources,
+  })  : _repository = repository,
+        super(ConsultationState(chatMode: chatMode));
 
   /// Start or load a conversation linked to a case.
   Future<void> startConversation({String? caseId}) async {
@@ -74,16 +111,17 @@ class ConsultationCubit extends Cubit<ConsultationState> {
     final result = await _repository.sendMessage(
       conversationId: state.conversationId!,
       message: text,
+      ragConfig: state.chatMode.ragConfig,
     );
 
     switch (result) {
       case ConsultationSuccess<Map<String, dynamic>>(:final data):
         final aiMsg = ChatMessage(
           id: data['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString(),
-          text: data['content']?.toString() ?? '',
+          text: data['response']?.toString() ?? data['content']?.toString() ?? '',
           isUser: false,
           timestamp: DateTime.tryParse(data['created_at']?.toString() ?? '') ?? DateTime.now(),
-          citations: _parseCitations(data['citations']),
+          citations: _parseChatCitations(data['citations']),
           trustLevel: data['trust_level']?.toString(),
         );
         emit(state.copyWith(messages: [...state.messages, aiMsg], isSending: false));
@@ -101,6 +139,10 @@ class ConsultationCubit extends Cubit<ConsultationState> {
     }
   }
 
+  void switchMode(ChatMode mode) {
+    emit(state.copyWith(chatMode: mode));
+  }
+
   List<CitationData>? _parseCitations(dynamic raw) {
     if (raw == null) return null;
     if (raw is! List) return null;
@@ -112,6 +154,22 @@ class ConsultationCubit extends Cubit<ConsultationState> {
         codeTitle: map['code_title']?.toString() ?? '',
         snippet: map['snippet']?.toString() ?? '',
         trustLevel: map['trust_level']?.toString() ?? 'guidance',
+      );
+    }).toList();
+  }
+
+  /// Parses citations from the ChatSendResponse format.
+  List<CitationData>? _parseChatCitations(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is! List) return null;
+    return raw.map((c) {
+      final map = c as Map<String, dynamic>;
+      return CitationData(
+        articleId: map['article_number']?.toString() ?? map['article_id']?.toString() ?? '',
+        articleTitle: map['raw_text']?.toString() ?? map['article_title']?.toString() ?? '',
+        codeTitle: map['code_name']?.toString() ?? map['code_title']?.toString() ?? '',
+        snippet: map['citation_text']?.toString() ?? map['snippet']?.toString() ?? '',
+        trustLevel: map['verified'] == true ? 'verified' : 'guidance',
       );
     }).toList();
   }

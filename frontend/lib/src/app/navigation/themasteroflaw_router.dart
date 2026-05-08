@@ -11,7 +11,7 @@ class AppRouter {
     initialLocation: '/cases',
     observers: [NavigationLogger()],
     routes: <RouteBase>[
-      // 3-tab shell: Cases, Laws, Profile
+      // 4-tab shell: Cases, Chat, Laws, Profile
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return MainShell(navigationShell: navigationShell);
@@ -61,7 +61,25 @@ class AppRouter {
             ],
           ),
 
-          // ── Tab 1: Laws ─────────────────────────────────────
+          // ── Tab 1: Chat (AI Consultation) ────────────────────
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/chat',
+                builder: (context, state) => BlocProvider(
+                  create: (_) => ConsultationCubit(
+                    repository: ConsultationRepository(
+                      remoteDataSource: ConsultationRemoteDataSource(),
+                    ),
+                    chatMode: ChatMode.lawsOnly,
+                  ),
+                  child: const ConsultationPage(),
+                ),
+              ),
+            ],
+          ),
+
+          // ── Tab 2: Laws ─────────────────────────────────────
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -78,7 +96,7 @@ class AppRouter {
             ],
           ),
 
-          // ── Tab 2: Profile ──────────────────────────────────
+          // ── Tab 3: Profile ──────────────────────────────────
           StatefulShellBranch(
             routes: [
               GoRoute(

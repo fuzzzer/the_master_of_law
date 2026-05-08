@@ -30,6 +30,10 @@ from app.integrations.vertex_embedding_client import (
     get_embedding_client,
 )
 from app.prompts.rag_pipeline import QUERY_EXPANSION, RERANK
+from app.services.threshold_rerank_service import (
+    ThresholdRerankService,
+    get_threshold_rerank_service,
+)
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -43,10 +47,12 @@ class RAGRetrievalService:
         chroma: ChromaClient | None = None,
         embedding_client: VertexEmbeddingClient | None = None,
         gemini_client: VertexAIClient | None = None,
+        threshold_service: ThresholdRerankService | None = None,
     ) -> None:
         self._chroma = chroma
         self._embedding_client = embedding_client
         self._gemini = gemini_client
+        self._threshold_service = threshold_service
         self._article_index: dict[str, Any] | None = None
 
     @property
@@ -66,6 +72,12 @@ class RAGRetrievalService:
         if self._gemini is None:
             self._gemini = get_vertex_ai_client()
         return self._gemini
+
+    @property
+    def threshold_service(self) -> ThresholdRerankService:
+        if self._threshold_service is None:
+            self._threshold_service = get_threshold_rerank_service()
+        return self._threshold_service
 
     async def retrieve(
         self,
@@ -101,6 +113,10 @@ class RAGRetrievalService:
 
         merged = self._stage_3_merge_and_dedup(vector_hits, fulltext_hits)
         logger.info("rag_stage_3_done", merged_count=len(merged))
+
+        # Threshold boost: prioritize exact legal values for quantity/deadline queries
+        merged = self.threshold_service.apply_threshold_boost(merged, user_message)
+        logger.info("rag_threshold_boost_done", merged_count=len(merged))
 
         if len(merged) > top_k:
             reranked = await self._stage_4_rerank(user_message, merged, top_k)

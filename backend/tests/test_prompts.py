@@ -106,7 +106,7 @@ class TestGlobalRegistry:
             assert name in prompts, f"Prompt '{name}' not in registry"
 
     def test_prompt_count(self):
-        assert len(prompts) == 7
+        assert len(prompts) == 9
 
     def test_all_valid(self):
         issues = prompts.validate_all()

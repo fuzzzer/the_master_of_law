@@ -24,6 +24,17 @@ logger = get_logger(__name__)
 # appear in the retrieved context.
 
 _RAG_INSTRUCTIONS: dict[str, str] = {
+    "threshold": (
+        "\n[სამართლებრივი ზღვრები / Legal Thresholds]\n"
+        "When citing retrieved THRESHOLD chunks:\n"
+        "- These contain EXACT numeric values: drug quantities, fine amounts, sentence ranges, deadlines, age limits, monetary limits\n"
+        "- ALWAYS state the exact numbers as written in the threshold — do NOT round, approximate, or invent values\n"
+        "- Cite the specific code name, article number, and threshold_type from the metadata\n"
+        "- If multiple threshold levels exist (small / large / extra_large), explain the consequence for EACH level\n"
+        "- Include the last_verified date if the threshold data might be time-sensitive\n"
+        "- If a user asks about a quantity/amount that sits between two thresholds, explain BOTH adjacent thresholds\n"
+        "- If no threshold exists for the specific substance or situation, say: «კონკრეტული ზღვრები ჩვენს მონაცემთა ბაზაში არ არის»\n"
+    ),
     "court_practice": (
         "\n[სასამართლო პრაქტიკა / Court Practice]\n"
         "When citing retrieved COURT PRACTICE chunks:\n"

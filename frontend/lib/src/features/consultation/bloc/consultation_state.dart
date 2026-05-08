@@ -46,6 +46,7 @@ class ConsultationState {
   final List<ChatMessage> messages;
   final bool isSending;
   final ConsultationFailureType? failureType;
+  final ChatMode chatMode;
 
   const ConsultationState({
     this.status = StateStatus.initial,
@@ -53,6 +54,7 @@ class ConsultationState {
     this.messages = const [],
     this.isSending = false,
     this.failureType,
+    this.chatMode = ChatMode.allSources,
   });
 
   ConsultationState copyWith({
@@ -61,6 +63,7 @@ class ConsultationState {
     List<ChatMessage>? messages,
     bool? isSending,
     ConsultationFailureType? failureType,
+    ChatMode? chatMode,
   }) {
     return ConsultationState(
       status: status ?? this.status,
@@ -68,6 +71,7 @@ class ConsultationState {
       messages: messages ?? this.messages,
       isSending: isSending ?? this.isSending,
       failureType: failureType ?? this.failureType,
+      chatMode: chatMode ?? this.chatMode,
     );
   }
 }
