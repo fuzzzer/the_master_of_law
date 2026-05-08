@@ -29,6 +29,8 @@ Minimum code that solves the problem. Nothing speculative.
 - No error handling for impossible scenarios.
 - If you write 200 lines and it could be 50, rewrite it.
 - Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+- Is name understandable for someone who knows noting about the code? If no, refine it, make it more descriptive.
+- Need to add comments? Then it means code is not descriptive enough, refine naming, describe process with methods, talk with code clearly.
 
 ### 3. Surgical Changes
 Touch only what you must. Clean up only your own mess.
