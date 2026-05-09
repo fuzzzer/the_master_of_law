@@ -50,7 +50,7 @@
 - [ ] Generate remaining screen mockups (Case Builder, Laws, Notes, Onboarding)
 
 ### 3b. Flutter App Setup
-- ✅ `fuzzy_starter` project cloned and configured
+- ✅ `frontend` project cloned and configured
 - ✅ Renamed: `themasteroflaw` → `master_of_law`
 - ✅ Bundle ID: `ge.fuzzycore.masteroflaw` (+ `.stg`, `.dev` flavors)
 - ✅ Class names: `MasterOfLawApp`, `MasterOfLawHttpClient`, `MasterOfLawLocalizations`
@@ -61,7 +61,7 @@
 - [ ] Implement 5-tab bottom navigation with GoRouter
 - [ ] Connect to backend API
 
-**Location:** `fuzzy_starter/` (package name: `master_of_law`)
+**Location:** `frontend/` (package name: `master_of_law`)
 
 ---
 
@@ -99,7 +99,7 @@ the_master_of_law/
 │   └── README.md
 ├── law_corpus/                     # ✅ COMPLETE — DO NOT MODIFY
 ├── backend/                        # ✅ COMPLETE — FastAPI + 25 endpoints
-├── fuzzy_starter/                  # 🔄 Flutter app (renamed to master_of_law)
+├── frontend/                  # 🔄 Flutter app (renamed to master_of_law)
 │   ├── packages/ui_kit/            # Design system implementation
 │   └── packages/open-design/       # Open-design tool (cloned)
 ├── AI_GUIDE.md                     # Backend architecture reference

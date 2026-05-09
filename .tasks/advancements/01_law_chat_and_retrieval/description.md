@@ -28,7 +28,7 @@ Together, these give users two access patterns:
 4. **Verify:** curl commands return expected JSON for all endpoints
 
 ### Milestone 2: Flutter — Law Browser Feature
-1. Read `fuzzy_starter/.agents/orchestrator.md` for Flutter architecture patterns
+1. Read `frontend/.agents/orchestrator.md` for Flutter architecture patterns
 2. Scaffold the `laws` feature module using established project patterns
 3. Build repository layer: `LawBrowserRepository` wrapping the 4 law endpoints
 4. Build cubit/state: `LawBrowserCubit` with states for codes list, code detail, article view, search results

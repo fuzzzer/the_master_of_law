@@ -17,8 +17,8 @@ Read these files in order:
 For specific tasks, also load:
 - Backend work → `handoff.md` + `startup_handoff.md`
 - Design system → `packages/open-design/design-systems/kanonis-ostati/DESIGN.md`
-- Flutter ui_kit → `fuzzy_starter/packages/ui_kit/lib/src/`
-- Flutter architecture → `fuzzy_starter/.agents/general_guide/flutter_architecture.md`
+- Flutter ui_kit → `frontend/packages/ui_kit/lib/src/`
+- Flutter architecture → `frontend/.agents/general_guide/flutter_architecture.md`
 - Production deploy → `PRODUCTION_SETUP.md`
 - Original prompts → `master_plan/01_...`, `02_...`, `03_...`
 ```
@@ -61,7 +61,7 @@ the_master_of_law/
 ├── master_plan/             📐 Specs + roadmap (01=corpus ✅, 02=backend ✅, 03=design 🔄, 04=roadmap ✅)
 ├── law_corpus/              📚 Georgian law data (9,450 chunks, DO NOT MODIFY)
 ├── backend/                 🔧 FastAPI backend (25 endpoints, 10 services, 124 tests)
-├── fuzzy_starter/           📱 Flutter app (renamed to master_of_law)
+├── frontend/           📱 Flutter app (renamed to master_of_law)
 │   ├── packages/ui_kit/     🎨 Design system implementation (needs token injection)
 │   └── packages/open-design/🖌️ Open-design tool for mockup generation
 ├── AI_GUIDE.md              📖 Backend architecture reference

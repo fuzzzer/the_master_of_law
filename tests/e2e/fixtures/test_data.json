@@ -1,0 +1,30 @@
+{
+  "base_url": "http://localhost:8080",
+  "api_base_url": "http://localhost:8000",
+  "test_user": {
+    "email": "tester@masteroflaw.ge",
+    "password": "test_password_123",
+    "uid": "test-e2e-user-001"
+  },
+  "sample_questions": {
+    "criminal_law": "რა არის თავდაცვის უფლება სისხლის სამართალში?",
+    "civil_law": "რა წესით ხდება საჯარო რეესტრში უძრავი ქონების რეგისტრაცია?",
+    "administrative_law": "როგორ გავასაჩივრო ადმინისტრაციული ორგანოს გადაწყვეტილება?"
+  },
+  "sample_case_file": {
+    "title": "Test Case File",
+    "conversation_id": null
+  },
+  "feedback_samples": {
+    "positive": {
+      "category": "accuracy",
+      "rating": 5,
+      "comment": "ანალიზი ძალიან ზუსტი იყო"
+    },
+    "negative": {
+      "category": "citation_quality",
+      "rating": 2,
+      "comment": "მუხლის ნომრები არასწორი იყო"
+    }
+  }
+}

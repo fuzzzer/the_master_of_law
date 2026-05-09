@@ -32,7 +32,7 @@ Each phase has its own checklist, infrastructure requirements, and go/no-go crit
 
 ### Milestone 2: Web Build & Deploy Pipeline
 1. Configure Flutter web build:
-   - `cd fuzzy_starter && flutter build web --release`
+   - `cd frontend && flutter build web --release`
    - Configure API base URL for production
    - Configure Firebase auth for production (web client)
 2. Set up web hosting:

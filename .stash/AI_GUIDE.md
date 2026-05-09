@@ -45,7 +45,7 @@ the_master_of_law/
 │   │   └── utils/                    # Logger, security, Georgian text utils
 │   ├── tests/                        # 124 tests passing
 │   └── docker-compose.yml            # Production deployment
-├── fuzzy_starter/                    # 🔄 Flutter app (package: master_of_law)
+├── frontend/                    # 🔄 Flutter app (package: master_of_law)
 │   ├── lib/src/app/                  # MasterOfLawApp entry point
 │   ├── lib/src/core/                 # DI, HTTP clients, l10n, extensions
 │   ├── packages/ui_kit/              # Design system (colors, typography, themes)

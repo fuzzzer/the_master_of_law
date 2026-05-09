@@ -108,4 +108,6 @@ def _normalize_qty(raw: str | None) -> str | None:
     val = str(raw or "").strip()
     if val in ("-", "_", "", "None"):
         return None
+    if "\n" in val:
+        val = val.split("\n")[-1].strip()
     return val

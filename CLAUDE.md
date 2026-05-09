@@ -70,7 +70,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 | Law Corpus (9,450 chunks) | ✅ Done | `law_corpus/data/chroma/` |
 | Backend (25 endpoints) | ✅ Done | `.agents/context/backend.md` |
 | Design System | 🔄 In Progress | `packages/open-design/design-systems/kanonis-ostati/DESIGN.md` |
-| Flutter App | 🔄 In Progress | `fuzzy_starter/` (package: `master_of_law`) |
+| Flutter App | 🔄 In Progress | `frontend/` (package: `master_of_law`) |
 
 ## Context Loading — Read by Task
 
@@ -81,7 +81,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 | Task | Load These |
 |------|-----------|
 | **Backend work** | `.agents/context/backend.md` |
-| **Flutter / UI** | `fuzzy_starter/.agents/orchestrator.md` → `fuzzy_starter/.agents/general_guide/flutter_architecture.md` |
+| **Flutter / UI** | `frontend/.agents/orchestrator.md` → `frontend/.agents/general_guide/flutter_architecture.md` |
 | **Design system** | `packages/open-design/design-systems/kanonis-ostati/DESIGN.md` |
 | **Feature planning** | `master_plan/04_feature_roadmap.md` |
 | **Production deploy** | `.agents/context/production.md` |

@@ -1,0 +1,337 @@
+# Manual E2E Test Cases — The Master of Law
+# Format: YAML structured test cases covering all 5 tabs
+# Total: 36 test cases
+
+auth:
+  - id: AUTH-001
+    name: Register new user with email
+    priority: high
+    flow: auth
+    steps:
+      - Open app
+      - Tap "Create Account"
+      - Enter email and password
+      - Submit registration
+    expected: User is created and redirected to main screen
+    edge_cases:
+      - Invalid email format → show validation error
+      - Password too short → show validation error
+
+  - id: AUTH-002
+    name: Login with valid credentials
+    priority: high
+    flow: auth
+    steps:
+      - Open app
+      - Enter valid email/password
+      - Tap Login
+    expected: User is authenticated, token stored, redirected to Cases tab
+
+  - id: AUTH-003
+    name: Login with invalid credentials
+    priority: high
+    flow: auth
+    steps:
+      - Open app
+      - Enter wrong password
+      - Tap Login
+    expected: Error message shown, stays on login screen
+
+  - id: AUTH-004
+    name: Token refresh on expiry
+    priority: high
+    flow: auth
+    steps:
+      - Authenticate normally
+      - Wait for token expiry (or simulate)
+      - Make an API call
+    expected: Token is silently refreshed, request succeeds
+
+  - id: AUTH-005
+    name: Logout and re-login
+    priority: medium
+    flow: auth
+    steps:
+      - Authenticate
+      - Navigate to Profile
+      - Tap Logout
+      - Verify login screen shown
+      - Re-login
+    expected: Session cleared, new session created
+
+chat:
+  - id: CHAT-001
+    name: Create new conversation
+    priority: critical
+    flow: chat
+    steps:
+      - Navigate to Chat tab
+      - Tap "New Conversation"
+    expected: Empty conversation created, user sees message input
+
+  - id: CHAT-002
+    name: Send message and receive AI response
+    priority: critical
+    flow: chat
+    steps:
+      - Create conversation
+      - Type "რა არის თავდაცვის უფლება?"
+      - Send message
+    expected: AI responds with grounded legal analysis including article citations
+
+  - id: CHAT-003
+    name: View conversation history
+    priority: critical
+    flow: chat
+    steps:
+      - Open existing conversation with messages
+    expected: All previous messages displayed in order
+
+  - id: CHAT-004
+    name: Send empty message
+    priority: high
+    flow: chat
+    steps:
+      - Create conversation
+      - Tap send without typing
+    expected: Send button is disabled or shows validation error
+
+  - id: CHAT-005
+    name: Toggle RAG collections
+    priority: critical
+    flow: chat
+    steps:
+      - Open conversation settings
+      - Disable "Court Practice" collection
+      - Send a question
+    expected: Response uses only legal codes (no court practice citations)
+
+  - id: CHAT-006
+    name: Long Georgian text message
+    priority: high
+    flow: chat
+    steps:
+      - Type a 500+ character Georgian legal question
+      - Send message
+    expected: Message sent successfully, no truncation
+
+  - id: CHAT-007
+    name: Multiple rapid messages
+    priority: medium
+    flow: chat
+    steps:
+      - Send 3 messages in quick succession
+    expected: All messages queued and processed, no duplicates
+
+  - id: CHAT-008
+    name: Delete conversation
+    priority: high
+    flow: chat
+    steps:
+      - Create conversation with messages
+      - Delete the conversation
+    expected: Conversation removed from list
+
+case_builder:
+  - id: CASE-001
+    name: Create case from conversation
+    priority: critical
+    flow: cases
+    steps:
+      - Have a conversation with legal analysis
+      - Navigate to Cases tab
+      - Tap "Build Case File"
+      - Select conversation
+    expected: Case file generated with all 8 sections populated
+
+  - id: CASE-002
+    name: View case file details
+    priority: critical
+    flow: cases
+    steps:
+      - Open an existing case file
+    expected: All sections visible — facts, evidence, laws, strategies, prosecution args, checklist, lawyer brief, citations
+
+  - id: CASE-003
+    name: Update case notes
+    priority: high
+    flow: cases
+    steps:
+      - Open case file
+      - Add user notes
+      - Save
+    expected: Notes persisted and visible on reload
+
+  - id: CASE-004
+    name: Change case status
+    priority: high
+    flow: cases
+    steps:
+      - Open case file
+      - Change status from "draft" to "active"
+    expected: Status updated, reflected in case list
+
+  - id: CASE-005
+    name: Delete case file
+    priority: high
+    flow: cases
+    steps:
+      - Open case file
+      - Delete it
+    expected: Case removed from list
+
+  - id: CASE-006
+    name: Build case with insufficient credits
+    priority: high
+    flow: cases
+    steps:
+      - Use all 5 daily credits
+      - Try to build a case file (costs 3)
+    expected: Error "insufficient credits" shown, case not built
+
+law_browser:
+  - id: LAW-001
+    name: Browse legal codes list
+    priority: high
+    flow: laws
+    steps:
+      - Navigate to Laws tab
+    expected: All 12 Georgian legal codes listed
+
+  - id: LAW-002
+    name: Search for specific article
+    priority: high
+    flow: laws
+    steps:
+      - Open search
+      - Type "მუხლი 120"
+    expected: Article 120 of Criminal Code found and displayed
+
+  - id: LAW-003
+    name: View article full text
+    priority: high
+    flow: laws
+    steps:
+      - Search for article
+      - Tap to view full text
+    expected: Complete article text displayed with proper Georgian formatting
+
+  - id: LAW-004
+    name: Search with empty query
+    priority: medium
+    flow: laws
+    steps:
+      - Open search
+      - Submit empty search
+    expected: Validation error or no results message
+
+  - id: LAW-005
+    name: Search with Latin characters
+    priority: medium
+    flow: laws
+    steps:
+      - Search "criminal code article 120"
+    expected: Relevant results returned (cross-language search)
+
+profile:
+  - id: PROF-001
+    name: View credit balance
+    priority: medium
+    flow: profile
+    steps:
+      - Navigate to Profile tab
+    expected: Current credit balance and tier displayed
+
+  - id: PROF-002
+    name: View transaction history
+    priority: medium
+    flow: profile
+    steps:
+      - Navigate to Profile → Transactions
+    expected: List of credit transactions with timestamps and actions
+
+  - id: PROF-003
+    name: Free tier daily limit display
+    priority: medium
+    flow: profile
+    steps:
+      - As FREE user, check profile
+    expected: Shows "X/5 daily credits used" with reset time
+
+  - id: PROF-004
+    name: Credits deducted after chat
+    priority: high
+    flow: profile
+    steps:
+      - Note credit balance
+      - Send a chat message
+      - Check profile again
+    expected: Balance decreased by 1
+
+error_handling:
+  - id: ERR-001
+    name: Network timeout handling
+    priority: high
+    flow: error
+    steps:
+      - Disable network
+      - Try to send a message
+    expected: Timeout error shown, message not lost
+
+  - id: ERR-002
+    name: Invalid UUID in URL
+    priority: high
+    flow: error
+    steps:
+      - Navigate to /case-files/not-a-uuid
+    expected: 400 error returned, app doesn't crash
+
+  - id: ERR-003
+    name: Unauthorized API access
+    priority: high
+    flow: error
+    steps:
+      - Call protected endpoint without auth token
+    expected: 401 error returned
+
+  - id: ERR-004
+    name: Access other user's case file
+    priority: high
+    flow: error
+    steps:
+      - Try to access case file belonging to another user
+    expected: 403 or 404 error returned
+
+  - id: ERR-005
+    name: Server error recovery
+    priority: medium
+    flow: error
+    steps:
+      - Trigger a server error (malformed request)
+      - Retry with valid request
+    expected: App recovers gracefully, no persistent error state
+
+georgian_text:
+  - id: GEO-001
+    name: Georgian Mkhedruli rendering
+    priority: high
+    flow: georgian
+    steps:
+      - View any AI response with Georgian text
+    expected: All Mkhedruli characters (U+10D0–U+10FF) render correctly
+
+  - id: GEO-002
+    name: Mixed Georgian/Latin input
+    priority: high
+    flow: georgian
+    steps:
+      - Type "მუხლი 120 (Article 120) ჯანმრთელობის დაზიანება"
+    expected: Mixed text preserved, no encoding issues
+
+  - id: GEO-003
+    name: Georgian text in case file sections
+    priority: high
+    flow: georgian
+    steps:
+      - Build a case file from Georgian conversation
+    expected: All sections contain properly encoded Georgian text

@@ -97,6 +97,8 @@ class _CaseWorkspacePageState extends State<CaseWorkspacePage> with SingleTicker
                   color: uiColors.backgroundSecondaryColor,
                   onSelected: (value) {
                     switch (value) {
+                      case 'review':
+                        _reviewCase(caseData);
                       case 'export':
                         _exportCase(caseData);
                       case 'archive':
@@ -106,6 +108,16 @@ class _CaseWorkspacePageState extends State<CaseWorkspacePage> with SingleTicker
                     }
                   },
                   itemBuilder: (_) => [
+                    PopupMenuItem(
+                      value: 'review',
+                      child: Row(
+                        children: [
+                          Icon(Icons.rate_review_outlined, size: 20, color: uiColors.accentColor),
+                          const SizedBox(width: 8),
+                          Text('შეფასება', style: uiTextStyles.body14.copyWith(color: uiColors.accentColor)),
+                        ],
+                      ),
+                    ),
                     PopupMenuItem(
                       value: 'export',
                       child: Row(
@@ -212,6 +224,14 @@ class _CaseWorkspacePageState extends State<CaseWorkspacePage> with SingleTicker
 
   void _switchToTab(int index) {
     _tabController.animateTo(index);
+  }
+
+  void _reviewCase(CaseData caseData) {
+    FeedbackSheet.show(
+      context,
+      targetId: caseData.id,
+      targetType: FeedbackTargetType.caseFile,
+    );
   }
 
   void _exportCase(CaseData caseData) {

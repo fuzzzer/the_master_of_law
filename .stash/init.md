@@ -12,7 +12,7 @@
 | 1 | Law Corpus Pipeline | ✅ **COMPLETE** | `law_corpus/` |
 | 2 | FastAPI Backend | ✅ **COMPLETE** | `backend/` |
 | 3a | Design System | 🔄 **IN PROGRESS** | `packages/open-design/design-systems/kanonis-ostati/DESIGN.md` |
-| 3b | Flutter App | 🔄 **IN PROGRESS** | `fuzzy_starter/` (package: `master_of_law`) |
+| 3b | Flutter App | 🔄 **IN PROGRESS** | `frontend/` (package: `master_of_law`) |
 | 4 | Integration & Deploy | ⬜ **FUTURE** | — |
 
 ---
@@ -100,7 +100,7 @@ Users **dump** raw information. The AI **organizes** it.
 | **Start backend** | `startup_handoff.md` |
 | **Design system** | `packages/open-design/design-systems/kanonis-ostati/DESIGN.md` |
 | **Feature roadmap** | `master_plan/04_feature_roadmap.md` |
-| **Flutter architecture** | `fuzzy_starter/.agents/general_guide/flutter_architecture.md` |
+| **Flutter architecture** | `frontend/.agents/general_guide/flutter_architecture.md` |
 | **Production deploy** | `PRODUCTION_SETUP.md` |
 
 ---
@@ -118,7 +118,7 @@ the_master_of_law/
 │   └── README.md
 ├── law_corpus/                     # ✅ COMPLETE (9,450 chunks)
 ├── backend/                        # ✅ COMPLETE (25 endpoints, 124 tests)
-├── fuzzy_starter/                  # 🔄 Flutter app (master_of_law)
+├── frontend/                  # 🔄 Flutter app (master_of_law)
 │   ├── packages/ui_kit/            # Design system implementation
 │   └── packages/open-design/       # Open-design tool
 ├── AI_GUIDE.md                     # Backend architecture

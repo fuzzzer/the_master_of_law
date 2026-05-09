@@ -110,7 +110,7 @@ After generating each screen:
 
 Once you're happy with the generated designs, I will:
 1. Extract the exact color palette, typography, spacing the AI chose
-2. Map them into `fuzzy_starter/packages/ui_kit/` (UiKitColors, UiTextStyles, UiFormStyles, UiColors theme extension)
+2. Map them into `frontend/packages/ui_kit/` (UiKitColors, UiTextStyles, UiFormStyles, UiColors theme extension)
 3. Update the Flutter theme to match
 
 ---

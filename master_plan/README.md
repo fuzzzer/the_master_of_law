@@ -20,7 +20,7 @@ This is not a legal Q&A chatbot. It is a **case-building tool** — it thinks li
 | 1 | Law Corpus Pipeline | ✅ **DONE** | `law_corpus/`, `01_law_corpus_agent_prompt.md` |
 | 2 | FastAPI Backend | ✅ **DONE** | `backend/`, `02_backend_system_prompt.md` |
 | 3 | Design System | 🔄 **IN PROGRESS** | `03_design_system_prompt.md`, `04_feature_roadmap.md` |
-| 4 | Flutter App | 🔄 **IN PROGRESS** | `fuzzy_starter/` (package: `master_of_law`) |
+| 4 | Flutter App | 🔄 **IN PROGRESS** | `frontend/` (package: `master_of_law`) |
 | 5 | Integration & Deploy | ⬜ **FUTURE** | — |
 
 ---
@@ -172,7 +172,7 @@ the_master_of_law/
 │   ├── tests/                      # 124 tests
 │   └── docker-compose.yml          # Production deployment
 │
-├── fuzzy_starter/                  # 🔄 Flutter app (package: master_of_law)
+├── frontend/                  # 🔄 Flutter app (package: master_of_law)
 │   ├── lib/                        # App source
 │   ├── packages/ui_kit/            # Design system tokens
 │   └── packages/open-design/       # Open-design tool (cloned)

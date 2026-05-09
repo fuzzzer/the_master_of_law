@@ -26,6 +26,7 @@ from app.models.conversation import Conversation  # noqa: F401
 from app.models.message import Message  # noqa: F401
 from app.models.case_file import CaseFile  # noqa: F401
 from app.models.questionnaire import QuestionnaireQuestion, QuestionnaireAnswer  # noqa: F401
+from app.models.feedback import Feedback  # noqa: F401
 
 config = context.config
 

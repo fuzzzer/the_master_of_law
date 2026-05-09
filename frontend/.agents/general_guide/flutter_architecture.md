@@ -142,7 +142,7 @@ sequenceDiagram
 This is the canonical directory map. The AI must create files and features that fit perfectly within this structure.
 
 ```
-fuzzy_starter/
+frontend/
 ├── lib/
 │   ├── main_development.dart
 │   ├── main_staging.dart

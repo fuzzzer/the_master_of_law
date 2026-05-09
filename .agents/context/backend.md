@@ -1,7 +1,7 @@
 # Backend Context — The Master of Law
 
 > FastAPI backend with multi-source RAG pipeline + Gemini 3.1 Pro legal analysis.
-> **Status:** ✅ Complete (27 endpoints, 10 services, 124 tests)
+> **Status:** ✅ Complete (32 endpoints, 10 services, 179 tests)
 > **Last updated:** 2026-05-07
 
 ---
@@ -44,7 +44,7 @@ decisions are BINDING and override all lower court interpretations").
 
 ---
 
-## API Endpoints (27 total)
+## API Endpoints (32 total)
 
 | Method | Path | Credits | Description |
 |--------|------|---------|-------------|
@@ -70,6 +70,11 @@ decisions are BINDING and override all lower court interpretations").
 | GET | `/api/v1/laws/codes` | 0 | List codes (free) |
 | GET | `/api/v1/laws/codes/{id}` | 0 | Code structure |
 | GET | `/api/v1/laws/articles/{id}` | 0 | Article text |
+| POST | `/api/v1/feedback` | 0 | Submit feedback (auth optional) |
+| GET | `/api/v1/feedback/{target_id}` | 0 | Get feedback for a case/conversation |
+| GET | `/api/v1/feedback/summary` | 0 | Aggregated dashboard (ADMIN only) |
+| PATCH | `/api/v1/feedback/{id}` | 0 | Update own feedback (24h window) |
+| DELETE | `/api/v1/feedback/{id}` | 0 | Delete own feedback |
 
 ---
 
@@ -134,7 +139,7 @@ client = genai.Client(api_key=settings.vertex_ai_api_key, vertexai=True,
 | LLM | `gemini-3.1-pro` |
 | Embeddings | `gemini-embedding-001` (768 dims) |
 | ChromaDB | 3 collections: `georgian_laws` (15,338), `court_practice` (5,197), `grand_chamber` (177) |
-| DB | PostgreSQL 16 (6 tables: users, credits, conversations, messages, case_files, credit_transactions) |
+| DB | PostgreSQL 16 (7 tables: users, credits, conversations, messages, case_files, credit_transactions, feedback) |
 | State Machine | GREETING → INTAKE → CLARIFICATION → ANALYSIS → ADVICE → FOLLOW_UP |
 
 ---
@@ -151,7 +156,7 @@ cd backend && docker compose up -d
 docker compose exec api alembic upgrade head
 
 # Tests
-.venv/bin/python -m pytest tests/ -v  # 124 tests
+.venv/bin/python -m pytest tests/ -v  # 179 tests
 ```
 
 ---
