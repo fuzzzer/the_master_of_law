@@ -13,7 +13,7 @@ dependencies = [
     "alembic>=1.14",
     "google-genai>=1.0",
     "firebase-admin>=6.5",
-    "chromadb>=0.5",
+    "chromadb==0.6.3",
     "redis>=5.0",
     "httpx>=0.27",
     "structlog>=24.0",

@@ -288,14 +288,70 @@ class CaseDetailCubit extends Cubit<CaseDetailState> {
       }
     }
 
+    final retrievedChunks = caseFileData['retrieved_chunks'] as List<dynamic>?;
+    if (retrievedChunks != null) {
+      var i = 0;
+      for (final chunk in retrievedChunks) {
+        if (chunk is! Map<String, dynamic>) continue;
+        final articleId = chunk['article_number']?.toString() ?? 'rag_art_${idBase}_${i++}';
+        // Avoid adding duplicates if already added by applicable_laws
+        if (!caseData.linkedArticles.any((a) => a.articleId == articleId)) {
+          caseData.linkedArticles.add(
+            LinkedArticleData(
+              articleId: articleId,
+              title: '${chunk['code_name'] ?? ''} ${chunk['article_number'] ?? ''}',
+              codeName: chunk['code_name']?.toString() ?? '',
+              snippet: chunk['article_text']?.toString() ?? chunk['article_title']?.toString() ?? '',
+              savedAt: now,
+              url: chunk['article_url']?.toString(),
+            ),
+          );
+        } else {
+          // If already exists, update URL and snippet if missing
+          final existing = caseData.linkedArticles.firstWhere((a) => a.articleId == articleId);
+          if (existing.url == null || existing.url!.isEmpty) {
+            final idx = caseData.linkedArticles.indexOf(existing);
+            caseData.linkedArticles[idx] = LinkedArticleData(
+              articleId: existing.articleId,
+              title: existing.title,
+              codeName: existing.codeName,
+              snippet: existing.snippet.isEmpty ? (chunk['article_text']?.toString() ?? '') : existing.snippet,
+              savedAt: existing.savedAt,
+              url: chunk['article_url']?.toString(),
+            );
+          }
+        }
+      }
+    }
+
     final strategies = caseFileData['defense_strategies'] as List<dynamic>?;
     if (strategies != null && strategies.isNotEmpty) {
       final first = strategies.first as Map<String, dynamic>;
+      
+      final linkedStrategyLaws = <String>[];
+      final basisLaws = first['legal_basis'] as List<dynamic>?;
+      if (basisLaws != null) {
+        for (final law in basisLaws) {
+          if (law is! String) continue;
+          final fakeId = 'ai_strat_law_${idBase}_${linkedStrategyLaws.length}';
+          caseData.linkedArticles.add(
+            LinkedArticleData(
+              articleId: fakeId,
+              title: law,
+              codeName: 'Strategy Law',
+              savedAt: now,
+            ),
+          );
+          linkedStrategyLaws.add(fakeId);
+        }
+      }
+
       caseData.strategy = StrategyData(
         primaryStrategy: first['name']?.toString() ?? '',
         backupStrategy: strategies.length > 1 ? (strategies[1] as Map<String, dynamic>)['name']?.toString() : null,
         confidenceScore: _parseConfidence(first['success_likelihood']?.toString()),
         isAiGenerated: true,
+        supportingArticleIds: linkedStrategyLaws,
       );
     }
 
@@ -304,6 +360,25 @@ class CaseDetailCubit extends Cubit<CaseDetailState> {
       var i = 0;
       for (final arg in prosArgs) {
         if (arg is! Map<String, dynamic>) continue;
+        
+        final linkedLawIds = <String>[];
+        final argLaws = arg['applicable_laws'] as List<dynamic>?;
+        if (argLaws != null) {
+          for (final law in argLaws) {
+            if (law is! String) continue;
+            final fakeId = 'ai_arg_law_${idBase}_${i}_${linkedLawIds.length}';
+            caseData.linkedArticles.add(
+              LinkedArticleData(
+                articleId: fakeId,
+                title: law,
+                codeName: 'Argument Law',
+                savedAt: now,
+              ),
+            );
+            linkedLawIds.add(fakeId);
+          }
+        }
+
         caseData.arguments.add(
           ArgumentData(
             id: 'ai_arg_${idBase}_${i++}',
@@ -314,6 +389,7 @@ class CaseDetailCubit extends Cubit<CaseDetailState> {
             createdAt: now,
             counterArgument: arg['argument']?.toString(),
             counterResponse: arg['counter']?.toString(),
+            linkedArticleIds: linkedLawIds,
           ),
         );
       }

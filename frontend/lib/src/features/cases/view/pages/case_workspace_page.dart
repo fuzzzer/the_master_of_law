@@ -36,6 +36,7 @@ class _CaseWorkspacePageState extends State<CaseWorkspacePage> with SingleTicker
     '🛡️ სტრატეგია',
     '📅 ვადები',
     '⚠️ რისკები',
+    '📚 კანონები',
   ];
 
   @override
@@ -217,6 +218,7 @@ class _CaseWorkspacePageState extends State<CaseWorkspacePage> with SingleTicker
                     CaseStrategySection(caseData: caseData),
                     CaseTimelineSection(caseData: caseData),
                     CaseRisksSection(caseData: caseData),
+                    CaseLawsSection(caseData: caseData),
                   ],
                 ),
         );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:themasteroflaw/src/src.dart';
 import 'package:ui_kit/ui_kit.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Arguments section with numbered cards, strength badges, and guided builder.
 class CaseArgumentsSection extends StatelessWidget {
@@ -29,6 +30,7 @@ class CaseArgumentsSection extends StatelessWidget {
               return _ArgumentCard(
                 index: index + 1,
                 argument: arg,
+                caseData: caseData,
                 uiColors: uiColors,
                 uiTextStyles: uiTextStyles,
                 onDelete: () => context.read<CaseDetailCubit>().deleteArgument(arg.id),
@@ -212,6 +214,7 @@ class _ArgumentCard extends StatelessWidget {
   const _ArgumentCard({
     required this.index,
     required this.argument,
+    required this.caseData,
     required this.uiColors,
     required this.uiTextStyles,
     required this.onDelete,
@@ -219,6 +222,7 @@ class _ArgumentCard extends StatelessWidget {
 
   final int index;
   final ArgumentData argument;
+  final CaseData caseData;
   final UiColors uiColors;
   final UiTextStyles uiTextStyles;
   final VoidCallback onDelete;
@@ -269,6 +273,48 @@ class _ArgumentCard extends StatelessWidget {
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
           ),
+          if (argument.linkedArticleIds.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 8),
+            Text('დაკავშირებული კანონები:', style: uiTextStyles.labelBold12.copyWith(color: uiColors.secondaryTextColor)),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: argument.linkedArticleIds.map((articleId) {
+                final article = caseData.linkedArticles.where((a) => a.articleId == articleId).firstOrNull;
+                if (article == null) return const SizedBox.shrink();
+                
+                return InkWell(
+                  onTap: article.url != null && article.url!.isNotEmpty 
+                      ? () => launchUrl(Uri.parse(article.url!)) 
+                      : null,
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: uiColors.accentColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: uiColors.accentColor.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.gavel, size: 12, color: uiColors.accentColor),
+                        const SizedBox(width: 4),
+                        Text(article.title, style: uiTextStyles.labelBold12.copyWith(color: uiColors.accentColor)),
+                        if (article.url != null && article.url!.isNotEmpty) ...[
+                          const SizedBox(width: 4),
+                          Icon(Icons.open_in_new, size: 12, color: uiColors.accentColor),
+                        ],
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
           if (argument.isAiGenerated) ...[
             const SizedBox(height: 8),
             Row(

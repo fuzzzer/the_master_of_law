@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:themasteroflaw/src/src.dart';
 import 'package:ui_kit/ui_kit.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Strategy section: primary + backup + fallback strategies with confidence.
 class CaseStrategySection extends StatelessWidget {
@@ -76,6 +77,46 @@ class CaseStrategySection extends StatelessWidget {
             ],
           ),
         ),
+        if (strategy.supportingArticleIds.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Text('სამართლებრივი საფუძვლები:', style: uiTextStyles.labelBold12.copyWith(color: uiColors.secondaryTextColor)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: strategy.supportingArticleIds.map((articleId) {
+              final article = caseData.linkedArticles.where((a) => a.articleId == articleId).firstOrNull;
+              if (article == null) return const SizedBox.shrink();
+              
+              return InkWell(
+                onTap: article.url != null && article.url!.isNotEmpty 
+                    ? () => launchUrl(Uri.parse(article.url!)) 
+                    : null,
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: uiColors.accentColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: uiColors.accentColor.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.gavel, size: 12, color: uiColors.accentColor),
+                      const SizedBox(width: 4),
+                      Text(article.title, style: uiTextStyles.labelBold12.copyWith(color: uiColors.accentColor)),
+                      if (article.url != null && article.url!.isNotEmpty) ...[
+                        const SizedBox(width: 4),
+                        Icon(Icons.open_in_new, size: 12, color: uiColors.accentColor),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
         const SizedBox(height: 16),
         OutlinedButton.icon(
           onPressed: () => _showStrategyEditor(context, strategy),

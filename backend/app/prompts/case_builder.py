@@ -48,7 +48,8 @@ CASE_BUILDER = PromptTemplate(
         '  "prosecution_args": [\n'
         "    {{\n"
         '      "argument": "what they\'ll say",\n'
-        '      "counter": "your response"\n'
+        '      "counter": "your response",\n'
+        '      "applicable_laws": ["articles"]\n'
         "    }}\n"
         "  ],\n"
         '  "action_checklist": [\n'

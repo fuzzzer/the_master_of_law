@@ -221,11 +221,12 @@ class CaseBuilderService:
         full_analysis = await self._generate_full_analysis(conv_text, law_context)
         logger.info("case_analysis_done", analysis_length=len(full_analysis))
 
-        # Stage 2: Convert analysis to structured JSON
         case_data = await self._generate_case_data(full_analysis, law_context)
         rendered = self._renderer.render(case_data)
 
-        cf = await self._persist(db, user_id, conversation_id, case_data, rendered)
+        cf = await self._persist(
+            db, user_id, conversation_id, case_data, rendered, retrieved_chunks
+        )
 
         logger.info("case_build_done", case_file_id=str(cf.id))
         return self._to_dict(cf, rendered)
@@ -288,6 +289,7 @@ class CaseBuilderService:
         conversation_id: str,
         case_data: dict[str, Any],
         rendered: str,
+        retrieved_chunks: list[dict[str, Any]] | None = None,
     ) -> Any:
         """Persist the case file to the database."""
         cf_repo = CaseFileRepository(db)
@@ -304,6 +306,7 @@ class CaseBuilderService:
             unclear_items=case_data.get("unclear_items"),
             lawyer_brief=case_data.get("lawyer_brief"),
             citations=case_data.get("citations"),
+            retrieved_chunks=retrieved_chunks,
             rendered_text=rendered,
             status="draft",
         )
@@ -394,6 +397,7 @@ class CaseBuilderService:
             "unclear_items": cf.unclear_items,
             "lawyer_brief": cf.lawyer_brief,
             "citations": cf.citations,
+            "retrieved_chunks": cf.retrieved_chunks,
             "created_at": cf.created_at.isoformat() if cf.created_at else "",
         }
 

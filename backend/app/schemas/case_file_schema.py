@@ -50,6 +50,7 @@ class CaseFileDetail(BaseModel):
     unclear_items: list[str] | None = None
     lawyer_brief: dict[str, Any] | None = None
     citations: list[Any] | None = None
+    retrieved_chunks: list[Any] | None = None
     rendered_text: str = ""
     status: str = "draft"
     user_notes: str = ""

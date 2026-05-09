@@ -418,12 +418,16 @@ class LinkedArticleData extends HiveObject {
   @HiveField(4)
   final DateTime savedAt;
 
+  @HiveField(5)
+  final String? url;
+
   LinkedArticleData({
     required this.articleId,
     required this.title,
     required this.codeName,
     this.snippet = '',
     required this.savedAt,
+    this.url,
   });
 }
 
