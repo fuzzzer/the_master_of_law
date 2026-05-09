@@ -9,4 +9,4 @@ if ! docker info > /dev/null 2>&1; then
 fi
 
 echo "🚀 Starting backend development environment..."
-docker compose up --build
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
