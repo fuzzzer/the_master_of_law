@@ -79,6 +79,9 @@ class ConsultationCubit extends Cubit<ConsultationState> {
 
   Future<void> sendMessage(String text) async {
     if (state.conversationId == null) return;
+    if (state.isAgentMode) {
+      return sendAgentMessage(text);
+    }
     final userMsg = ChatMessage(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       text: text, isUser: true, timestamp: DateTime.now(),
@@ -150,6 +153,126 @@ class ConsultationCubit extends Cubit<ConsultationState> {
     emit(state.copyWith(
       clearAttachedCase: true,
     ));
+  }
+
+  void enterAgentMode({required String caseFileId}) {
+    emit(state.copyWith(caseFileId: caseFileId));
+  }
+
+  void exitAgentMode() {
+    emit(state.copyWith(clearCaseFileId: true, pendingConfirmations: []));
+  }
+
+  Future<void> sendAgentMessage(String text) async {
+    if (state.conversationId == null || state.caseFileId == null) return;
+    final userMsg = ChatMessage(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      text: text, isUser: true, timestamp: DateTime.now(),
+    );
+    emit(state.copyWith(messages: [...state.messages, userMsg], isSending: true));
+
+    final result = await _repository.sendAgentMessage(
+      conversationId: state.conversationId!,
+      message: text,
+      caseFileId: state.caseFileId!,
+      ragConfig: state.chatMode.ragConfig,
+    );
+    switch (result) {
+      case ConsultationSuccess<Map<String, dynamic>>(:final data):
+        final toolResults = _parseToolResults(data['tool_results']) ?? [];
+        final pendingOnes = toolResults
+            .where((t) => t.requiresConfirmation)
+            .toList();
+        final aiMsg = ChatMessage(
+          id: data['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString(),
+          text: data['response']?.toString() ?? '',
+          isUser: false,
+          timestamp: DateTime.now(),
+          citations: _parseChatCitations(data['citations']),
+          toolResults: toolResults,
+        );
+        emit(state.copyWith(
+          messages: [...state.messages, aiMsg],
+          isSending: false,
+          pendingConfirmations: [...state.pendingConfirmations, ...pendingOnes],
+        ));
+      case ConsultationFailure<Map<String, dynamic>>(:final type):
+        final errorMsg = ChatMessage(
+          id: 'error_${DateTime.now().millisecondsSinceEpoch}',
+          text: type.name, isUser: false, timestamp: DateTime.now(),
+          isError: true, failureType: type,
+        );
+        emit(state.copyWith(messages: [...state.messages, errorMsg], isSending: false));
+    }
+  }
+
+  Future<void> confirmToolAction(String confirmationId) async {
+    if (state.conversationId == null) return;
+    final result = await _repository.confirmToolAction(
+      conversationId: state.conversationId!,
+      confirmationId: confirmationId,
+      confirmed: true,
+    );
+    switch (result) {
+      case ConsultationSuccess<Map<String, dynamic>>(:final data):
+        final updatedPending = state.pendingConfirmations
+            .where((t) => t.confirmationId != confirmationId)
+            .toList();
+        final confirmMsg = ChatMessage(
+          id: 'conf_${DateTime.now().millisecondsSinceEpoch}',
+          text: '✅ ${data['tool_name']}: შესრულდა',
+          isUser: false,
+          timestamp: DateTime.now(),
+        );
+        emit(state.copyWith(
+          messages: [...state.messages, confirmMsg],
+          pendingConfirmations: updatedPending,
+        ));
+      case ConsultationFailure<Map<String, dynamic>>():
+        break;
+    }
+  }
+
+  Future<void> rejectToolAction(String confirmationId) async {
+    if (state.conversationId == null) return;
+    final result = await _repository.confirmToolAction(
+      conversationId: state.conversationId!,
+      confirmationId: confirmationId,
+      confirmed: false,
+    );
+    switch (result) {
+      case ConsultationSuccess<Map<String, dynamic>>(:final data):
+        final updatedPending = state.pendingConfirmations
+            .where((t) => t.confirmationId != confirmationId)
+            .toList();
+        final rejectMsg = ChatMessage(
+          id: 'reject_${DateTime.now().millisecondsSinceEpoch}',
+          text: '❌ ${data['tool_name']}: გაუქმებულია',
+          isUser: false,
+          timestamp: DateTime.now(),
+        );
+        emit(state.copyWith(
+          messages: [...state.messages, rejectMsg],
+          pendingConfirmations: updatedPending,
+        ));
+      case ConsultationFailure<Map<String, dynamic>>():
+        break;
+    }
+  }
+
+  List<ToolResultData>? _parseToolResults(dynamic raw) {
+    if (raw is! List) return null;
+    return raw.map((t) {
+      final map = t as Map<String, dynamic>;
+      return ToolResultData(
+        toolName: map['tool_name']?.toString() ?? '',
+        status: map['status']?.toString() ?? '',
+        result: (map['result'] as Map<String, dynamic>?) ?? {},
+        requiresConfirmation: map['requires_confirmation'] == true,
+        confirmationId: map['confirmation_id']?.toString(),
+        description: map['description']?.toString(),
+      );
+    }).toList();
   }
 
   List<CitationData>? _parseCitations(dynamic raw) {

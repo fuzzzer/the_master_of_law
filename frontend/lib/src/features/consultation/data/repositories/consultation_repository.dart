@@ -105,6 +105,46 @@ class ConsultationRepository {
     }
   }
 
+  Future<ConsultationResult<Map<String, dynamic>>> sendAgentMessage({
+    required String conversationId,
+    required String message,
+    required String caseFileId,
+    Map<String, dynamic>? ragConfig,
+  }) async {
+    try {
+      final data = await _remoteDataSource.sendAgentMessage(
+        conversationId: conversationId,
+        message: message,
+        caseFileId: caseFileId,
+        ragConfig: ragConfig,
+      );
+      return ConsultationSuccess(data);
+    } on HttpClientException catch (e) {
+      return ConsultationFailure(type: _mapHttpError(e), message: e.toString());
+    } catch (e) {
+      return ConsultationFailure(type: ConsultationFailureType.unknown, message: e.toString());
+    }
+  }
+
+  Future<ConsultationResult<Map<String, dynamic>>> confirmToolAction({
+    required String conversationId,
+    required String confirmationId,
+    required bool confirmed,
+  }) async {
+    try {
+      final data = await _remoteDataSource.confirmToolAction(
+        conversationId: conversationId,
+        confirmationId: confirmationId,
+        confirmed: confirmed,
+      );
+      return ConsultationSuccess(data);
+    } on HttpClientException catch (e) {
+      return ConsultationFailure(type: _mapHttpError(e), message: e.toString());
+    } catch (e) {
+      return ConsultationFailure(type: ConsultationFailureType.unknown, message: e.toString());
+    }
+  }
+
   ConsultationFailureType _mapHttpError(HttpClientException e) {
     if (e is UnsuccessfulResponseException && e.statusCode == 402) {
       return ConsultationFailureType.noCredits;
@@ -117,3 +157,4 @@ class ConsultationRepository {
     };
   }
 }
+

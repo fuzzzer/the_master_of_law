@@ -56,7 +56,7 @@ class _LegalDictionaryPageState extends State<LegalDictionaryPage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(16),
             child: TextField(
               controller: _searchController,
               style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor),
@@ -89,7 +89,7 @@ class _LegalDictionaryPageState extends State<LegalDictionaryPage> {
                     itemBuilder: (context, index) {
                       final term = _filteredTerms[index];
                       return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [

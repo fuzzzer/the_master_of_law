@@ -49,7 +49,16 @@ class _CaseChatSectionState extends State<CaseChatSection> {
     } else {
       await _createAndLinkConversation(caseDetailCubit);
     }
-    if (mounted) setState(() => _initialized = true);
+    if (mounted) {
+      final caseData = caseDetailCubit.state.caseData;
+      final serverId = caseData?.serverCaseFileId;
+      if (serverId != null && serverId.isNotEmpty) {
+        _cubit.enterAgentMode(caseFileId: serverId);
+      } else if (caseData != null && caseData.facts.isNotEmpty) {
+        _tryResolveServerCaseFileId();
+      }
+      setState(() => _initialized = true);
+    }
   }
 
   Future<void> _createAndLinkConversation(CaseDetailCubit caseDetailCubit) async {
@@ -92,11 +101,54 @@ class _CaseChatSectionState extends State<CaseChatSection> {
     final caseFileData = await _cubit.buildCaseFile();
     if (caseFileData != null && mounted) {
       context.read<CaseDetailCubit>().populateFromAiAnalysis(caseFileData);
+      final serverId = caseFileData['id']?.toString();
+      if (serverId != null) {
+        _cubit.enterAgentMode(caseFileId: serverId);
+        setState(() {});
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('✅ საქმის სექციები შეივსო AI-ის ანალიზით')),
         );
       }
+    }
+  }
+
+  Future<void> _tryResolveServerCaseFileId() async {
+    final convId = _cubit.state.conversationId;
+    if (convId == null) return;
+    try {
+      final dataSource = ConsultationRemoteDataSource();
+      final caseFiles = await dataSource.listCaseFiles();
+      final match = (caseFiles as List?)?.firstWhere(
+        (cf) => cf['conversation_id'] == convId,
+        orElse: () => null,
+      );
+      if (match != null && mounted) {
+        final serverId = match['id']?.toString();
+        if (serverId != null) {
+          context.read<CaseDetailCubit>().state.caseData?.serverCaseFileId = serverId;
+          _cubit.enterAgentMode(caseFileId: serverId);
+          setState(() {});
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _toggleAgentMode() async {
+    if (_cubit.state.isAgentMode) {
+      _cubit.exitAgentMode();
+      setState(() {});
+      return;
+    }
+    var serverId = context.read<CaseDetailCubit>().state.caseData?.serverCaseFileId;
+    if (serverId == null) {
+      await _tryResolveServerCaseFileId();
+      serverId = context.read<CaseDetailCubit>().state.caseData?.serverCaseFileId;
+    }
+    if (serverId != null && mounted) {
+      _cubit.enterAgentMode(caseFileId: serverId);
+      setState(() {});
     }
   }
 
@@ -109,25 +161,119 @@ class _CaseChatSectionState extends State<CaseChatSection> {
       value: _cubit,
       child: Column(
         children: [
-          // Context banner
-          Container(
-            margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: uiColors.backgroundSecondaryColor,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.folder_open, size: 16, color: uiColors.accentColor),
-                const SizedBox(width: 8),
-                Text(
-                  'AI-ს აქვს საქმის სრული კონტექსტი',
-                  style: uiTextStyles.labelBold12.copyWith(color: uiColors.secondaryTextColor),
+          // Context banner — reactive to agent mode
+          BlocBuilder<ConsultationCubit, ConsultationState>(
+            bloc: _cubit,
+            buildWhen: (prev, curr) => prev.caseFileId != curr.caseFileId,
+            builder: (context, consultState) {
+              final caseData = context.read<CaseDetailCubit>().state.caseData;
+              final hasBuiltCase =
+                  caseData != null && (caseData.serverCaseFileId != null || caseData.facts.any((f) => f.isAiGenerated));
+              final hasAgent = consultState.isAgentMode || hasBuiltCase;
+
+              return Container(
+                margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: consultState.isAgentMode
+                      ? uiColors.accentColor.withValues(alpha: 0.08)
+                      : uiColors.backgroundSecondaryColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: consultState.isAgentMode
+                      ? Border.all(color: uiColors.accentColor.withValues(alpha: 0.3))
+                      : null,
                 ),
-              ],
-            ),
+                child: hasAgent
+                    ? Row(
+                        children: [
+                          // Expanded(
+                          //   child: GestureDetector(
+                          //     onTap: consultState.isAgentMode ? _toggleAgentMode : null,
+                          //     child: Container(
+                          //       padding: const EdgeInsets.symmetric(vertical: 8),
+                          //       decoration: BoxDecoration(
+                          //         color: !consultState.isAgentMode
+                          //             ? uiColors.accentColor.withValues(alpha: 0.12)
+                          //             : Colors.transparent,
+                          //         borderRadius: BorderRadius.circular(8),
+                          //       ),
+                          //       child: Row(
+                          //         mainAxisAlignment: MainAxisAlignment.center,
+                          //         children: [
+                          //           Icon(Icons.chat_bubble_outline, size: 14,
+                          //             color: !consultState.isAgentMode
+                          //                 ? uiColors.accentColor
+                          //                 : uiColors.secondaryTextColor),
+                          //           const SizedBox(width: 6),
+                          //           Text('ჩატი',
+                          //             style: uiTextStyles.labelBold12.copyWith(
+                          //               color: !consultState.isAgentMode
+                          //                   ? uiColors.accentColor
+                          //                   : uiColors.secondaryTextColor,
+                          //             ),
+                          //           ),
+                          //         ],
+                          //       ),
+                          //     ),
+                          //   ),
+                          // ),
+                          Container(
+                            width: 1,
+                            height: 24,
+                            color: uiColors.secondaryTextColor.withValues(alpha: 0.2),
+                          ),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: !consultState.isAgentMode ? _toggleAgentMode : null,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: consultState.isAgentMode
+                                      ? uiColors.accentColor.withValues(alpha: 0.15)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.smart_toy,
+                                      size: 14,
+                                      color: consultState.isAgentMode
+                                          ? uiColors.accentColor
+                                          : uiColors.secondaryTextColor,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      '🤖 აგენტი',
+                                      style: uiTextStyles.labelBold12.copyWith(
+                                        color: consultState.isAgentMode
+                                            ? uiColors.accentColor
+                                            : uiColors.secondaryTextColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.folder_open, size: 16, color: uiColors.accentColor),
+                          const SizedBox(width: 8),
+                          Text(
+                            'AI-ს აქვს საქმის სრული კონტექსტი',
+                            style: uiTextStyles.labelBold12.copyWith(
+                              color: uiColors.secondaryTextColor,
+                            ),
+                          ),
+                        ],
+                      ),
+              );
+            },
           ),
 
           // Messages
@@ -184,7 +330,7 @@ class _CaseChatSectionState extends State<CaseChatSection> {
                           ),
                           const SizedBox(height: 24),
                           ElevatedButton.icon(
-                            onPressed: () => _initConversation(),
+                            onPressed: _initConversation,
                             icon: const Icon(Icons.refresh, size: 18),
                             label: const Text('ხელახლა ცდა'),
                             style: ElevatedButton.styleFrom(

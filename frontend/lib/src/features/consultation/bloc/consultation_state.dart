@@ -9,6 +9,7 @@ class ChatMessage {
   final String? trustLevel;
   final bool isError;
   final ConsultationFailureType? failureType;
+  final List<ToolResultData>? toolResults;
 
   const ChatMessage({
     required this.id,
@@ -19,6 +20,25 @@ class ChatMessage {
     this.trustLevel,
     this.isError = false,
     this.failureType,
+    this.toolResults,
+  });
+}
+
+class ToolResultData {
+  final String toolName;
+  final String status;
+  final Map<String, dynamic> result;
+  final bool requiresConfirmation;
+  final String? confirmationId;
+  final String? description;
+
+  const ToolResultData({
+    required this.toolName,
+    required this.status,
+    this.result = const {},
+    this.requiresConfirmation = false,
+    this.confirmationId,
+    this.description,
   });
 }
 
@@ -52,6 +72,8 @@ class ConsultationState {
   final String? attachedCaseId;
   final String? attachedCaseTitle;
   final String? attachedCaseContext;
+  final String? caseFileId;
+  final List<ToolResultData> pendingConfirmations;
 
   const ConsultationState({
     this.status = StateStatus.initial,
@@ -67,9 +89,13 @@ class ConsultationState {
     this.attachedCaseId,
     this.attachedCaseTitle,
     this.attachedCaseContext,
+    this.caseFileId,
+    this.pendingConfirmations = const [],
   });
 
   bool get hasCaseAttached => attachedCaseId != null;
+
+  bool get isAgentMode => caseFileId != null;
 
   ConsultationState copyWith({
     StateStatus? status,
@@ -86,6 +112,9 @@ class ConsultationState {
     String? attachedCaseTitle,
     String? attachedCaseContext,
     bool clearAttachedCase = false,
+    String? caseFileId,
+    bool clearCaseFileId = false,
+    List<ToolResultData>? pendingConfirmations,
   }) {
     return ConsultationState(
       status: status ?? this.status,
@@ -101,6 +130,8 @@ class ConsultationState {
       attachedCaseId: clearAttachedCase ? null : (attachedCaseId ?? this.attachedCaseId),
       attachedCaseTitle: clearAttachedCase ? null : (attachedCaseTitle ?? this.attachedCaseTitle),
       attachedCaseContext: clearAttachedCase ? null : (attachedCaseContext ?? this.attachedCaseContext),
+      caseFileId: clearCaseFileId ? null : (caseFileId ?? this.caseFileId),
+      pendingConfirmations: pendingConfirmations ?? this.pendingConfirmations,
     );
   }
 }

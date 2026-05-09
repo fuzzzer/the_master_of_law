@@ -56,6 +56,9 @@ class CaseData extends HiveObject {
   @HiveField(15)
   final List<ClarificationData> clarifications;
 
+  @HiveField(16)
+  String? serverCaseFileId;
+
   CaseData({
     required this.id,
     required this.title,
@@ -73,6 +76,7 @@ class CaseData extends HiveObject {
     List<String>? linkedConversationIds,
     List<LinkedArticleData>? linkedArticles,
     List<ClarificationData>? clarifications,
+    this.serverCaseFileId,
   }) : facts = facts ?? [],
        arguments = arguments ?? [],
        evidence = evidence ?? [],

@@ -99,6 +99,7 @@ class CaseEvidenceSection extends StatelessWidget {
   }
 
   void _showAddEvidence(BuildContext parentContext) {
+    final cubit = parentContext.read<CaseDetailCubit>();
     final controller = TextEditingController();
     var selectedType = EvidenceType.document;
     final uiColors = parentContext.uiColors;
@@ -147,9 +148,9 @@ class CaseEvidenceSection extends StatelessWidget {
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     if (controller.text.trim().isEmpty) return;
-                    parentContext.read<CaseDetailCubit>().addEvidence(
+                    await cubit.addEvidence(
                       EvidenceData(
                         id: DateTime.now().millisecondsSinceEpoch.toString(),
                         title: controller.text.trim(),
@@ -157,7 +158,7 @@ class CaseEvidenceSection extends StatelessWidget {
                         addedAt: DateTime.now(),
                       ),
                     );
-                    Navigator.pop(ctx);
+                    if (ctx.mounted) Navigator.pop(ctx);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: uiColors.accentColor,

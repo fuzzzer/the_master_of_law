@@ -28,6 +28,7 @@ from app.middleware.rate_limit_middleware import RateLimitMiddleware
 from app.routes import (
     account_router,
     auth_router,
+    case_agent_router,
     case_file_router,
     chat_router,
     conversation_router,
@@ -128,6 +129,7 @@ def create_app() -> FastAPI:
     app.include_router(rag_router.router)
     app.include_router(questionnaire_router.router)
     app.include_router(ws_chat_router.router)
+    app.include_router(case_agent_router.router)
 
     return app
 

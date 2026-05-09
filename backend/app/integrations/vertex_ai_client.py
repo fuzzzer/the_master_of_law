@@ -73,6 +73,38 @@ class VertexAIClient:
 
         return response.text
 
+    async def generate_with_tools(
+        self,
+        contents: list[Any],
+        tools: list[Any],
+        system_instruction: str | None = None,
+        temperature: float = GEMINI_TEMPERATURE,
+        max_output_tokens: int = GEMINI_MAX_OUTPUT_TOKENS,
+        model_name: str | None = None,
+    ) -> Any:
+        """Generate content with function calling tools.
+
+        Returns the raw response object so callers can inspect
+        function_call parts vs text parts.
+        """
+        client = self._get_client()
+
+        config = GenerateContentConfig(
+            temperature=temperature,
+            max_output_tokens=max_output_tokens,
+            top_p=GEMINI_TOP_P,
+            tools=tools,
+        )
+
+        if system_instruction:
+            config.system_instruction = system_instruction
+
+        return client.models.generate_content(
+            model=model_name or self._model,
+            contents=contents,
+            config=config,
+        )
+
     async def generate_json(
         self,
         prompt: str,

@@ -239,6 +239,11 @@ class CaseDetailCubit extends Cubit<CaseDetailState> {
     final caseData = state.caseData;
     if (caseData == null) return;
 
+    final serverId = caseFileData['id']?.toString();
+    if (serverId != null) {
+      caseData.serverCaseFileId = serverId;
+    }
+
     caseData.facts.removeWhere((f) => f.isAiGenerated);
     caseData.arguments.removeWhere((a) => a.isAiGenerated);
     caseData.risks.removeWhere((r) => r.isAiGenerated);
@@ -405,7 +410,6 @@ class CaseDetailCubit extends Cubit<CaseDetailState> {
             id: 'ai_action_${idBase}_${i++}',
             task: action['action']?.toString() ?? '',
             priorityIndex: _mapDeadlineToPriority(action['deadline']?.toString()),
-            isCompleted: false,
           ),
         );
       }

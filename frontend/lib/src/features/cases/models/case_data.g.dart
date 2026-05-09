@@ -33,13 +33,14 @@ class CaseDataAdapter extends TypeAdapter<CaseData> {
       linkedConversationIds: (fields[13] as List?)?.cast<String>(),
       linkedArticles: (fields[14] as List?)?.cast<LinkedArticleData>(),
       clarifications: (fields[15] as List?)?.cast<ClarificationData>(),
+      serverCaseFileId: fields[16] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, CaseData obj) {
     writer
-      ..writeByte(16)
+      ..writeByte(17)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -71,7 +72,9 @@ class CaseDataAdapter extends TypeAdapter<CaseData> {
       ..writeByte(14)
       ..write(obj.linkedArticles)
       ..writeByte(15)
-      ..write(obj.clarifications);
+      ..write(obj.clarifications)
+      ..writeByte(16)
+      ..write(obj.serverCaseFileId);
   }
 
   @override

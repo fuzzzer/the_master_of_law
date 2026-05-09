@@ -44,8 +44,7 @@ class _ConsultationPageState extends State<ConsultationPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('AI კონსულტაცია',
-            style: uiTextStyles.bodyBold16.copyWith(color: uiColors.primaryTextColor)),
+        title: Text('AI კონსულტაცია', style: uiTextStyles.bodyBold16.copyWith(color: uiColors.primaryTextColor)),
         leading: IconButton(
           icon: const Icon(Icons.history),
           onPressed: () => _showHistorySheet(context),
@@ -63,7 +62,7 @@ class _ConsultationPageState extends State<ConsultationPage> {
           ),
           BlocBuilder<ConsultationCubit, ConsultationState>(
             builder: (context, state) {
-              //TODO enable sooner if needed 
+              //TODO enable sooner if needed
               if (state.status == StateStatus.initial || state.messages.length < 6) return const SizedBox.shrink();
               return IconButton(
                 icon: Icon(Icons.description_outlined, color: uiColors.primaryTextColor),
@@ -97,16 +96,18 @@ class _ConsultationPageState extends State<ConsultationPage> {
                       Icon(
                         state.chatMode == ChatMode.lawsOnly ? Icons.menu_book : Icons.auto_awesome,
                         size: 14,
-                        color: state.chatMode == ChatMode.lawsOnly
-                            ? uiColors.accentColor : uiColors.secondaryTextColor,
+                        color: state.chatMode == ChatMode.lawsOnly ? uiColors.accentColor : uiColors.secondaryTextColor,
                       ),
                       const SizedBox(width: 4),
-                      Text(state.chatMode.labelKa,
-                          style: uiTextStyles.caption11.copyWith(
-                            color: state.chatMode == ChatMode.lawsOnly
-                                ? uiColors.accentColor : uiColors.secondaryTextColor,
-                            fontWeight: FontWeight.w600,
-                          )),
+                      Text(
+                        state.chatMode.labelKa,
+                        style: uiTextStyles.caption11.copyWith(
+                          color: state.chatMode == ChatMode.lawsOnly
+                              ? uiColors.accentColor
+                              : uiColors.secondaryTextColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -134,7 +135,7 @@ class _ConsultationPageState extends State<ConsultationPage> {
                 ],
               ),
               if (state.isBuildingCase)
-                Container(
+                ColoredBox(
                   color: Colors.black.withValues(alpha: 0.3),
                   child: Center(
                     child: Container(
@@ -148,9 +149,15 @@ class _ConsultationPageState extends State<ConsultationPage> {
                         children: [
                           const CircularProgressIndicator(),
                           const SizedBox(height: 16),
-                          Text('საქმე მზადდება...', style: uiTextStyles.bodyBold14.copyWith(color: uiColors.primaryTextColor)),
+                          Text(
+                            'საქმე მზადდება...',
+                            style: uiTextStyles.bodyBold14.copyWith(color: uiColors.primaryTextColor),
+                          ),
                           const SizedBox(height: 8),
-                          Text('ეს შეიძლება 30-60 წამი გაგრძელდეს', style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor)),
+                          Text(
+                            'ეს შეიძლება 30-60 წამი გაგრძელდეს',
+                            style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor),
+                          ),
                         ],
                       ),
                     ),
@@ -174,12 +181,13 @@ class _ConsultationPageState extends State<ConsultationPage> {
           children: [
             Icon(Icons.psychology, size: 64, color: uiColors.accentColor.withValues(alpha: 0.4)),
             const SizedBox(height: 20),
-            Text('AI კონსულტაცია',
-                style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor)),
+            Text('AI კონსულტაცია', style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor)),
             const SizedBox(height: 8),
-            Text('დაუსვით იურიდიული კითხვა',
-                style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
-                textAlign: TextAlign.center),
+            Text(
+              'დაუსვით იურიდიული კითხვა',
+              style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -219,13 +227,18 @@ class _ConsultationPageState extends State<ConsultationPage> {
         ),
         child: Column(
           children: [
-            Icon(mode == ChatMode.lawsOnly ? Icons.menu_book : Icons.auto_awesome,
-                color: isSelected ? uiColors.accentColor : uiColors.secondaryTextColor),
-            const SizedBox(height: 4),
-            Text(mode.labelKa, style: uiTextStyles.caption11.copyWith(
+            Icon(
+              mode == ChatMode.lawsOnly ? Icons.menu_book : Icons.auto_awesome,
               color: isSelected ? uiColors.accentColor : uiColors.secondaryTextColor,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-            )),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              mode.labelKa,
+              style: uiTextStyles.caption11.copyWith(
+                color: isSelected ? uiColors.accentColor : uiColors.secondaryTextColor,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
           ],
         ),
       ),
@@ -234,10 +247,8 @@ class _ConsultationPageState extends State<ConsultationPage> {
 
   Widget _buildMessageList(BuildContext context, ConsultationState state) {
     // Show action chips after first AI response (2 messages: user + AI)
-    final showChips = !_actionChipsDismissed
-        && state.messages.length >= 2
-        && !state.isSending
-        && state.messages.last.isUser == false;
+    final showChips =
+        !_actionChipsDismissed && state.messages.length >= 2 && !state.isSending && state.messages.last.isUser == false;
 
     return ListView.builder(
       controller: _scrollController,
@@ -326,12 +337,15 @@ class _ConsultationPageState extends State<ConsultationPage> {
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
         ),
-        child: Row(children: [
-          const Icon(Icons.error_outline, color: Colors.red, size: 18),
-          const SizedBox(width: 8),
-          Expanded(child: Text(_errorMessageKa(message.failureType),
-              style: uiTextStyles.body14.copyWith(color: Colors.red))),
-        ]),
+        child: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.red, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(_errorMessageKa(message.failureType), style: uiTextStyles.body14.copyWith(color: Colors.red)),
+            ),
+          ],
+        ),
       );
     }
 
@@ -342,17 +356,17 @@ class _ConsultationPageState extends State<ConsultationPage> {
         constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: message.isUser
-              ? uiColors.accentColor.withValues(alpha: 0.15)
-              : uiColors.backgroundSecondaryColor,
+          color: message.isUser ? uiColors.accentColor.withValues(alpha: 0.15) : uiColors.backgroundSecondaryColor,
           borderRadius: BorderRadius.circular(14),
           border: message.isUser ? Border.all(color: uiColors.accentColor.withValues(alpha: 0.2)) : null,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SelectableText(message.text,
-                style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor, height: 1.5)),
+            SelectableText(
+              message.text,
+              style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor, height: 1.5),
+            ),
             if (message.citations != null && message.citations!.isNotEmpty) ...[
               const SizedBox(height: 10),
               Divider(color: uiColors.secondaryTextColor.withValues(alpha: 0.15), height: 1),
@@ -377,35 +391,43 @@ class _ConsultationPageState extends State<ConsultationPage> {
           borderRadius: BorderRadius.circular(6),
           border: Border.all(color: const Color(0xFF1565C0).withValues(alpha: 0.15)),
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.article_outlined, size: 14, color: Color(0xFF1565C0)),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              citation.articleTitle.isNotEmpty ? citation.articleTitle : 'მუხლი ${citation.articleId}',
-              style: uiTextStyles.caption11.copyWith(
-                  color: const Color(0xFF1565C0), decoration: TextDecoration.underline),
-              maxLines: 1, overflow: TextOverflow.ellipsis,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.article_outlined, size: 14, color: Color(0xFF1565C0)),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                citation.articleTitle.isNotEmpty ? citation.articleTitle : 'მუხლი ${citation.articleId}',
+                style: uiTextStyles.caption11.copyWith(
+                  color: const Color(0xFF1565C0),
+                  decoration: TextDecoration.underline,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ),
-        ]),
+          ],
+        ),
       ),
     );
   }
 
   void _navigateToArticle(BuildContext context, CitationData citation) {
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => BlocProvider(
-        create: (_) => LawsCubit(
-          repository: LawsRepository(remoteDataSource: LawsRemoteDataSource()),
-        )..loadArticle(citation.articleId),
-        child: LawArticlePage(
-          articleId: citation.articleId,
-          articleTitle: citation.articleTitle.isNotEmpty ? citation.articleTitle : 'მუხლი ${citation.articleId}',
-          codeName: citation.codeTitle,
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => BlocProvider(
+          create: (_) => LawsCubit(
+            repository: LawsRepository(remoteDataSource: LawsRemoteDataSource()),
+          )..loadArticle(citation.articleId),
+          child: LawArticlePage(
+            articleId: citation.articleId,
+            articleTitle: citation.articleTitle.isNotEmpty ? citation.articleTitle : 'მუხლი ${citation.articleId}',
+            codeName: citation.codeTitle,
+          ),
         ),
       ),
-    ));
+    );
   }
 
   Widget _buildTypingIndicator(BuildContext context) {
@@ -413,17 +435,27 @@ class _ConsultationPageState extends State<ConsultationPage> {
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12), padding: const EdgeInsets.all(14),
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(color: uiColors.backgroundSecondaryColor, borderRadius: BorderRadius.circular(14)),
-        child: Row(mainAxisSize: MainAxisSize.min, children: List.generate(3, (i) => Container(
-          margin: const EdgeInsets.symmetric(horizontal: 2), width: 8, height: 8,
-          decoration: BoxDecoration(color: uiColors.secondaryTextColor.withValues(alpha: 0.4), shape: BoxShape.circle),
-        ))),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(
+            3,
+            (i) => Container(
+              margin: const EdgeInsets.symmetric(horizontal: 2),
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: uiColors.secondaryTextColor.withValues(alpha: 0.4),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
-
-
 
   Widget _buildInputBar(BuildContext context, ConsultationState state) {
     final uiColors = context.uiColors;
@@ -434,34 +466,43 @@ class _ConsultationPageState extends State<ConsultationPage> {
         color: uiColors.backgroundSecondaryColor,
         border: Border(top: BorderSide(color: uiColors.secondaryTextColor.withValues(alpha: 0.1))),
       ),
-      child: Row(children: [
-        // Case attachment button
-        IconButton(
-          icon: Icon(
-            state.hasCaseAttached ? Icons.folder : Icons.folder_open_outlined,
-            color: state.hasCaseAttached ? uiColors.accentColor : uiColors.secondaryTextColor,
-            size: 22,
+      child: Row(
+        children: [
+          // Case attachment button
+          IconButton(
+            icon: Icon(
+              state.hasCaseAttached ? Icons.folder : Icons.folder_open_outlined,
+              color: state.hasCaseAttached ? uiColors.accentColor : uiColors.secondaryTextColor,
+              size: 22,
+            ),
+            onPressed: () => _showCaseSelector(context),
+            tooltip: 'საქმის მიმაგრება',
           ),
-          onPressed: () => _showCaseSelector(context),
-          tooltip: 'საქმის მიმაგრება',
-        ),
-        Expanded(child: TextField(
-          controller: _messageController,
-          style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor),
-          decoration: InputDecoration(
-            hintText: 'დაწერეთ კითხვა...', border: InputBorder.none,
-            hintStyle: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          Expanded(
+            child: TextField(
+              controller: _messageController,
+              style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor),
+              decoration: InputDecoration(
+                hintText: 'დაწერეთ კითხვა...',
+                border: InputBorder.none,
+                hintStyle: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              ),
+              maxLines: 4,
+              minLines: 1,
+              textInputAction: TextInputAction.send,
+              onSubmitted: (_) => _sendMessage(context, state),
+            ),
           ),
-          maxLines: 4, minLines: 1, textInputAction: TextInputAction.send,
-          onSubmitted: (_) => _sendMessage(context, state),
-        )),
-        IconButton(
-          icon: Icon(Icons.send, color: state.isSending
-              ? uiColors.secondaryTextColor.withValues(alpha: 0.3) : uiColors.accentColor),
-          onPressed: state.isSending ? null : () => _sendMessage(context, state),
-        ),
-      ]),
+          IconButton(
+            icon: Icon(
+              Icons.send,
+              color: state.isSending ? uiColors.secondaryTextColor.withValues(alpha: 0.3) : uiColors.accentColor,
+            ),
+            onPressed: state.isSending ? null : () => _sendMessage(context, state),
+          ),
+        ],
+      ),
     );
   }
 
@@ -515,9 +556,15 @@ class _ConsultationPageState extends State<ConsultationPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('საკმარისი კონტექსტი შეგროვდა', style: uiTextStyles.bodyBold14.copyWith(color: const Color(0xFF2ECC71))),
+                Text(
+                  'საკმარისი კონტექსტი შეგროვდა',
+                  style: uiTextStyles.bodyBold14.copyWith(color: const Color(0xFF2ECC71)),
+                ),
                 const SizedBox(height: 2),
-                Text('AI მზადაა საქმის დასაგენერირებლად', style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor)),
+                Text(
+                  'AI მზადაა საქმის დასაგენერირებლად',
+                  style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor),
+                ),
               ],
             ),
           ),
@@ -564,7 +611,7 @@ class _ConsultationPageState extends State<ConsultationPage> {
     if (confirmed != true || !mounted) return;
 
     final caseFileData = await cubit.buildCaseFile();
-    
+
     if (!mounted) return;
 
     if (caseFileData != null) {
@@ -597,32 +644,66 @@ class _ConsultationPageState extends State<ConsultationPage> {
     final cubit = context.read<ConsultationCubit>();
     final uiColors = context.uiColors;
     final uiTextStyles = context.uiTextStyles;
-    showModalBottomSheet<void>(context: context, builder: (_) => SafeArea(
-      child: Padding(padding: const EdgeInsets.all(20), child: Column(
-        mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('წყაროს არჩევა', style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor)),
-          const SizedBox(height: 16),
-          _buildModeOption(context, cubit, ChatMode.lawsOnly, Icons.menu_book, 'მხოლოდ კანონები', 'საკანონმდებლო კოდექსები'),
-          const SizedBox(height: 8),
-          _buildModeOption(context, cubit, ChatMode.allSources, Icons.auto_awesome, 'ყველა წყარო', 'კანონები + სასამართლო პრაქტიკა + დიდი პალატა'),
-        ],
-      )),
-    ));
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('წყაროს არჩევა', style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor)),
+              const SizedBox(height: 16),
+              _buildModeOption(
+                context,
+                cubit,
+                ChatMode.lawsOnly,
+                Icons.menu_book,
+                'მხოლოდ კანონები',
+                'საკანონმდებლო კოდექსები',
+              ),
+              const SizedBox(height: 8),
+              _buildModeOption(
+                context,
+                cubit,
+                ChatMode.allSources,
+                Icons.auto_awesome,
+                'ყველა წყარო',
+                'კანონები + სასამართლო პრაქტიკა + დიდი პალატა',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
-  Widget _buildModeOption(BuildContext context, ConsultationCubit cubit, ChatMode mode, IconData icon, String title, String subtitle) {
+  Widget _buildModeOption(
+    BuildContext context,
+    ConsultationCubit cubit,
+    ChatMode mode,
+    IconData icon,
+    String title,
+    String subtitle,
+  ) {
     final uiColors = context.uiColors;
     final uiTextStyles = context.uiTextStyles;
     final isSelected = cubit.state.chatMode == mode;
     return ListTile(
       leading: Icon(icon, color: isSelected ? uiColors.accentColor : uiColors.secondaryTextColor),
-      title: Text(title, style: uiTextStyles.bodyBold14.copyWith(color: isSelected ? uiColors.accentColor : uiColors.primaryTextColor)),
+      title: Text(
+        title,
+        style: uiTextStyles.bodyBold14.copyWith(color: isSelected ? uiColors.accentColor : uiColors.primaryTextColor),
+      ),
       subtitle: Text(subtitle, style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor)),
       trailing: isSelected ? Icon(Icons.check_circle, color: uiColors.accentColor) : null,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       tileColor: isSelected ? uiColors.accentColor.withValues(alpha: 0.08) : uiColors.backgroundSecondaryColor,
-      onTap: () { cubit.switchMode(mode); Navigator.of(context).pop(); },
+      onTap: () {
+        cubit.switchMode(mode);
+        Navigator.of(context).pop();
+      },
     );
   }
 
@@ -630,8 +711,6 @@ class _ConsultationPageState extends State<ConsultationPage> {
     final uiColors = context.uiColors;
     final uiTextStyles = context.uiTextStyles;
     final cubit = context.read<ConsultationCubit>();
-    final casesCubit = context.read<CasesCubit>();
-    final cases = casesCubit.state.cases;
 
     showModalBottomSheet<void>(
       context: context,
@@ -645,7 +724,10 @@ class _ConsultationPageState extends State<ConsultationPage> {
             children: [
               Text('საქმის მიმაგრება', style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor)),
               const SizedBox(height: 4),
-              Text('AI მიიღებს საქმის სრულ კონტექსტს', style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor)),
+              Text(
+                'AI მიიღებს საქმის სრულ კონტექსტს',
+                style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
+              ),
               const SizedBox(height: 16),
               // Detach option
               if (cubit.state.hasCaseAttached)
@@ -654,14 +736,17 @@ class _ConsultationPageState extends State<ConsultationPage> {
                   title: Text('საქმის მოხსნა', style: uiTextStyles.bodyBold14.copyWith(color: uiColors.errorColor)),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   tileColor: uiColors.errorColor.withValues(alpha: 0.05),
-                  onTap: () { cubit.detachCase(); Navigator.pop(context); },
+                  onTap: () {
+                    cubit.detachCase();
+                    Navigator.pop(context);
+                  },
                 ),
               if (cubit.state.hasCaseAttached) const SizedBox(height: 8),
               // Case list
               BlocBuilder<CasesCubit, CasesState>(
                 builder: (context, casesState) {
                   final cases = casesState.cases;
-                  
+
                   if (casesState.status == StateStatus.loading) {
                     return const Padding(
                       padding: EdgeInsets.symmetric(vertical: 24),
@@ -672,7 +757,10 @@ class _ConsultationPageState extends State<ConsultationPage> {
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 24),
                       child: Center(
-                        child: Text('საქმეები არ მოიძებნა', style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor)),
+                        child: Text(
+                          'საქმეები არ მოიძებნა',
+                          style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
+                        ),
                       ),
                     );
                   }
@@ -700,7 +788,9 @@ class _ConsultationPageState extends State<ConsultationPage> {
                           ),
                           trailing: isAttached ? Icon(Icons.check_circle, color: uiColors.accentColor, size: 20) : null,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          tileColor: isAttached ? uiColors.accentColor.withValues(alpha: 0.08) : uiColors.backgroundSecondaryColor,
+                          tileColor: isAttached
+                              ? uiColors.accentColor.withValues(alpha: 0.08)
+                              : uiColors.backgroundSecondaryColor,
                           onTap: () {
                             cubit.attachCase(
                               caseId: caseData.id,
@@ -716,10 +806,10 @@ class _ConsultationPageState extends State<ConsultationPage> {
                 },
               ),
             ],
+          ),
+        ),
       ),
-    ),
-  ),
-);
+    );
   }
 
   String _buildCaseContextSummary(CaseData caseData) {
@@ -749,7 +839,7 @@ class _ConsultationPageState extends State<ConsultationPage> {
     final uiColors = context.uiColors;
     final uiTextStyles = context.uiTextStyles;
     final cubit = context.read<ConsultationCubit>();
-    
+
     // We instantiate a new repository just for this sheet to fetch history
     final tempRepo = ConsultationRepository(remoteDataSource: ConsultationRemoteDataSource());
 
@@ -782,12 +872,19 @@ class _ConsultationPageState extends State<ConsultationPage> {
                       return const Center(child: CircularProgressIndicator());
                     }
                     if (snapshot.hasError || snapshot.data is ConsultationFailure) {
-                      return Center(child: Text('ვერ ჩაიტვირთა ისტორია', style: uiTextStyles.body14.copyWith(color: Colors.red)));
+                      return Center(
+                        child: Text('ვერ ჩაიტვირთა ისტორია', style: uiTextStyles.body14.copyWith(color: Colors.red)),
+                      );
                     }
-                    final result = snapshot.data as ConsultationSuccess<List<dynamic>>;
+                    final result = snapshot.data! as ConsultationSuccess<List<dynamic>>;
                     final items = result.data;
                     if (items.isEmpty) {
-                      return Center(child: Text('ისტორია ცარიელია', style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor)));
+                      return Center(
+                        child: Text(
+                          'ისტორია ცარიელია',
+                          style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
+                        ),
+                      );
                     }
                     return ListView.builder(
                       controller: scrollController,
@@ -798,12 +895,14 @@ class _ConsultationPageState extends State<ConsultationPage> {
                         final phase = item['phase']?.toString() ?? '';
                         final dateStr = item['updated_at']?.toString() ?? item['created_at']?.toString() ?? '';
                         final date = DateTime.tryParse(dateStr) ?? DateTime.now();
-                        
+
                         return ListTile(
                           leading: Icon(Icons.chat_bubble_outline, color: uiColors.accentColor),
                           title: Text(title, style: uiTextStyles.bodyBold14.copyWith(color: uiColors.primaryTextColor)),
-                          subtitle: Text('${date.day.toString().padLeft(2,'0')}/${date.month.toString().padLeft(2,'0')}/${date.year} • $phase', 
-                            style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor)),
+                          subtitle: Text(
+                            '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} • $phase',
+                            style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor),
+                          ),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           onTap: () {
                             Navigator.pop(sheetContext);

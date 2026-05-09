@@ -21,11 +21,15 @@ class ChatSendRequest(BaseModel):
     )
     mode: str = Field(
         default="chat",
-        description="Chat mode: 'chat' for general Q&A, 'case_intake' for case-building with intake questions.",
+        description="Chat mode: 'chat' for general Q&A, 'case_intake' for case-building, 'case_agent' for AI-driven case modification.",
     )
     case_context: str | None = Field(
         default=None,
         description="Optional case context summary to give AI awareness of an attached case.",
+    )
+    case_file_id: str | None = Field(
+        default=None,
+        description="Required for case_agent mode — the case file to operate on.",
     )
 
 
@@ -52,6 +56,16 @@ class RetrievedChunk(BaseModel):
     distance: float = 0.0
 
 
+class ToolResultInfo(BaseModel):
+    """Result of a single tool execution by the case agent."""
+    tool_name: str
+    status: str = Field(description="executed | pending_confirmation | error | rejected")
+    result: dict[str, Any] = Field(default_factory=dict)
+    requires_confirmation: bool = False
+    confirmation_id: str | None = None
+    description: str | None = None
+
+
 class ChatSendResponse(BaseModel):
     """Response for POST /chat/{conversation_id}/send."""
     response: str = Field(..., description="AI-generated legal analysis")
@@ -62,3 +76,21 @@ class ChatSendResponse(BaseModel):
         default=False,
         description="True when AI has gathered enough info for full case analysis.",
     )
+    tool_results: list[ToolResultInfo] = Field(
+        default_factory=list,
+        description="Results of tool executions in case_agent mode.",
+    )
+
+
+class ToolConfirmRequest(BaseModel):
+    """Request body for POST /chat/{conversation_id}/confirm-tool."""
+    confirmation_id: str
+    confirmed: bool
+
+
+class ToolConfirmResponse(BaseModel):
+    """Response for tool confirmation."""
+    status: str
+    tool_name: str
+    result: dict[str, Any] = Field(default_factory=dict)
+
