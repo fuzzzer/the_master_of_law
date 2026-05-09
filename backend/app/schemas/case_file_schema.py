@@ -44,12 +44,12 @@ class CaseFileDetail(BaseModel):
     facts: dict[str, Any] | None = None
     evidence: dict[str, Any] | None = None
     applicable_laws: dict[str, Any] | None = None
-    defense_strategies: dict[str, Any] | None = None
-    prosecution_args: dict[str, Any] | None = None
-    action_checklist: dict[str, Any] | None = None
+    defense_strategies: list[Any] | None = None
+    prosecution_args: list[Any] | None = None
+    action_checklist: list[Any] | None = None
     unclear_items: list[str] | None = None
     lawyer_brief: dict[str, Any] | None = None
-    citations: dict[str, Any] | None = None
+    citations: list[Any] | None = None
     rendered_text: str = ""
     status: str = "draft"
     user_notes: str = ""

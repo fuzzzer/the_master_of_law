@@ -42,6 +42,9 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 cp .env.example .env
+
+# Authenticate with Google Cloud for Vertex AI
+gcloud auth application-default login
 # Edit .env and ensure GOOGLE_CLOUD_PROJECT is set
 ```
 
@@ -77,8 +80,8 @@ cd backend
 # Create your local environment variables
 cp .env.example .env
 
-# Optional: Add your Google Cloud API key if you plan to use Gemini locally
-# export GOOGLE_API_KEY="your_api_key"
+# Edit .env and ensure GCP_SA_KEY_PATH points to your gcloud credentials
+# Typically: ~/.config/gcloud/application_default_credentials.json
 
 # Start the services in the background
 docker compose up -d
