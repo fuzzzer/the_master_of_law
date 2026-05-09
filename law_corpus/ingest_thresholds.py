@@ -59,6 +59,53 @@ def load_catalog() -> list[dict]:
     return data["thresholds"]
 
 
+BATCH_SIZE = 200
+BATCH_DELAY_SECONDS = 60
+MAX_RETRIES = 5
+
+
+def _embed_with_resume(
+    embedder, documents: list[str], cache_path: Path
+) -> list[list[float]]:
+    cached: list[list[float]] = []
+    if cache_path.exists():
+        cached = json.loads(cache_path.read_text("utf-8"))
+        print(f"  Resuming from cache: {len(cached)}/{len(documents)} already embedded")
+
+    if len(cached) >= len(documents):
+        print("  All embeddings cached — skipping API calls")
+        return cached[: len(documents)]
+
+    import time
+
+    for i in range(len(cached), len(documents), BATCH_SIZE):
+        batch = documents[i : i + BATCH_SIZE]
+
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                batch_embeddings = embedder.embed_texts(
+                    batch, task_type="RETRIEVAL_DOCUMENT"
+                )
+                cached.extend(batch_embeddings)
+                break
+            except Exception as e:
+                if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                    wait = 2**attempt * 10
+                    print(
+                        f"  Rate limited, waiting {wait}s (attempt {attempt}/{MAX_RETRIES})..."
+                    )
+                    time.sleep(wait)
+                else:
+                    raise
+
+        cache_path.write_text(json.dumps(cached), encoding="utf-8")
+        done = min(i + BATCH_SIZE, len(documents))
+        print(f"  Embedded {done}/{len(documents)} (saved to cache)")
+        time.sleep(BATCH_DELAY_SECONDS)
+
+    return cached
+
+
 def ingest(*, dry_run: bool = False) -> int:
     """Ingest threshold data into ChromaDB. Returns count of chunks added."""
     thresholds = load_catalog()
@@ -75,14 +122,29 @@ def ingest(*, dry_run: bool = False) -> int:
             print(doc)
         return len(thresholds)
 
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    from pipeline.embedder.vertex_embedder import VertexEmbedder
+
+    embedder = VertexEmbedder()
+    print(
+        f"Embedding {len(documents)} documents with {embedder.model_name} ({embedder.dimensions}-dim)..."
+    )
+
+    cache_path = CATALOG_PATH.parent / "embedding_cache.json"
+    all_embeddings = _embed_with_resume(embedder, documents, cache_path)
+
     client = chromadb.PersistentClient(path=str(CHROMA_PATH.resolve()))
     collection = client.get_collection(name=COLLECTION_NAME)
 
     existing_count = collection.count()
     print(f"Collection '{COLLECTION_NAME}' has {existing_count} chunks")
 
-    # Upsert (idempotent) — ChromaDB will re-embed using its configured function
-    collection.upsert(ids=ids, documents=documents, metadatas=metadatas)
+    collection.upsert(
+        ids=ids, documents=documents, metadatas=metadatas, embeddings=all_embeddings
+    )
 
     new_count = collection.count()
     added = new_count - existing_count
