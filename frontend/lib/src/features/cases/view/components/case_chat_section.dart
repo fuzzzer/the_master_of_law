@@ -143,11 +143,21 @@ class _CaseChatSectionState extends State<CaseChatSection> {
                       children: [
                         Icon(Icons.psychology, size: 64, color: uiColors.accentColor.withValues(alpha: 0.4)),
                         const SizedBox(height: 20),
-                        Text('AI კონსულტაცია', style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor)),
+                        Text(
+                          'AI კონსულტაცია',
+                          style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor),
+                        ),
                         const SizedBox(height: 8),
-                        Text('კავშირი მყარდება...', style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor)),
+                        Text(
+                          'კავშირი მყარდება...',
+                          style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
+                        ),
                         const SizedBox(height: 16),
-                        SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: uiColors.accentColor)),
+                        SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: uiColors.accentColor),
+                        ),
                       ],
                     ),
                   );
@@ -162,15 +172,25 @@ class _CaseChatSectionState extends State<CaseChatSection> {
                         children: [
                           Icon(Icons.cloud_off, size: 64, color: uiColors.errorColor.withValues(alpha: 0.5)),
                           const SizedBox(height: 20),
-                          Text('კავშირი ვერ მოხერხდა', style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor)),
+                          Text(
+                            'კავშირი ვერ მოხერხდა',
+                            style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor),
+                          ),
                           const SizedBox(height: 8),
-                          Text(_failureMessageKa(state.failureType), style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor), textAlign: TextAlign.center),
+                          Text(
+                            _failureMessageKa(state.failureType),
+                            style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
+                            textAlign: TextAlign.center,
+                          ),
                           const SizedBox(height: 24),
                           ElevatedButton.icon(
                             onPressed: () => _initConversation(),
                             icon: const Icon(Icons.refresh, size: 18),
                             label: const Text('ხელახლა ცდა'),
-                            style: ElevatedButton.styleFrom(backgroundColor: uiColors.accentColor, foregroundColor: uiColors.backgroundPrimaryColor),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: uiColors.accentColor,
+                              foregroundColor: uiColors.backgroundPrimaryColor,
+                            ),
                           ),
                         ],
                       ),
@@ -185,9 +205,16 @@ class _CaseChatSectionState extends State<CaseChatSection> {
                       children: [
                         Icon(Icons.psychology, size: 64, color: uiColors.accentColor.withValues(alpha: 0.4)),
                         const SizedBox(height: 20),
-                        Text('AI კონსულტაცია', style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor)),
+                        Text(
+                          'AI კონსულტაცია',
+                          style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor),
+                        ),
                         const SizedBox(height: 8),
-                        Text('აღწერეთ თქვენი სიტუაცია და AI დაგისვამთ\nდამაზუსტებელ კითხვებს.', style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor), textAlign: TextAlign.center),
+                        Text(
+                          'აღწერეთ თქვენი სიტუაცია და AI დაგისვამთ\nდამაზუსტებელ კითხვებს.',
+                          style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
+                          textAlign: TextAlign.center,
+                        ),
                       ],
                     ),
                   );
@@ -196,7 +223,10 @@ class _CaseChatSectionState extends State<CaseChatSection> {
                 return ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  itemCount: state.messages.length + (state.isSending ? 1 : 0) + (state.caseAnalysisReady && !state.isBuildingCase ? 1 : 0),
+                  itemCount:
+                      state.messages.length +
+                      (state.isSending ? 1 : 0) +
+                      (state.caseAnalysisReady && !state.isBuildingCase ? 1 : 0),
                   itemBuilder: (context, index) {
                     // Typing indicator
                     if (index == state.messages.length && state.isSending) {
@@ -204,7 +234,9 @@ class _CaseChatSectionState extends State<CaseChatSection> {
                     }
 
                     // Case analysis ready CTA
-                    if (index == state.messages.length + (state.isSending ? 1 : 0) && state.caseAnalysisReady && !state.isBuildingCase) {
+                    if (index == state.messages.length + (state.isSending ? 1 : 0) &&
+                        state.caseAnalysisReady &&
+                        !state.isBuildingCase) {
                       return _BuildCaseCta(
                         uiColors: uiColors,
                         uiTextStyles: uiTextStyles,
@@ -234,9 +266,16 @@ class _CaseChatSectionState extends State<CaseChatSection> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: uiColors.accentColor)),
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: uiColors.accentColor),
+                    ),
                     const SizedBox(width: 10),
-                    Text('საქმის ანალიზი მიმდინარეობს...', style: uiTextStyles.labelBold12.copyWith(color: uiColors.accentColor)),
+                    Text(
+                      'საქმის ანალიზი მიმდინარეობს...',
+                      style: uiTextStyles.labelBold12.copyWith(color: uiColors.accentColor),
+                    ),
                   ],
                 ),
               );
@@ -255,6 +294,15 @@ class _CaseChatSectionState extends State<CaseChatSection> {
               ),
               child: Row(
                 children: [
+                  BlocBuilder<ConsultationCubit, ConsultationState>(
+                    builder: (builderContext, state) {
+                      return IconButton(
+                        icon: Icon(Icons.auto_awesome, color: uiColors.accentColor),
+                        tooltip: 'საქმის შევსება',
+                        onPressed: state.isBuildingCase ? null : _buildCase,
+                      );
+                    },
+                  ),
                   Expanded(
                     child: TextField(
                       controller: _controller,
@@ -263,7 +311,9 @@ class _CaseChatSectionState extends State<CaseChatSection> {
                       onSubmitted: (_) => _send(),
                       decoration: InputDecoration(
                         hintText: 'აღწერეთ სიტუაცია...',
-                        hintStyle: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor.withValues(alpha: 0.5)),
+                        hintStyle: uiTextStyles.body14.copyWith(
+                          color: uiColors.secondaryTextColor.withValues(alpha: 0.5),
+                        ),
                         border: InputBorder.none,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 8),
                       ),
@@ -273,7 +323,8 @@ class _CaseChatSectionState extends State<CaseChatSection> {
                   GestureDetector(
                     onTap: _send,
                     child: Container(
-                      width: 40, height: 40,
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(color: uiColors.accentColor, shape: BoxShape.circle),
                       child: Icon(Icons.arrow_upward, color: uiColors.backgroundPrimaryColor, size: 20),
                     ),
@@ -290,7 +341,12 @@ class _CaseChatSectionState extends State<CaseChatSection> {
 
 /// CTA button shown when AI has gathered enough info.
 class _BuildCaseCta extends StatelessWidget {
-  const _BuildCaseCta({required this.uiColors, required this.uiTextStyles, required this.onBuild, required this.isBuilding});
+  const _BuildCaseCta({
+    required this.uiColors,
+    required this.uiTextStyles,
+    required this.onBuild,
+    required this.isBuilding,
+  });
   final UiColors uiColors;
   final UiTextStyles uiTextStyles;
   final VoidCallback onBuild;
@@ -308,7 +364,10 @@ class _BuildCaseCta extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Text('✅ AI-მ საკმარისი ინფორმაცია შეაგროვა', style: uiTextStyles.bodyBold14.copyWith(color: uiColors.accentColor)),
+          Text(
+            '✅ AI-მ საკმარისი ინფორმაცია შეაგროვა',
+            style: uiTextStyles.bodyBold14.copyWith(color: uiColors.accentColor),
+          ),
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
@@ -350,10 +409,11 @@ class _MessageBubble extends StatelessWidget {
           color: isUser
               ? uiColors.accentColor.withValues(alpha: 0.15)
               : message.isError
-                  ? uiColors.errorColor.withValues(alpha: 0.1)
-                  : uiColors.surfaceColor,
+              ? uiColors.errorColor.withValues(alpha: 0.1)
+              : uiColors.surfaceColor,
           borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16), topRight: const Radius.circular(16),
+            topLeft: const Radius.circular(16),
+            topRight: const Radius.circular(16),
             bottomLeft: isUser ? const Radius.circular(16) : const Radius.circular(4),
             bottomRight: isUser ? const Radius.circular(4) : const Radius.circular(16),
           ),
@@ -369,13 +429,22 @@ class _MessageBubble extends StatelessWidget {
                   color: _trustColor(message.trustLevel!).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Text(_trustLabel(message.trustLevel!), style: uiTextStyles.caption11.copyWith(color: _trustColor(message.trustLevel!), fontWeight: FontWeight.w600)),
+                child: Text(
+                  _trustLabel(message.trustLevel!),
+                  style: uiTextStyles.caption11.copyWith(
+                    color: _trustColor(message.trustLevel!),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
               const SizedBox(height: 8),
             ],
             SelectableText(
               message.isError && message.failureType != null ? _failureMessageKa(message.failureType) : message.text,
-              style: uiTextStyles.body14.copyWith(color: message.isError ? uiColors.errorColor : uiColors.primaryTextColor, height: 1.5),
+              style: uiTextStyles.body14.copyWith(
+                color: message.isError ? uiColors.errorColor : uiColors.primaryTextColor,
+                height: 1.5,
+              ),
             ),
             if (message.citations != null && message.citations!.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -388,11 +457,18 @@ class _MessageBubble extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: uiColors.accentColor.withValues(alpha: 0.2)),
                   ),
-                  child: Row(children: [
-                    Icon(Icons.gavel, size: 12, color: uiColors.accentColor),
-                    const SizedBox(width: 6),
-                    Expanded(child: Text(c.articleTitle, style: uiTextStyles.labelBold12.copyWith(color: uiColors.accentColor))),
-                  ]),
+                  child: Row(
+                    children: [
+                      Icon(Icons.gavel, size: 12, color: uiColors.accentColor),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          c.articleTitle,
+                          style: uiTextStyles.labelBold12.copyWith(color: uiColors.accentColor),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -431,15 +507,24 @@ class _TypingIndicator extends StatelessWidget {
         decoration: BoxDecoration(
           color: uiColors.surfaceColor,
           borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(16), topRight: Radius.circular(16),
-            bottomRight: Radius.circular(16), bottomLeft: Radius.circular(4),
+            topLeft: Radius.circular(16),
+            topRight: Radius.circular(16),
+            bottomRight: Radius.circular(16),
+            bottomLeft: Radius.circular(4),
           ),
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: uiColors.accentColor)),
-          const SizedBox(width: 10),
-          Text('AI ფიქრობს...', style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor)),
-        ]),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2, color: uiColors.accentColor),
+            ),
+            const SizedBox(width: 10),
+            Text('AI ფიქრობს...', style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor)),
+          ],
+        ),
       ),
     );
   }

@@ -40,4 +40,15 @@ class CasesCubit extends Cubit<CasesState> {
     await _repository.deleteCase(id);
     await loadCases();
   }
+
+  Future<CaseData?> importCaseData(Map<String, dynamic> json) async {
+    final result = await _repository.importCaseData(json);
+    switch (result) {
+      case CaseSuccess<CaseData>(:final data):
+        await loadCases();
+        return data;
+      case CaseFailure<CaseData>():
+        return null;
+    }
+  }
 }

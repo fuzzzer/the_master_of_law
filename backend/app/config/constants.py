@@ -67,9 +67,11 @@ TIER_RATE_LIMITS: dict[UserTier, int] = {
 
 # ── RAG Pipeline ─────────────────────────────────────────────
 
-RAG_VECTOR_SEARCH_TOP_K = 50          # Per expanded query
+RAG_VECTOR_SEARCH_TOP_K = 75          # Per expanded query
 RAG_FULLTEXT_SEARCH_TOP_K = 50        # Per expanded query
-RAG_RERANK_TOP_K = 20                 # After merge + dedup
+RAG_RERANK_TOP_K = 35                 # Send more to Gemini to have a large pool
+RAG_LAWS_QUOTA = 15                   # Max laws to keep after rerank
+RAG_CASES_QUOTA = 8                   # Max cases to keep after rerank
 RAG_QUERY_EXPANSION_COUNT = 8         # Target number of expanded queries
 
 # ── Gemini ───────────────────────────────────────────────────

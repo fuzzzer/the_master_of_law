@@ -104,9 +104,31 @@ class RAGRetrievalService:
         logger.info("rag_stage_3_done", merged_count=len(merged))
 
         if len(merged) > top_k:
+            # We send top_k (which is now larger, e.g. 35) to Gemini for reranking
             reranked = await self._stage_4_rerank(user_message, merged, top_k)
         else:
             reranked = merged
+
+        # Step 4.5: Enforce strict quotas for Laws vs Cases
+        from app.config.constants import RAG_LAWS_QUOTA, RAG_CASES_QUOTA
+        
+        final_laws = []
+        final_cases = []
+        final_others = []
+
+        for item in reranked:
+            # Safely get collection from metadata
+            col = item.get("metadata", {}).get("_collection")
+            if col == "georgian_laws":
+                if len(final_laws) < RAG_LAWS_QUOTA:
+                    final_laws.append(item)
+            elif col in ("court_practice", "grand_chamber"):
+                if len(final_cases) < RAG_CASES_QUOTA:
+                    final_cases.append(item)
+            else:
+                final_others.append(item)
+                
+        reranked = final_laws + final_cases + final_others
 
         # Step 5: Direct lookup for exact tables (bypassing RAG fuzziness)
         threshold_hits = get_threshold_service().search(user_message)

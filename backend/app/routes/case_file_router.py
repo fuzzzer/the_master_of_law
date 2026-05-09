@@ -43,25 +43,28 @@ async def build_case_file(
 
     uid = user_info.get("uid", "")
 
-    # Check credits before heavy Gemini call
     user_repo = UserRepository(db)
     user = await user_repo.get_by_firebase_uid(uid)
-    if not user:
+
+    from app.config.settings import settings
+
+    if not user and settings.app_env != "development":
         return JSONResponse(status_code=404, content={"error": "User not found"})
 
-    credit_repo = CreditRepository(db)
-    credits = await credit_repo.get_balance(user.id)
     cost = CreditAction.CASE_FILE.cost
+    credit_repo = CreditRepository(db)
 
-    if not credit_repo.has_sufficient_credits(credits, cost):
-        return JSONResponse(
-            status_code=402,
-            content={
-                "error": "insufficient_credits",
-                "message": "Not enough credits to build a case file (requires 3 credits)",
-                "credits_remaining": credit_repo.get_remaining_credits(credits),
-            },
-        )
+    if user:
+        credits = await credit_repo.get_balance(user.id)
+        if not credit_repo.has_sufficient_credits(credits, cost):
+            return JSONResponse(
+                status_code=402,
+                content={
+                    "error": "insufficient_credits",
+                    "message": "Not enough credits to build a case file (requires 3 credits)",
+                    "credits_remaining": credit_repo.get_remaining_credits(credits),
+                },
+            )
 
     # Build the case file
     try:
@@ -75,12 +78,13 @@ async def build_case_file(
         return JSONResponse(status_code=400, content={"error": str(e)})
 
     # Deduct credits after success
-    await credit_repo.deduct(
-        user_id=user.id,
-        cost=cost,
-        action=CreditAction.CASE_FILE.value,
-        description=f"Built case file from conversation {body.conversation_id}",
-    )
+    if user:
+        await credit_repo.deduct(
+            user_id=user.id,
+            cost=cost,
+            action=CreditAction.CASE_FILE.value,
+            description=f"Built case file from conversation {body.conversation_id}",
+        )
 
     await db.commit()
     logger.info("case_file_built", case_id=result["id"], user=uid)
@@ -124,6 +128,7 @@ async def get_case_file(
 ):
     """Get a specific case file with all sections."""
     import uuid as _uuid
+
     try:
         cf_uuid = _uuid.UUID(case_file_id)
     except ValueError:
@@ -162,6 +167,7 @@ async def update_case_file(
 ):
     """Update case file notes or status."""
     import uuid as _uuid
+
     try:
         cf_uuid = _uuid.UUID(case_file_id)
     except ValueError:
@@ -207,6 +213,7 @@ async def delete_case_file(
 ):
     """Delete a case file."""
     import uuid as _uuid
+
     try:
         cf_uuid = _uuid.UUID(case_file_id)
     except ValueError:

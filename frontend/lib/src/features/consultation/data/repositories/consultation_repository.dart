@@ -106,6 +106,9 @@ class ConsultationRepository {
   }
 
   ConsultationFailureType _mapHttpError(HttpClientException e) {
+    if (e is UnsuccessfulResponseException && e.statusCode == 402) {
+      return ConsultationFailureType.noCredits;
+    }
     return switch (e) {
       UnauthorizedException() => ConsultationFailureType.unauthorized,
       NotFoundException() => ConsultationFailureType.notFound,

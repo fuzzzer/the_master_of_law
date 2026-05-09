@@ -43,6 +43,7 @@ class ConversationService:
     """
 
     def __init__(self, db: AsyncSession) -> None:
+        self._db = db
         self._conv_repo = ConversationRepository(db)
         self._msg_repo = MessageRepository(db)
 

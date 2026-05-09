@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:themasteroflaw/src/core/core.dart';
 import 'package:themasteroflaw/src/features/cases/cases.dart';
 import 'package:themasteroflaw/src/features/consultation/consultation.dart';
@@ -61,6 +62,17 @@ class _ConsultationPageState extends State<ConsultationPage> {
             },
           ),
           BlocBuilder<ConsultationCubit, ConsultationState>(
+            builder: (context, state) {
+              //TODO enable sooner if needed 
+              if (state.status == StateStatus.initial || state.messages.length < 6) return const SizedBox.shrink();
+              return IconButton(
+                icon: Icon(Icons.description_outlined, color: uiColors.primaryTextColor),
+                tooltip: 'საქმის გენერაცია',
+                onPressed: state.isBuildingCase ? null : () => _triggerCaseBuild(context),
+              );
+            },
+          ),
+          BlocBuilder<ConsultationCubit, ConsultationState>(
             buildWhen: (prev, curr) => prev.chatMode != curr.chatMode,
             builder: (context, state) {
               return GestureDetector(
@@ -111,11 +123,39 @@ class _ConsultationPageState extends State<ConsultationPage> {
           if (state.status == StateStatus.loading && state.messages.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }
-          return Column(
+          return Stack(
             children: [
-              Expanded(child: _buildMessageList(context, state)),
-              if (state.hasCaseAttached) _buildAttachedCaseBanner(context, state),
-              _buildInputBar(context, state),
+              Column(
+                children: [
+                  Expanded(child: _buildMessageList(context, state)),
+                  if (state.caseAnalysisReady && !state.hasCaseAttached) _buildCaseReadyBanner(context, state),
+                  if (state.hasCaseAttached) _buildAttachedCaseBanner(context, state),
+                  _buildInputBar(context, state),
+                ],
+              ),
+              if (state.isBuildingCase)
+                Container(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: uiColors.backgroundSecondaryColor,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const CircularProgressIndicator(),
+                          const SizedBox(height: 16),
+                          Text('საქმე მზადდება...', style: uiTextStyles.bodyBold14.copyWith(color: uiColors.primaryTextColor)),
+                          const SizedBox(height: 8),
+                          Text('ეს შეიძლება 30-60 წამი გაგრძელდეს', style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
             ],
           );
         },
@@ -454,6 +494,96 @@ class _ConsultationPageState extends State<ConsultationPage> {
         ],
       ),
     );
+  }
+
+  Widget _buildCaseReadyBanner(BuildContext context, ConsultationState state) {
+    final uiColors = context.uiColors;
+    final uiTextStyles = context.uiTextStyles;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2ECC71).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF2ECC71).withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle_outline, color: Color(0xFF2ECC71), size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('საკმარისი კონტექსტი შეგროვდა', style: uiTextStyles.bodyBold14.copyWith(color: const Color(0xFF2ECC71))),
+                const SizedBox(height: 2),
+                Text('AI მზადაა საქმის დასაგენერირებლად', style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor)),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: state.isBuildingCase ? null : () => _triggerCaseBuild(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2ECC71),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              minimumSize: Size.zero,
+            ),
+            child: const Text('გენერაცია'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _triggerCaseBuild(BuildContext context) async {
+    final uiColors = context.uiColors;
+    final cubit = context.read<ConsultationCubit>();
+    final casesCubit = context.read<CasesCubit>();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('საქმის გენერაცია'),
+        content: const Text('საქმის სრული ანალიზის გენერაციას სჭირდება 3 კრედიტი. გსურთ გაგრძელება?'),
+        backgroundColor: uiColors.backgroundSecondaryColor,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('გაუქმება', style: TextStyle(color: uiColors.secondaryTextColor)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: uiColors.accentColor),
+            child: const Text('გენერაცია'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    final caseFileData = await cubit.buildCaseFile();
+    
+    if (!mounted) return;
+
+    if (caseFileData != null) {
+      final newCase = await casesCubit.importCaseData(caseFileData);
+      if (newCase != null && mounted) {
+        context.go('/cases/${newCase.id}');
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('საქმის ლოკალურად შენახვა ვერ მოხერხდა')),
+        );
+      }
+    } else {
+      final failureType = cubit.state.failureType;
+      String errMsg = 'საქმის შექმნა ვერ მოხერხდა';
+      if (failureType == ConsultationFailureType.noCredits) {
+        errMsg = 'კრედიტები ამოიწურა';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errMsg)));
+    }
   }
 
   void _sendMessage(BuildContext context, ConsultationState state) {

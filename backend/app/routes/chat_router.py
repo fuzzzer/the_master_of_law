@@ -202,6 +202,18 @@ async def send_message(
             )
             credits_remaining = credit_repo.get_remaining_credits(credits)
 
+    # Detect readiness before committing
+    intake_history_ready = (
+        body.mode == "case_intake"
+        and msg_count >= 6
+        and not any(q in response_text for q in ["?", "კითხვა", "დამაზუსტებელი"])
+    )
+    case_analysis_ready = tag_ready or intake_history_ready
+
+    # Persist readiness on the conversation so it survives page refresh
+    if case_analysis_ready:
+        await conv_svc.mark_case_ready(conversation_id)
+
     await db.commit()
 
     logger.info(
@@ -213,19 +225,6 @@ async def send_message(
         credits_remaining=credits_remaining,
     )
 
-    # Heuristic fallback: 6+ messages in case_intake mode, no questions left
-    intake_history_ready = (
-        body.mode == "case_intake"
-        and msg_count >= 6
-        and not any(q in response_text for q in ["?", "კითხვა", "დამაზუსტებელი"])
-    )
-
-    case_analysis_ready = tag_ready or intake_history_ready
-
-    # Persist readiness on the conversation so it survives page refresh
-    if case_analysis_ready:
-        await conv_svc.mark_case_ready(conversation_id)
-
     return ChatSendResponse(
         response=response_text,
         citations=citation_models,
@@ -233,3 +232,4 @@ async def send_message(
         credits_remaining=credits_remaining,
         case_analysis_ready=case_analysis_ready,
     )
+
