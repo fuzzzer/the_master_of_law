@@ -19,6 +19,7 @@ Don't assume. Don't hide confusion. Surface tradeoffs.
 - If multiple interpretations exist, present them — don't pick silently.
 - If a simpler approach exists, say so. Push back when warranted.
 - If something is unclear, stop. Name what's confusing. Ask.
+- **ALWAYS** answer questions and start tasks ONLY after a full reading of the guides and harness.
 
 ### 2. Simplicity First
 Minimum code that solves the problem. Nothing speculative.
@@ -30,7 +31,7 @@ Minimum code that solves the problem. Nothing speculative.
 - If you write 200 lines and it could be 50, rewrite it.
 - Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
 - Is name understandable for someone who knows noting about the code? If no, refine it, make it more descriptive.
-- Need to add comments? Then it means code is not descriptive enough, refine naming, describe process with methods, talk with code clearly.
+- Need to add comments? Then it means code is not descriptive enough, refine naming, describe process with methods, talk with code clearly. Remove unnecessary comments from the code.
 
 ### 3. Surgical Changes
 Touch only what you must. Clean up only your own mess.
