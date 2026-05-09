@@ -124,10 +124,13 @@ async def list_case_files(
 @router.get("/{case_file_id}", response_model=CaseFileDetail)
 async def get_case_file(
     case_file_id: str,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
     """Get a specific case file with all sections."""
     import uuid as _uuid
+    user_info = getattr(request.state, "user", {})
+    uid = user_info.get("uid", "anonymous")
 
     try:
         cf_uuid = _uuid.UUID(case_file_id)
@@ -138,6 +141,10 @@ async def get_case_file(
     cf = await repo.get_by_id(cf_uuid)
     if not cf:
         return JSONResponse(status_code=404, content={"error": "Case file not found"})
+
+    from app.config.settings import settings
+    if cf.user_id != uid and settings.app_env != "development":
+        return JSONResponse(status_code=403, content={"error": "Unauthorized access to case file"})
 
     return CaseFileDetail(
         id=str(cf.id),
@@ -165,10 +172,13 @@ async def get_case_file(
 async def update_case_file(
     case_file_id: str,
     body: CaseFileUpdateRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
     """Update case file notes or status."""
     import uuid as _uuid
+    user_info = getattr(request.state, "user", {})
+    uid = user_info.get("uid", "anonymous")
 
     try:
         cf_uuid = _uuid.UUID(case_file_id)
@@ -176,6 +186,14 @@ async def update_case_file(
         return JSONResponse(status_code=400, content={"error": "Invalid case file ID"})
 
     repo = CaseFileRepository(db)
+    cf = await repo.get_by_id(cf_uuid)
+    if not cf:
+        return JSONResponse(status_code=404, content={"error": "Case file not found"})
+
+    from app.config.settings import settings
+    if cf.user_id != uid and settings.app_env != "development":
+        return JSONResponse(status_code=403, content={"error": "Unauthorized access to case file"})
+
     kwargs = {}
     if body.user_notes is not None:
         kwargs["user_notes"] = body.user_notes
@@ -213,10 +231,13 @@ async def update_case_file(
 @router.delete("/{case_file_id}", status_code=204)
 async def delete_case_file(
     case_file_id: str,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a case file."""
     import uuid as _uuid
+    user_info = getattr(request.state, "user", {})
+    uid = user_info.get("uid", "anonymous")
 
     try:
         cf_uuid = _uuid.UUID(case_file_id)
@@ -224,6 +245,14 @@ async def delete_case_file(
         return JSONResponse(status_code=400, content={"error": "Invalid case file ID"})
 
     repo = CaseFileRepository(db)
+    cf = await repo.get_by_id(cf_uuid)
+    if not cf:
+        return JSONResponse(status_code=404, content={"error": "Case file not found"})
+
+    from app.config.settings import settings
+    if cf.user_id != uid and settings.app_env != "development":
+        return JSONResponse(status_code=403, content={"error": "Unauthorized access to case file"})
+
     await repo.delete(cf_uuid)
     await db.commit()
     return None

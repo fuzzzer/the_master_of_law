@@ -90,6 +90,22 @@ class ConsultationRepository {
     }
   }
 
+  Stream<Map<String, dynamic>> streamMessage({
+    required String conversationId,
+    required String message,
+    Map<String, dynamic>? ragConfig,
+    String mode = 'chat',
+    String? caseContext,
+  }) {
+    return _remoteDataSource.streamMessage(
+      conversationId: conversationId,
+      message: message,
+      ragConfig: ragConfig,
+      mode: mode,
+      caseContext: caseContext,
+    );
+  }
+
   Future<ConsultationResult<Map<String, dynamic>>> buildCaseFile({
     required String conversationId,
   }) async {

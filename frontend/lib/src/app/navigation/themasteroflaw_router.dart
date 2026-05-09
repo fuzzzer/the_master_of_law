@@ -8,9 +8,29 @@ final navigatorKey = GlobalKey<NavigatorState>();
 class AppRouter {
   static final GoRouter themasteroflawRouter = GoRouter(
     navigatorKey: navigatorKey,
-    initialLocation: '/cases',
+    initialLocation: '/auth',
     observers: [NavigationLogger()],
+    redirect: (context, state) async {
+      final secureStorage = sl.get<SecureStorageService>();
+      final key = await secureStorage.getData('temporary_api_key');
+      
+      final isAuthRoute = state.matchedLocation == '/auth';
+      
+      if (key == null || key.isEmpty) {
+        return isAuthRoute ? null : '/auth';
+      }
+      
+      if (isAuthRoute) {
+        return '/cases';
+      }
+      
+      return null;
+    },
     routes: <RouteBase>[
+      GoRoute(
+        path: '/auth',
+        builder: (context, state) => const ApiKeyPromptPage(),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return MainShell(navigationShell: navigationShell);

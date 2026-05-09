@@ -74,6 +74,8 @@ class ConsultationState {
   final String? attachedCaseContext;
   final String? caseFileId;
   final List<ToolResultData> pendingConfirmations;
+  final String? streamingStatus;
+  final String? streamingMessageId;
 
   const ConsultationState({
     this.status = StateStatus.initial,
@@ -91,6 +93,8 @@ class ConsultationState {
     this.attachedCaseContext,
     this.caseFileId,
     this.pendingConfirmations = const [],
+    this.streamingStatus,
+    this.streamingMessageId,
   });
 
   bool get hasCaseAttached => attachedCaseId != null;
@@ -115,6 +119,10 @@ class ConsultationState {
     String? caseFileId,
     bool clearCaseFileId = false,
     List<ToolResultData>? pendingConfirmations,
+    String? streamingStatus,
+    bool clearStreamingStatus = false,
+    String? streamingMessageId,
+    bool clearStreamingMessageId = false,
   }) {
     return ConsultationState(
       status: status ?? this.status,
@@ -132,6 +140,8 @@ class ConsultationState {
       attachedCaseContext: clearAttachedCase ? null : (attachedCaseContext ?? this.attachedCaseContext),
       caseFileId: clearCaseFileId ? null : (caseFileId ?? this.caseFileId),
       pendingConfirmations: pendingConfirmations ?? this.pendingConfirmations,
+      streamingStatus: clearStreamingStatus ? null : (streamingStatus ?? this.streamingStatus),
+      streamingMessageId: clearStreamingMessageId ? null : (streamingMessageId ?? this.streamingMessageId),
     );
   }
 }

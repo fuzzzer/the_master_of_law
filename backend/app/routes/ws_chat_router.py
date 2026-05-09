@@ -25,7 +25,7 @@ router = APIRouter(prefix="/api/v1/chat", tags=["chat-ws"])
 
 
 @router.websocket("/{conversation_id}/ws")
-async def chat_websocket(websocket: WebSocket, conversation_id: str):
+async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str | None = None):
     """
     WebSocket endpoint for streaming chat responses.
 
@@ -37,6 +37,25 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str):
     """
     await websocket.accept()
     logger.info("ws_connected", conversation_id=conversation_id)
+
+    # Authenticate via token query parameter
+    if not token and settings.app_env != "development":
+        await websocket.send_json({"type": "error", "message": "Authentication token required"})
+        await websocket.close(code=1008)
+        return
+
+    uid = "anonymous"
+    if settings.app_env == "development" and not token:
+        uid = "dev-user-001"
+    elif token:
+        try:
+            from app.integrations.firebase_client import verify_id_token
+            decoded = verify_id_token(token)
+            uid = decoded.get("uid", "anonymous")
+        except Exception as e:
+            await websocket.send_json({"type": "error", "message": f"Invalid token: {str(e)}"})
+            await websocket.close(code=1008)
+            return
 
     try:
         while True:
@@ -69,17 +88,20 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str):
             async with get_session_factory()() as db:
                 conv_svc = ConversationService(db)
 
-                # Verify conversation exists
+                # Verify conversation exists and belongs to the user
                 conv = await conv_svc.get_conversation(conversation_id)
                 if not conv:
                     await websocket.send_json({"type": "error", "message": "Conversation not found"})
                     continue
+                if conv.get("user_id") != uid and settings.app_env != "development":
+                    await websocket.send_json({"type": "error", "message": "Unauthorized access to conversation"})
+                    continue
+
+                # Get conversation history for multi-turn context BEFORE saving the current message
+                history = await conv_svc.get_conversation_history(conversation_id)
 
                 # Save user message to DB
                 await conv_svc.save_user_message(conversation_id, user_message)
-
-                # Get conversation history for multi-turn context
-                history = await conv_svc.get_conversation_history(conversation_id)
 
                 # Send processing status
                 await websocket.send_json({"type": "status", "message": "Checking query..."})
@@ -123,23 +145,19 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str):
 
                     # Step 2: Legal analysis
                     analysis = get_legal_analysis_service()
-                    response_text = await analysis.analyze(
+                    response_text = ""
+                    async for chunk in analysis.analyze_stream(
                         user_message=user_message,
                         retrieved_chunks=chunks,
                         conversation_history=history if history else None,
                         system_prompt=CHAT_SYSTEM,
                         model_name=settings.gemini_chat_model,
-                    )
-
-                    # Stream the response in chunks for a real-time feel
-                    # Split into sentences/paragraphs for natural streaming
-                    paragraphs = response_text.split("\n")
-                    for para in paragraphs:
-                        if para.strip():
-                            await websocket.send_json({
-                                "type": "chunk",
-                                "content": para + "\n",
-                            })
+                    ):
+                        response_text += chunk
+                        await websocket.send_json({
+                            "type": "chunk",
+                            "content": chunk,
+                        })
 
                     # Step 3: Citation verification
                     citation_svc = get_citation_service()

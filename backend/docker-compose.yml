@@ -56,6 +56,8 @@ services:
       # Local dev:  GCP_SA_KEY_PATH=~/.config/gcloud/application_default_credentials.json
       # VPS prod:   GCP_SA_KEY_PATH=/etc/master-of-law/gcp-sa-key.json (chmod 600)
       - ${GCP_SA_KEY_PATH}:/app/secrets/gcp-sa-key.json:ro
+      # Persist temporary API keys
+      - ./api_keys.json:/app/api_keys.json:rw
     depends_on:
       postgres:
         condition: service_healthy

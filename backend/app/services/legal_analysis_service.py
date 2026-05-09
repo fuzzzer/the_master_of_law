@@ -245,6 +245,46 @@ class LegalAnalysisService:
         logger.info("legal_analysis_done", response_length=len(response))
         return response
 
+    async def analyze_stream(
+        self,
+        user_message: str,
+        retrieved_chunks: list[dict[str, Any]],
+        conversation_history: list[dict[str, str]] | None = None,
+        system_prompt: PromptTemplate | None = None,
+        model_name: str | None = None,
+    ):
+        """
+        Generate a legal analysis response in a stream.
+        """
+        user_prompt = self._build_user_prompt(
+            user_message, retrieved_chunks, conversation_history,
+        )
+
+        prompt_tpl = system_prompt or LEGAL_ANALYSIS_SYSTEM
+
+        # Build system prompt with source-specific RAG instructions
+        system_prompt_text = self._build_system_prompt(retrieved_chunks, prompt_tpl)
+
+        logger.info(
+            "legal_analysis_stream_start",
+            chunks_count=len(retrieved_chunks),
+            prompt_length=len(user_prompt),
+            sources=list(self._law_formatter.get_source_types(retrieved_chunks)),
+        )
+
+        async for chunk in self.gemini.generate_stream(
+            prompt=user_prompt,
+            system_instruction=system_prompt_text,
+            temperature=prompt_tpl.temperature,
+            max_output_tokens=prompt_tpl.max_output_tokens,
+            model_name=model_name,
+        ):
+            yield chunk
+
+        # Yield the disclaimer at the end
+        yield f"\n\n---\n⚠️ {LEGAL_DISCLAIMER_KA}"
+        logger.info("legal_analysis_stream_done")
+
     def _build_system_prompt(
         self,
         chunks: list[dict[str, Any]],

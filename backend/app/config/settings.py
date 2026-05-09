@@ -77,6 +77,10 @@ class Settings(BaseSettings):
     # ── Logging ──────────────────────────────────────────────
     log_level: str = Field(default="INFO")
 
+    # ── Temporary Staging Auth ───────────────────────────────
+    admin_api_key: str = Field(default="master-admin-key")
+    api_keys_file: Path = Field(default=Path("api_keys.json"))
+
     # ── Derived ──────────────────────────────────────────────
     @property
     def cors_origins(self) -> list[str]:

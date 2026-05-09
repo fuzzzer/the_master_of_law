@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:themasteroflaw/src/src.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 class ConsultationRemoteDataSource {
   final ThemasteroflawHttpClient _httpClient;
@@ -101,5 +103,39 @@ class ConsultationRemoteDataSource {
       _uri('/api/v1/case-files'),
     );
     return (response.data!['case_files'] as List<dynamic>?) ?? [];
+  }
+
+  Stream<Map<String, dynamic>> streamMessage({
+    required String conversationId,
+    required String message,
+    Map<String, dynamic>? ragConfig,
+    String mode = 'chat',
+    String? caseContext,
+  }) async* {
+    final baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://127.0.0.1:8000';
+    final wsUrl = baseUrl.replaceFirst('http://', 'ws://').replaceFirst('https://', 'wss://');
+    final uri = Uri.parse('$wsUrl/api/v1/chat/$conversationId/ws');
+    
+    final channel = WebSocketChannel.connect(uri);
+    
+    // Send initial message
+    channel.sink.add(jsonEncode({
+      'message': message,
+      if (ragConfig != null) 'rag_config': ragConfig,
+      'mode': mode,
+      if (caseContext != null) 'case_context': caseContext,
+    }));
+    
+    try {
+      await for (final data in channel.stream) {
+        final decoded = jsonDecode(data as String) as Map<String, dynamic>;
+        yield decoded;
+        if (decoded['type'] == 'done' || decoded['type'] == 'error') {
+          break;
+        }
+      }
+    } finally {
+      channel.sink.close();
+    }
   }
 }

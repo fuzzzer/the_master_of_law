@@ -32,8 +32,10 @@ class ThemasteroflawApp extends StatelessWidget {
                     locale: Locale(locale.languageCode),
                     localizationsDelegates: ThemasteroflawLocalizations.localizationsDelegates,
                     supportedLocales: ThemasteroflawLocalizations.supportedLocales,
-                    builder: (context, child) => OnPhoneShakeDevPanelLauncherWidget(
-                      child: child ?? const SizedBox.shrink(),
+                    builder: (context, child) => AdminPanelFloatingHead(
+                      child: OnPhoneShakeDevPanelLauncherWidget(
+                        child: child ?? const SizedBox.shrink(),
+                      ),
                     ),
                   );
                 },

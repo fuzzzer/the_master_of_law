@@ -73,6 +73,36 @@ class VertexAIClient:
 
         return response.text
 
+    async def generate_stream(
+        self,
+        prompt: str,
+        system_instruction: str | None = None,
+        temperature: float = GEMINI_TEMPERATURE,
+        max_output_tokens: int = GEMINI_MAX_OUTPUT_TOKENS,
+        model_name: str | None = None,
+    ):
+        """Generate text using Gemini in a stream."""
+        client = self._get_client()
+
+        config = GenerateContentConfig(
+            temperature=temperature,
+            max_output_tokens=max_output_tokens,
+            top_p=GEMINI_TOP_P,
+        )
+
+        if system_instruction:
+            config.system_instruction = system_instruction
+
+        response_stream = await client.aio.models.generate_content_stream(
+            model=model_name or self._model,
+            contents=prompt,
+            config=config,
+        )
+
+        async for chunk in response_stream:
+            if chunk.text:
+                yield chunk.text
+
     async def generate_with_tools(
         self,
         contents: list[Any],

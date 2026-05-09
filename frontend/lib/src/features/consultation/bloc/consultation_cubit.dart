@@ -86,39 +86,105 @@ class ConsultationCubit extends Cubit<ConsultationState> {
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       text: text, isUser: true, timestamp: DateTime.now(),
     );
-    emit(state.copyWith(messages: [...state.messages, userMsg], isSending: true));
+    
+    final streamingId = 'stream_${DateTime.now().millisecondsSinceEpoch}';
+    final aiMsg = ChatMessage(
+      id: streamingId,
+      text: '', isUser: false, timestamp: DateTime.now(),
+    );
 
-    final result = await _repository.sendMessage(
+    emit(state.copyWith(
+      messages: [...state.messages, userMsg, aiMsg], 
+      isSending: true,
+      streamingMessageId: streamingId,
+      clearStreamingStatus: true,
+    ));
+
+    final stream = _repository.streamMessage(
       conversationId: state.conversationId!,
       message: text,
       ragConfig: state.chatMode.ragConfig,
       mode: state.isCaseChat ? 'case_intake' : 'chat',
       caseContext: state.attachedCaseContext,
     );
-    switch (result) {
-      case ConsultationSuccess<Map<String, dynamic>>(:final data):
-        final aiMsg = ChatMessage(
-          id: data['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString(),
-          text: data['response']?.toString() ?? data['content']?.toString() ?? '',
-          isUser: false,
-          timestamp: DateTime.tryParse(data['created_at']?.toString() ?? '') ?? DateTime.now(),
-          citations: _parseChatCitations(data['citations']),
-          trustLevel: data['trust_level']?.toString(),
-        );
-        final caseAnalysisReady = data['case_analysis_ready'] == true;
-        final updatedMessages = [...state.messages, aiMsg];
-        emit(state.copyWith(
-          messages: updatedMessages,
-          isSending: false,
-          caseAnalysisReady: caseAnalysisReady,
-        ));
-      case ConsultationFailure<Map<String, dynamic>>(:final type):
-        final errorMsg = ChatMessage(
-          id: 'error_${DateTime.now().millisecondsSinceEpoch}',
-          text: type.name, isUser: false, timestamp: DateTime.now(),
-          isError: true, failureType: type,
-        );
-        emit(state.copyWith(messages: [...state.messages, errorMsg], isSending: false));
+
+    try {
+      await for (final event in stream) {
+        final type = event['type'];
+        if (type == 'status') {
+          emit(state.copyWith(streamingStatus: event['message']?.toString()));
+        } else if (type == 'chunk') {
+          final msgs = List<ChatMessage>.from(state.messages);
+          final index = msgs.indexWhere((m) => m.id == streamingId);
+          if (index != -1) {
+            final oldMsg = msgs[index];
+            msgs[index] = ChatMessage(
+              id: oldMsg.id,
+              text: oldMsg.text + (event['content']?.toString() ?? ''),
+              isUser: false,
+              timestamp: oldMsg.timestamp,
+            );
+            emit(state.copyWith(messages: msgs, clearStreamingStatus: true));
+          }
+        } else if (type == 'done') {
+          final msgs = List<ChatMessage>.from(state.messages);
+          final index = msgs.indexWhere((m) => m.id == streamingId);
+          if (index != -1) {
+            final oldMsg = msgs[index];
+            msgs[index] = ChatMessage(
+              id: oldMsg.id,
+              text: event['full_response']?.toString() ?? oldMsg.text,
+              isUser: false,
+              timestamp: oldMsg.timestamp,
+              citations: _parseChatCitations(event['citations']),
+              trustLevel: event['trust_level']?.toString(),
+            );
+            emit(state.copyWith(
+              messages: msgs,
+              isSending: false,
+              clearStreamingStatus: true,
+              clearStreamingMessageId: true,
+              caseAnalysisReady: event['case_analysis_ready'] == true,
+            ));
+          }
+          break;
+        } else if (type == 'error') {
+          final errorMsg = ChatMessage(
+            id: 'error_${DateTime.now().millisecondsSinceEpoch}',
+            text: event['message']?.toString() ?? 'An error occurred',
+            isUser: false, timestamp: DateTime.now(),
+            isError: true, failureType: ConsultationFailureType.unknown,
+          );
+          
+          final msgs = List<ChatMessage>.from(state.messages);
+          msgs.removeWhere((m) => m.id == streamingId); // Remove empty streaming msg
+          
+          emit(state.copyWith(
+            messages: [...msgs, errorMsg], 
+            isSending: false,
+            clearStreamingStatus: true,
+            clearStreamingMessageId: true,
+          ));
+          break;
+        }
+      }
+    } catch (e) {
+      final errorMsg = ChatMessage(
+        id: 'error_${DateTime.now().millisecondsSinceEpoch}',
+        text: 'Connection error',
+        isUser: false, timestamp: DateTime.now(),
+        isError: true, failureType: ConsultationFailureType.network,
+      );
+      
+      final msgs = List<ChatMessage>.from(state.messages);
+      msgs.removeWhere((m) => m.id == streamingId);
+      
+      emit(state.copyWith(
+        messages: [...msgs, errorMsg], 
+        isSending: false,
+        clearStreamingStatus: true,
+        clearStreamingMessageId: true,
+      ));
     }
   }
 

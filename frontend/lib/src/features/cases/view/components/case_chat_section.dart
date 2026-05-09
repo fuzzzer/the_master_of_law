@@ -387,11 +387,16 @@ class _CaseChatSectionState extends State<CaseChatSection> {
                     if (index == state.messages.length + (state.isSending ? 1 : 0) &&
                         state.caseAnalysisReady &&
                         !state.isBuildingCase) {
+                      final caseData = context.read<CaseDetailCubit>().state.caseData;
+                      final hasBuiltCase = caseData != null &&
+                          (caseData.serverCaseFileId != null || caseData.facts.any((f) => f.isAiGenerated));
+
                       return _BuildCaseCta(
                         uiColors: uiColors,
                         uiTextStyles: uiTextStyles,
                         onBuild: _buildCase,
                         isBuilding: state.isBuildingCase,
+                        isRegenerate: hasBuiltCase,
                       );
                     }
 
@@ -490,44 +495,106 @@ class _CaseChatSectionState extends State<CaseChatSection> {
 }
 
 /// CTA button shown when AI has gathered enough info.
-class _BuildCaseCta extends StatelessWidget {
+class _BuildCaseCta extends StatefulWidget {
   const _BuildCaseCta({
     required this.uiColors,
     required this.uiTextStyles,
     required this.onBuild,
     required this.isBuilding,
+    this.isRegenerate = false,
   });
   final UiColors uiColors;
   final UiTextStyles uiTextStyles;
   final VoidCallback onBuild;
   final bool isBuilding;
+  final bool isRegenerate;
+
+  @override
+  State<_BuildCaseCta> createState() => _BuildCaseCtaState();
+}
+
+class _BuildCaseCtaState extends State<_BuildCaseCta> {
+  late bool _expanded = !widget.isRegenerate;
+
+  @override
+  void didUpdateWidget(covariant _BuildCaseCta oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isRegenerate != oldWidget.isRegenerate) {
+      _expanded = !widget.isRegenerate;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (!_expanded) {
+      return GestureDetector(
+        onTap: () => setState(() => _expanded = true),
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: widget.uiColors.accentColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: widget.uiColors.accentColor.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.auto_awesome, size: 16, color: widget.uiColors.accentColor),
+              const SizedBox(width: 8),
+              Text(
+                'საქმის ხელახლა გენერაცია',
+                style: widget.uiTextStyles.bodyBold14.copyWith(color: widget.uiColors.accentColor),
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.expand_more, size: 16, color: widget.uiColors.accentColor),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: uiColors.accentColor.withValues(alpha: 0.1),
+        color: widget.uiColors.accentColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: uiColors.accentColor.withValues(alpha: 0.3)),
+        border: Border.all(color: widget.uiColors.accentColor.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
-          Text(
-            '✅ AI-მ საკმარისი ინფორმაცია შეაგროვა',
-            style: uiTextStyles.bodyBold14.copyWith(color: uiColors.accentColor),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (widget.isRegenerate) const SizedBox(width: 24), // balance for expand_less icon
+              Expanded(
+                child: Text(
+                  widget.isRegenerate ? '🔄 განახლებული ინფორმაცია ხელმისაწვდომია' : '✅ AI-მ საკმარისი ინფორმაცია შეაგროვა',
+                  style: widget.uiTextStyles.bodyBold14.copyWith(color: widget.uiColors.accentColor),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              if (widget.isRegenerate)
+                GestureDetector(
+                  onTap: () => setState(() => _expanded = false),
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Icon(Icons.expand_less, size: 20, color: widget.uiColors.accentColor),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: isBuilding ? null : onBuild,
+              onPressed: widget.isBuilding ? null : widget.onBuild,
               icon: const Icon(Icons.auto_awesome, size: 18),
-              label: const Text('📁 საქმის ანალიზის გენერაცია'),
+              label: Text(widget.isRegenerate ? '🔄 საქმის ხელახლა გენერაცია' : '📁 საქმის ანალიზის გენერაცია'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: uiColors.accentColor,
-                foregroundColor: uiColors.backgroundPrimaryColor,
+                backgroundColor: widget.uiColors.accentColor,
+                foregroundColor: widget.uiColors.backgroundPrimaryColor,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),

@@ -54,7 +54,7 @@ class FirebaseAuthMiddleware(BaseHTTPMiddleware):
         # In development, allow unauthenticated requests with mock user
         if settings.app_env == "development":
             auth_header = request.headers.get("Authorization", "")
-            if not auth_header:
+            if not auth_header and not request.headers.get("X-API-Key"):
                 # Set mock user for development
                 request.state.user = {
                     "uid": "dev-user-001",
@@ -62,6 +62,31 @@ class FirebaseAuthMiddleware(BaseHTTPMiddleware):
                     "tier": "ADMIN",
                 }
                 return await call_next(request)
+
+        # Temporary Staging API Key Auth
+        api_key = request.headers.get("X-API-Key", "")
+        if api_key:
+            if api_key == settings.admin_api_key:
+                request.state.user = {
+                    "uid": "admin-api-key",
+                    "email": "admin@masteroflaw.ge",
+                    "tier": "SUPERADMIN",
+                }
+                return await call_next(request)
+            
+            from app.utils.api_keys import is_valid_api_key
+            if is_valid_api_key(api_key):
+                request.state.user = {
+                    "uid": f"api-user-{api_key[:8]}",
+                    "email": "tester@masteroflaw.ge",
+                    "tier": "ADMIN",  # Give testers full access
+                }
+                return await call_next(request)
+            else:
+                return JSONResponse(
+                    status_code=401,
+                    content={"error": "unauthorized", "message": "Invalid Access Key"},
+                )
 
         # Extract token
         auth_header = request.headers.get("Authorization", "")

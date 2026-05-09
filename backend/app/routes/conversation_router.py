@@ -82,14 +82,22 @@ async def list_conversations(
 @router.get("/{conversation_id}", response_model=ConversationDetail)
 async def get_conversation(
     conversation_id: str,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
     """Get conversation with messages."""
+    user = getattr(request.state, "user", {})
+    uid = user.get("uid", "anonymous")
+
     svc = ConversationService(db)
     conv = await svc.get_conversation(conversation_id)
 
     if not conv:
         return JSONResponse(status_code=404, content={"error": "Conversation not found"})
+
+    from app.config.settings import settings
+    if conv.get("user_id") != uid and settings.app_env != "development":
+        return JSONResponse(status_code=403, content={"error": "Unauthorized access to conversation"})
 
     return ConversationDetail(
         id=conv["id"],
@@ -105,10 +113,22 @@ async def get_conversation(
 @router.delete("/{conversation_id}", status_code=204)
 async def delete_conversation(
     conversation_id: str,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a conversation and its messages."""
+    user = getattr(request.state, "user", {})
+    uid = user.get("uid", "anonymous")
+
     svc = ConversationService(db)
+    conv = await svc.get_conversation(conversation_id)
+    if not conv:
+        return JSONResponse(status_code=404, content={"error": "Conversation not found"})
+
+    from app.config.settings import settings
+    if conv.get("user_id") != uid and settings.app_env != "development":
+        return JSONResponse(status_code=403, content={"error": "Unauthorized access to conversation"})
+
     deleted = await svc.delete_conversation(conversation_id)
     await db.commit()
 

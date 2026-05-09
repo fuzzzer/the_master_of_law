@@ -117,7 +117,18 @@ class _ConsultationPageState extends State<ConsultationPage> {
         ],
       ),
       body: BlocConsumer<ConsultationCubit, ConsultationState>(
-        listenWhen: (prev, curr) => prev.messages.length != curr.messages.length,
+        listenWhen: (prev, curr) {
+          if (prev.messages.length != curr.messages.length) return true;
+          if (prev.streamingStatus != curr.streamingStatus) return true;
+          if (curr.streamingMessageId != null && curr.messages.isNotEmpty) {
+            final prevMsg = prev.messages.where((m) => m.id == curr.streamingMessageId).firstOrNull;
+            final currMsg = curr.messages.where((m) => m.id == curr.streamingMessageId).firstOrNull;
+            if (prevMsg != null && currMsg != null && prevMsg.text.length != currMsg.text.length) {
+              return true;
+            }
+          }
+          return false;
+        },
         listener: (context, state) => _scrollToBottom(),
         builder: (context, state) {
           if (state.status == StateStatus.initial) return _buildWelcome(context, state);
@@ -250,16 +261,25 @@ class _ConsultationPageState extends State<ConsultationPage> {
     final showChips =
         !_actionChipsDismissed && state.messages.length >= 2 && !state.isSending && state.messages.last.isUser == false;
 
+    // We only show the typing indicator if we're sending and haven't received any text yet
+    final streamingMsg = state.streamingMessageId != null 
+        ? state.messages.where((m) => m.id == state.streamingMessageId).firstOrNull 
+        : null;
+    final showTypingIndicator = state.isSending && (streamingMsg == null || streamingMsg.text.isEmpty);
+
+    // Filter out the empty streaming message if we're showing the typing indicator instead
+    final displayMessages = state.messages.where((m) => !(m.id == state.streamingMessageId && m.text.isEmpty)).toList();
+
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      itemCount: state.messages.length + (state.isSending ? 1 : 0) + (showChips ? 1 : 0),
+      itemCount: displayMessages.length + (showTypingIndicator ? 1 : 0) + (showChips ? 1 : 0),
       itemBuilder: (context, index) {
-        if (index < state.messages.length) {
-          return _buildMessageBubble(context, state.messages[index]);
+        if (index < displayMessages.length) {
+          return _buildMessageBubble(context, displayMessages[index]);
         }
-        if (state.isSending && index == state.messages.length) {
-          return _buildTypingIndicator(context);
+        if (showTypingIndicator && index == displayMessages.length) {
+          return _buildTypingIndicator(context, state);
         }
         // Action chips
         if (showChips) {
@@ -430,8 +450,9 @@ class _ConsultationPageState extends State<ConsultationPage> {
     );
   }
 
-  Widget _buildTypingIndicator(BuildContext context) {
+  Widget _buildTypingIndicator(BuildContext context, ConsultationState state) {
     final uiColors = context.uiColors;
+    final uiTextStyles = context.uiTextStyles;
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
@@ -440,18 +461,35 @@ class _ConsultationPageState extends State<ConsultationPage> {
         decoration: BoxDecoration(color: uiColors.backgroundSecondaryColor, borderRadius: BorderRadius.circular(14)),
         child: Row(
           mainAxisSize: MainAxisSize.min,
-          children: List.generate(
-            3,
-            (i) => Container(
-              margin: const EdgeInsets.symmetric(horizontal: 2),
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: uiColors.secondaryTextColor.withValues(alpha: 0.4),
-                shape: BoxShape.circle,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(
+                3,
+                (i) => Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: uiColors.secondaryTextColor.withValues(alpha: 0.4),
+                    shape: BoxShape.circle,
+                  ),
+                ),
               ),
             ),
-          ),
+            if (state.streamingStatus != null) ...[
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  state.streamingStatus!,
+                  style: uiTextStyles.caption11.copyWith(
+                    color: uiColors.secondaryTextColor,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );

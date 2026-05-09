@@ -81,6 +81,8 @@ async def send_agent_message(
     if not case_file:
         return JSONResponse(status_code=404, content={"error": "Case file not found"})
 
+    history = await conv_svc.get_conversation_history(conversation_id)
+
     await conv_svc.save_user_message(conversation_id, body.message)
 
     user_info = getattr(request.state, "user", None)
@@ -105,7 +107,7 @@ async def send_agent_message(
     full_context = f"{case_context}\n\n{law_context}"
     system_prompt = CASE_AGENT_SYSTEM.render(case_context=full_context)
 
-    history = await conv_svc.get_conversation_history(conversation_id)
+
 
     contents = _build_gemini_contents(history, body.message)
 
