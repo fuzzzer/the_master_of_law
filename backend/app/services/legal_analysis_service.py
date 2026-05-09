@@ -14,6 +14,7 @@ from typing import Any
 
 from app.config.constants import LEGAL_DISCLAIMER_KA
 from app.integrations.vertex_ai_client import VertexAIClient, get_vertex_ai_client
+from app.prompts import PromptTemplate
 from app.prompts.legal_analysis import LEGAL_ANALYSIS_SYSTEM
 from app.utils.logger import get_logger
 
@@ -201,6 +202,8 @@ class LegalAnalysisService:
         user_message: str,
         retrieved_chunks: list[dict[str, Any]],
         conversation_history: list[dict[str, str]] | None = None,
+        system_prompt: PromptTemplate | None = None,
+        model_name: str | None = None,
     ) -> str:
         """
         Generate a legal analysis response.
@@ -217,8 +220,10 @@ class LegalAnalysisService:
             user_message, retrieved_chunks, conversation_history,
         )
 
+        prompt_tpl = system_prompt or LEGAL_ANALYSIS_SYSTEM
+
         # Build system prompt with source-specific RAG instructions
-        system_prompt = self._build_system_prompt(retrieved_chunks)
+        system_prompt_text = self._build_system_prompt(retrieved_chunks, prompt_tpl)
 
         logger.info(
             "legal_analysis_start",
@@ -229,9 +234,10 @@ class LegalAnalysisService:
 
         response = await self.gemini.generate(
             prompt=user_prompt,
-            system_instruction=system_prompt,
-            temperature=LEGAL_ANALYSIS_SYSTEM.temperature,
-            max_output_tokens=LEGAL_ANALYSIS_SYSTEM.max_output_tokens,
+            system_instruction=system_prompt_text,
+            temperature=prompt_tpl.temperature,
+            max_output_tokens=prompt_tpl.max_output_tokens,
+            model_name=model_name,
         )
 
         response += f"\n\n---\n⚠️ {LEGAL_DISCLAIMER_KA}"
@@ -242,6 +248,7 @@ class LegalAnalysisService:
     def _build_system_prompt(
         self,
         chunks: list[dict[str, Any]],
+        prompt_tpl: PromptTemplate,
     ) -> str:
         """Build system prompt with dynamic source-specific instructions.
 
@@ -251,7 +258,7 @@ class LegalAnalysisService:
         are appended. When threshold chunks are present, threshold usage
         instructions are appended.
         """
-        base = LEGAL_ANALYSIS_SYSTEM.template
+        base = prompt_tpl.template
         sources = self._law_formatter.get_source_types(chunks)
 
         extra = []

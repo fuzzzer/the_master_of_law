@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:themasteroflaw/src/src.dart';
 import 'package:ui_kit/ui_kit.dart';
 
@@ -77,7 +78,7 @@ class ProfilePage extends StatelessWidget {
             subtitle: '500+ ტერმინი ქართულად',
             uiColors: uiColors,
             uiTextStyles: uiTextStyles,
-            onTap: () {},
+            onTap: () => context.go('/profile/dictionary'),
           ),
           const SizedBox(height: 8),
           _ToolTile(
@@ -86,7 +87,7 @@ class ProfilePage extends StatelessWidget {
             subtitle: 'როგორ მოვიქცეთ სასამართლოში',
             uiColors: uiColors,
             uiTextStyles: uiTextStyles,
-            onTap: () {},
+            onTap: () => context.go('/profile/etiquette'),
           ),
           const SizedBox(height: 8),
           _ToolTile(
@@ -95,7 +96,7 @@ class ProfilePage extends StatelessWidget {
             subtitle: 'იურისტები, ჰოთლაინი, ორგანიზაციები',
             uiColors: uiColors,
             uiTextStyles: uiTextStyles,
-            onTap: () {},
+            onTap: () => context.go('/profile/contacts'),
           ),
           const SizedBox(height: 20),
 

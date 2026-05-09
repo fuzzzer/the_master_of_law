@@ -74,7 +74,7 @@ RAG_QUERY_EXPANSION_COUNT = 8         # Target number of expanded queries
 
 # ── Gemini ───────────────────────────────────────────────────
 
-GEMINI_TEMPERATURE = 0.1              # Low for legal accuracy
+GEMINI_TEMPERATURE = 1              
 GEMINI_MAX_OUTPUT_TOKENS = 8192
 GEMINI_TOP_P = 0.8
 

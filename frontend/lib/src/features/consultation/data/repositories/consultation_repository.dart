@@ -71,12 +71,31 @@ class ConsultationRepository {
     required String conversationId,
     required String message,
     Map<String, dynamic>? ragConfig,
+    String mode = 'chat',
+    String? caseContext,
   }) async {
     try {
       final data = await _remoteDataSource.sendMessage(
         conversationId: conversationId,
         message: message,
         ragConfig: ragConfig,
+        mode: mode,
+        caseContext: caseContext,
+      );
+      return ConsultationSuccess(data);
+    } on HttpClientException catch (e) {
+      return ConsultationFailure(type: _mapHttpError(e), message: e.toString());
+    } catch (e) {
+      return ConsultationFailure(type: ConsultationFailureType.unknown, message: e.toString());
+    }
+  }
+
+  Future<ConsultationResult<Map<String, dynamic>>> buildCaseFile({
+    required String conversationId,
+  }) async {
+    try {
+      final data = await _remoteDataSource.buildCaseFile(
+        conversationId: conversationId,
       );
       return ConsultationSuccess(data);
     } on HttpClientException catch (e) {

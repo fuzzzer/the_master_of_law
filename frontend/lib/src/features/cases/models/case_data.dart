@@ -53,6 +53,9 @@ class CaseData extends HiveObject {
   @HiveField(14)
   final List<LinkedArticleData> linkedArticles;
 
+  @HiveField(15)
+  final List<ClarificationData> clarifications;
+
   CaseData({
     required this.id,
     required this.title,
@@ -69,6 +72,7 @@ class CaseData extends HiveObject {
     List<ActionItemData>? actionItems,
     List<String>? linkedConversationIds,
     List<LinkedArticleData>? linkedArticles,
+    List<ClarificationData>? clarifications,
   }) : facts = facts ?? [],
        arguments = arguments ?? [],
        evidence = evidence ?? [],
@@ -76,7 +80,8 @@ class CaseData extends HiveObject {
        risks = risks ?? [],
        actionItems = actionItems ?? [],
        linkedConversationIds = linkedConversationIds ?? [],
-       linkedArticles = linkedArticles ?? [];
+       linkedArticles = linkedArticles ?? [],
+       clarifications = clarifications ?? [];
 
   LegalDomain get domain => LegalDomain.values[domainIndex];
   set domain(LegalDomain d) => domainIndex == d.index;
@@ -419,5 +424,28 @@ class LinkedArticleData extends HiveObject {
     required this.codeName,
     this.snippet = '',
     required this.savedAt,
+  });
+}
+
+/// Information the AI flagged as unknown/uncertain — needs user action to clarify.
+@HiveType(typeId: 9)
+class ClarificationData extends HiveObject {
+  @HiveField(0)
+  final String id;
+
+  @HiveField(1)
+  String question;
+
+  @HiveField(2)
+  bool isResolved;
+
+  @HiveField(3)
+  String? resolution;
+
+  ClarificationData({
+    required this.id,
+    required this.question,
+    this.isResolved = false,
+    this.resolution,
   });
 }

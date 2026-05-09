@@ -17,6 +17,11 @@ class GlobalBlocProviders extends StatelessWidget {
         BlocProvider<LocalizationCubit>(
           create: (_) => LocalizationCubit(),
         ),
+        BlocProvider<CasesCubit>(
+          create: (_) => CasesCubit(
+            repository: CaseRepository(localDataSource: CaseLocalDataSource()),
+          )..loadCases(),
+        ),
       ],
       child: child,
     );

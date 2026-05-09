@@ -59,6 +59,13 @@ class ConversationService:
         )
         return self._conv_to_dict(conv)
 
+    async def update_title(self, conversation_id: str, title: str) -> None:
+        """Update the title of a conversation."""
+        conv_uuid = self._parse_uuid(conversation_id)
+        if not conv_uuid:
+            return
+        await self._conv_repo.update_title(conv_uuid, title)
+
     async def get_conversation(self, conversation_id: str) -> dict[str, Any] | None:
         """Get conversation with messages."""
         conv_uuid = self._parse_uuid(conversation_id)
@@ -214,6 +221,16 @@ class ConversationService:
         await self._conv_repo.update_phase(conv_uuid, new_phase.value)
         return True
 
+    async def mark_case_ready(self, conversation_id: str) -> None:
+        """Flag a conversation as ready for case file generation."""
+        conv_uuid = self._parse_uuid(conversation_id)
+        if not conv_uuid:
+            return
+        conv = await self._conv_repo.get_by_id(conv_uuid)
+        if conv:
+            conv.case_ready = True
+            await self._db.flush()
+
     async def determine_next_phase(
         self,
         conversation_id: str,
@@ -277,6 +294,7 @@ class ConversationService:
             "title": conv.title or "",
             "phase": conv.phase,
             "legal_domain": conv.legal_domain or "",
+            "case_ready": conv.case_ready if conv.case_ready is not None else False,
             "created_at": conv.created_at.isoformat() if conv.created_at else "",
             "updated_at": conv.updated_at.isoformat() if conv.updated_at else "",
         }

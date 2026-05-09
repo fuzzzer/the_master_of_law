@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     # Note: Vertex AI authenticates via ADC (GOOGLE_APPLICATION_CREDENTIALS).
     # No API key needed — set GCP_SA_KEY_PATH in .env for Docker.
     gemini_model: str = Field(default="gemini-3.1-pro")
+    gemini_chat_model: str = Field(default="gemini-3-flash-preview")
     embedding_model: str = Field(default="gemini-embedding-001")
     embedding_dimensions: int = Field(default=768)
 

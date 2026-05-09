@@ -13,7 +13,11 @@ from typing import Any
 from google import genai
 from google.genai.types import GenerateContentConfig
 
-from app.config.constants import GEMINI_MAX_OUTPUT_TOKENS, GEMINI_TEMPERATURE, GEMINI_TOP_P
+from app.config.constants import (
+    GEMINI_MAX_OUTPUT_TOKENS,
+    GEMINI_TEMPERATURE,
+    GEMINI_TOP_P,
+)
 from app.config.settings import settings
 from app.utils.logger import get_logger
 
@@ -44,6 +48,7 @@ class VertexAIClient:
         temperature: float = GEMINI_TEMPERATURE,
         max_output_tokens: int = GEMINI_MAX_OUTPUT_TOKENS,
         response_mime_type: str | None = None,
+        model_name: str | None = None,
     ) -> str:
         """Generate text using Gemini."""
         client = self._get_client()
@@ -61,7 +66,7 @@ class VertexAIClient:
             config.response_mime_type = response_mime_type
 
         response = client.models.generate_content(
-            model=self._model,
+            model=model_name or self._model,
             contents=prompt,
             config=config,
         )
@@ -73,6 +78,7 @@ class VertexAIClient:
         prompt: str,
         system_instruction: str | None = None,
         temperature: float = GEMINI_TEMPERATURE,
+        model_name: str | None = None,
     ) -> Any:
         """Generate JSON output from Gemini. Returns parsed JSON."""
         raw = await self.generate(
@@ -80,6 +86,7 @@ class VertexAIClient:
             system_instruction=system_instruction,
             temperature=temperature,
             response_mime_type="application/json",
+            model_name=model_name,
         )
 
         try:

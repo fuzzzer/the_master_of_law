@@ -7,5 +7,6 @@ export 'case_facts_section.dart';
 export 'case_overview_section.dart';
 export 'case_risks_section.dart';
 export 'case_strategy_section.dart';
+export 'case_tasks_section.dart';
 export 'case_timeline_section.dart';
 export 'new_case_sheet.dart';

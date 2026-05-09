@@ -16,35 +16,20 @@ class AppRouter {
           return MainShell(navigationShell: navigationShell);
         },
         branches: [
-          // ── Tab 0: Cases ────────────────────────────────────
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: '/cases',
-                builder: (context, state) => BlocProvider(
-                  create: (_) => CasesCubit(
-                    repository: CaseRepository(localDataSource: CaseLocalDataSource()),
-                  )..loadCases(),
-                  child: const MyCasesPage(),
-                ),
+                builder: (context, state) => const MyCasesPage(),
                 routes: [
                   GoRoute(
                     path: ':caseId',
                     builder: (context, state) {
                       final caseId = state.pathParameters['caseId']!;
-                      return MultiBlocProvider(
-                        providers: [
-                          BlocProvider(
-                            create: (_) => CaseDetailCubit(
-                              repository: CaseRepository(localDataSource: CaseLocalDataSource()),
-                            )..loadCase(caseId),
-                          ),
-                          BlocProvider(
-                            create: (_) => CasesCubit(
-                              repository: CaseRepository(localDataSource: CaseLocalDataSource()),
-                            ),
-                          ),
-                        ],
+                      return BlocProvider(
+                        create: (_) => CaseDetailCubit(
+                          repository: CaseRepository(localDataSource: CaseLocalDataSource()),
+                        )..loadCase(caseId),
                         child: CaseWorkspacePage(caseId: caseId),
                       );
                     },
@@ -54,7 +39,6 @@ class AppRouter {
             ],
           ),
 
-          // ── Tab 1: Chat (AI Consultation) ────────────────────
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -72,7 +56,6 @@ class AppRouter {
             ],
           ),
 
-          // ── Tab 2: Laws ─────────────────────────────────────
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -87,12 +70,25 @@ class AppRouter {
             ],
           ),
 
-          // ── Tab 3: Profile ──────────────────────────────────
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: '/profile',
                 builder: (context, state) => const ProfilePage(),
+                routes: [
+                  GoRoute(
+                    path: 'dictionary',
+                    builder: (context, state) => const LegalDictionaryPage(),
+                  ),
+                  GoRoute(
+                    path: 'etiquette',
+                    builder: (context, state) => const CourtEtiquettePage(),
+                  ),
+                  GoRoute(
+                    path: 'contacts',
+                    builder: (context, state) => const UsefulContactsPage(),
+                  ),
+                ],
               ),
             ],
           ),

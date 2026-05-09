@@ -45,7 +45,13 @@ class ConsultationState {
   final bool isSending;
   final ConsultationFailureType? failureType;
   final ChatMode chatMode;
-  final bool showIntakeChoice;
+  final bool isCaseChat;
+  final bool caseAnalysisReady;
+  final bool isBuildingCase;
+  final Map<String, dynamic>? caseFileData;
+  final String? attachedCaseId;
+  final String? attachedCaseTitle;
+  final String? attachedCaseContext;
 
   const ConsultationState({
     this.status = StateStatus.initial,
@@ -54,8 +60,16 @@ class ConsultationState {
     this.isSending = false,
     this.failureType,
     this.chatMode = ChatMode.allSources,
-    this.showIntakeChoice = false,
+    this.isCaseChat = false,
+    this.caseAnalysisReady = false,
+    this.isBuildingCase = false,
+    this.caseFileData,
+    this.attachedCaseId,
+    this.attachedCaseTitle,
+    this.attachedCaseContext,
   });
+
+  bool get hasCaseAttached => attachedCaseId != null;
 
   ConsultationState copyWith({
     StateStatus? status,
@@ -64,7 +78,14 @@ class ConsultationState {
     bool? isSending,
     ConsultationFailureType? failureType,
     ChatMode? chatMode,
-    bool? showIntakeChoice,
+    bool? isCaseChat,
+    bool? caseAnalysisReady,
+    bool? isBuildingCase,
+    Map<String, dynamic>? caseFileData,
+    String? attachedCaseId,
+    String? attachedCaseTitle,
+    String? attachedCaseContext,
+    bool clearAttachedCase = false,
   }) {
     return ConsultationState(
       status: status ?? this.status,
@@ -73,7 +94,13 @@ class ConsultationState {
       isSending: isSending ?? this.isSending,
       failureType: failureType ?? this.failureType,
       chatMode: chatMode ?? this.chatMode,
-      showIntakeChoice: showIntakeChoice ?? this.showIntakeChoice,
+      isCaseChat: isCaseChat ?? this.isCaseChat,
+      caseAnalysisReady: caseAnalysisReady ?? this.caseAnalysisReady,
+      isBuildingCase: isBuildingCase ?? this.isBuildingCase,
+      caseFileData: caseFileData ?? this.caseFileData,
+      attachedCaseId: clearAttachedCase ? null : (attachedCaseId ?? this.attachedCaseId),
+      attachedCaseTitle: clearAttachedCase ? null : (attachedCaseTitle ?? this.attachedCaseTitle),
+      attachedCaseContext: clearAttachedCase ? null : (attachedCaseContext ?? this.attachedCaseContext),
     );
   }
 }

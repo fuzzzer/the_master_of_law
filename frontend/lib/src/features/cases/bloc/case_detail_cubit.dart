@@ -7,9 +7,7 @@ part 'case_detail_state.dart';
 class CaseDetailCubit extends Cubit<CaseDetailState> {
   final CaseRepository _repository;
 
-  CaseDetailCubit({required CaseRepository repository})
-      : _repository = repository,
-        super(const CaseDetailState());
+  CaseDetailCubit({required CaseRepository repository}) : _repository = repository, super(const CaseDetailState());
 
   Future<void> loadCase(String caseId) async {
     emit(state.copyWith(status: StateStatus.loading));
@@ -170,7 +168,47 @@ class CaseDetailCubit extends Cubit<CaseDetailState> {
     await _save(caseData);
   }
 
-  // ── Linked Articles ────────────────────────────────────────────────
+  Future<void> updateActionItemText(String itemId, String newText) async {
+    final caseData = state.caseData;
+    if (caseData == null) return;
+    final item = caseData.actionItems.where((i) => i.id == itemId).firstOrNull;
+    if (item == null) return;
+    item.task = newText;
+    await _save(caseData);
+  }
+
+  Future<void> addClarification(ClarificationData item) async {
+    final caseData = state.caseData;
+    if (caseData == null) return;
+    caseData.clarifications.add(item);
+    await _save(caseData);
+  }
+
+  Future<void> toggleClarification(String itemId) async {
+    final caseData = state.caseData;
+    if (caseData == null) return;
+    final item = caseData.clarifications.where((i) => i.id == itemId).firstOrNull;
+    if (item == null) return;
+    item.isResolved = !item.isResolved;
+    await _save(caseData);
+  }
+
+  Future<void> updateClarificationResolution(String itemId, String resolution) async {
+    final caseData = state.caseData;
+    if (caseData == null) return;
+    final item = caseData.clarifications.where((i) => i.id == itemId).firstOrNull;
+    if (item == null) return;
+    item.resolution = resolution;
+    item.isResolved = true;
+    await _save(caseData);
+  }
+
+  Future<void> deleteClarification(String itemId) async {
+    final caseData = state.caseData;
+    if (caseData == null) return;
+    caseData.clarifications.removeWhere((i) => i.id == itemId);
+    await _save(caseData);
+  }
 
   Future<void> linkArticle(LinkedArticleData article) async {
     final caseData = state.caseData;
@@ -188,8 +226,6 @@ class CaseDetailCubit extends Cubit<CaseDetailState> {
     await _save(caseData);
   }
 
-  // ── Conversations ─────────────────────────────────────────────────
-
   Future<void> linkConversation(String conversationId) async {
     final caseData = state.caseData;
     if (caseData == null) return;
@@ -199,7 +235,161 @@ class CaseDetailCubit extends Cubit<CaseDetailState> {
     }
   }
 
-  // ── Private helpers ────────────────────────────────────────────────
+  Future<void> populateFromAiAnalysis(Map<String, dynamic> caseFileData) async {
+    final caseData = state.caseData;
+    if (caseData == null) return;
+
+    caseData.facts.removeWhere((f) => f.isAiGenerated);
+    caseData.arguments.removeWhere((a) => a.isAiGenerated);
+    caseData.risks.removeWhere((r) => r.isAiGenerated);
+    caseData.actionItems.removeWhere((a) => a.id.startsWith('ai_'));
+    caseData.linkedArticles.removeWhere((a) => a.articleId.startsWith('ai_'));
+    if (caseData.strategy?.isAiGenerated == true) caseData.strategy = null;
+
+    final now = DateTime.now();
+    final idBase = now.millisecondsSinceEpoch;
+
+    final facts = caseFileData['facts'] as Map<String, dynamic>?;
+    if (facts != null) {
+      var i = 0;
+      for (final entry in facts.entries) {
+        if (entry.value != null && entry.value.toString().isNotEmpty) {
+          caseData.facts.add(
+            FactData(
+              id: 'ai_fact_${idBase}_${i++}',
+              text: '${entry.key}: ${entry.value}',
+              classificationIndex: FactClassification.neutral.index,
+              isAiGenerated: true,
+              createdAt: now,
+            ),
+          );
+        }
+      }
+    }
+
+    final laws = caseFileData['applicable_laws'] as Map<String, dynamic>?;
+    if (laws != null) {
+      var i = 0;
+      for (final category in ['favorable', 'against', 'neutral']) {
+        final lawList = laws[category] as List<dynamic>?;
+        if (lawList == null) continue;
+        for (final law in lawList) {
+          if (law is! Map<String, dynamic>) continue;
+          caseData.linkedArticles.add(
+            LinkedArticleData(
+              articleId: law['article']?.toString() ?? 'ai_art_${idBase}_${i++}',
+              title: '${law['code'] ?? ''} ${law['article'] ?? ''}',
+              codeName: law['code']?.toString() ?? '',
+              snippet: law['explanation']?.toString() ?? '',
+              savedAt: now,
+            ),
+          );
+        }
+      }
+    }
+
+    final strategies = caseFileData['defense_strategies'] as List<dynamic>?;
+    if (strategies != null && strategies.isNotEmpty) {
+      final first = strategies.first as Map<String, dynamic>;
+      caseData.strategy = StrategyData(
+        primaryStrategy: first['name']?.toString() ?? '',
+        backupStrategy: strategies.length > 1 ? (strategies[1] as Map<String, dynamic>)['name']?.toString() : null,
+        confidenceScore: _parseConfidence(first['success_likelihood']?.toString()),
+        isAiGenerated: true,
+      );
+    }
+
+    final prosArgs = caseFileData['prosecution_args'] as List<dynamic>?;
+    if (prosArgs != null) {
+      var i = 0;
+      for (final arg in prosArgs) {
+        if (arg is! Map<String, dynamic>) continue;
+        caseData.arguments.add(
+          ArgumentData(
+            id: 'ai_arg_${idBase}_${i++}',
+            title: arg['argument']?.toString() ?? '',
+            explanation: arg['counter']?.toString() ?? '',
+            strengthIndex: ArgumentStrength.moderate.index,
+            isAiGenerated: true,
+            createdAt: now,
+            counterArgument: arg['argument']?.toString(),
+            counterResponse: arg['counter']?.toString(),
+          ),
+        );
+      }
+    }
+
+    final actions = caseFileData['action_checklist'] as List<dynamic>?;
+    if (actions != null) {
+      var i = 0;
+      for (final action in actions) {
+        if (action is! Map<String, dynamic>) continue;
+        caseData.actionItems.add(
+          ActionItemData(
+            id: 'ai_action_${idBase}_${i++}',
+            task: action['action']?.toString() ?? '',
+            priorityIndex: _mapDeadlineToPriority(action['deadline']?.toString()),
+            isCompleted: false,
+          ),
+        );
+      }
+    }
+
+    final evidence = caseFileData['evidence'] as Map<String, dynamic>?;
+    if (evidence != null) {
+      final needs = evidence['needs'] as List<dynamic>?;
+      if (needs != null) {
+        var i = 0;
+        for (final need in needs) {
+          caseData.risks.add(
+            RiskData(
+              id: 'ai_risk_${idBase}_${i++}',
+              description: 'მტკიცებულება საჭიროა: $need',
+              severityIndex: RiskSeverity.medium.index,
+              mitigationSuggestion: 'მოიპოვეთ: $need',
+              isAiGenerated: true,
+            ),
+          );
+        }
+      }
+    }
+
+    final unclearItems = caseFileData['unclear_items'] as List<dynamic>?;
+    if (unclearItems != null) {
+      caseData.clarifications.removeWhere((c) => c.id.startsWith('ai_'));
+      var i = 0;
+      for (final item in unclearItems) {
+        if (item is String && item.trim().isNotEmpty) {
+          caseData.clarifications.add(
+            ClarificationData(
+              id: 'ai_clarify_${idBase}_${i++}',
+              question: item,
+            ),
+          );
+        }
+      }
+    }
+
+    await _save(caseData);
+  }
+
+  int _parseConfidence(String? likelihood) {
+    if (likelihood == null) return 50;
+    final lower = likelihood.toLowerCase();
+    if (lower.contains('high') || lower.contains('მაღალი')) return 80;
+    if (lower.contains('medium') || lower.contains('საშუალო')) return 50;
+    if (lower.contains('low') || lower.contains('დაბალი')) return 25;
+    return 50;
+  }
+
+  int _mapDeadlineToPriority(String? deadline) {
+    if (deadline == null) return ActionPriority.medium.index;
+    final lower = deadline.toLowerCase();
+    if (lower.contains('immediate') || lower.contains('48h')) return ActionPriority.high.index;
+    if (lower.contains('3 day') || lower.contains('1 week')) return ActionPriority.high.index;
+    if (lower.contains('month') || lower.contains('court')) return ActionPriority.medium.index;
+    return ActionPriority.low.index;
+  }
 
   Future<void> _save(CaseData caseData) async {
     final result = await _repository.updateCase(caseData);

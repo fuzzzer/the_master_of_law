@@ -35,7 +35,7 @@ class CaseOverviewSection extends StatelessWidget {
               count: caseData.facts.length,
               uiColors: uiColors,
               uiTextStyles: uiTextStyles,
-              onTap: () => onTabSwitch(2),
+              onTap: () => onTabSwitch(3),
             )),
             const SizedBox(width: 12),
             Expanded(child: _StatCard(
@@ -44,7 +44,7 @@ class CaseOverviewSection extends StatelessWidget {
               count: caseData.arguments.length,
               uiColors: uiColors,
               uiTextStyles: uiTextStyles,
-              onTap: () => onTabSwitch(3),
+              onTap: () => onTabSwitch(4),
             )),
           ],
         ),
@@ -57,7 +57,7 @@ class CaseOverviewSection extends StatelessWidget {
               count: caseData.evidence.length,
               uiColors: uiColors,
               uiTextStyles: uiTextStyles,
-              onTap: () => onTabSwitch(4),
+              onTap: () => onTabSwitch(5),
             )),
             const SizedBox(width: 12),
             Expanded(child: _StatCard(
@@ -66,7 +66,7 @@ class CaseOverviewSection extends StatelessWidget {
               count: caseData.risks.length,
               uiColors: uiColors,
               uiTextStyles: uiTextStyles,
-              onTap: () => onTabSwitch(7),
+              onTap: () => onTabSwitch(8),
             )),
           ],
         ),
@@ -80,7 +80,7 @@ class CaseOverviewSection extends StatelessWidget {
             subtitle: caseData.strategy!.primaryStrategy,
             uiColors: uiColors,
             uiTextStyles: uiTextStyles,
-            onTap: () => onTabSwitch(5),
+            onTap: () => onTabSwitch(6),
           ),
         if (caseData.strategy != null) const SizedBox(height: 12),
 
@@ -130,7 +130,7 @@ class CaseOverviewSection extends StatelessWidget {
         return Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: GestureDetector(
-            onTap: () => onTabSwitch(6),
+            onTap: () => onTabSwitch(7),
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(

@@ -41,7 +41,7 @@ class TestRAGConstants:
     def test_values(self):
         assert RAG_VECTOR_SEARCH_TOP_K == 50
         assert RAG_RERANK_TOP_K == 20
-        assert GEMINI_TEMPERATURE == 0.1
+        assert GEMINI_TEMPERATURE == 1
 
 class TestDisclaimers:
     def test_exist(self):

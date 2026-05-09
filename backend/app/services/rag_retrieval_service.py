@@ -30,6 +30,7 @@ from app.integrations.vertex_embedding_client import (
     get_embedding_client,
 )
 from app.prompts.rag_pipeline import QUERY_EXPANSION, RERANK
+from app.services.threshold_service import get_threshold_service
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -102,12 +103,16 @@ class RAGRetrievalService:
         merged = self._stage_3_merge_and_dedup(vector_hits, fulltext_hits)
         logger.info("rag_stage_3_done", merged_count=len(merged))
 
-        merged = self._boost_threshold_chunks(user_message, merged)
-
         if len(merged) > top_k:
             reranked = await self._stage_4_rerank(user_message, merged, top_k)
         else:
             reranked = merged
+
+        # Step 5: Direct lookup for exact tables (bypassing RAG fuzziness)
+        threshold_hits = get_threshold_service().search(user_message)
+        if threshold_hits:
+            # Add them to the front of the results
+            reranked = threshold_hits + [r for r in reranked if r["chunk_id"] not in {t["chunk_id"] for t in threshold_hits}]
 
         logger.info("rag_pipeline_done", result_count=len(reranked))
         return reranked
@@ -163,15 +168,28 @@ class RAGRetrievalService:
         index = self._load_article_index()
         if not index:
             return []
+            
         all_hits: list[dict] = []
         for qi, query in enumerate(queries):
             tokens = query.lower().split()
             scored: list[tuple[str, float]] = []
+            
+            # Helper to calculate score with basic Georgian stemming
+            def get_score(text: str) -> float:
+                s = 0.0
+                for t in tokens:
+                    if len(t) < 3: continue
+                    if t in text: s += 1.0
+                    elif len(t) >= 5 and t[:4] in text: s += 0.8
+                return s
+                
+            # Search articles
             for aid, data in index.items():
                 text = json.dumps(data, ensure_ascii=False).lower() if isinstance(data, dict) else str(data).lower()
-                score = sum(1.0 for t in tokens if len(t) >= 2 and t in text)
+                score = get_score(text)
                 if score > 0:
                     scored.append((aid, score))
+            
             scored.sort(key=lambda x: x[1], reverse=True)
             for aid, score in scored[:RAG_FULLTEXT_SEARCH_TOP_K]:
                 all_hits.append({
@@ -222,34 +240,6 @@ class RAGRetrievalService:
             except Exception:
                 pass
         return sorted(seen.values(), key=lambda x: x.get("distance", 1))
-
-    # ── Threshold Boost ──────────────────────────────────────
-
-    _THRESHOLD_KEYWORDS = {
-        "გრამი", "კილო", "ოდენობა", "ვადა", "წელი", "თვე", "ლარი",
-        "ჯარიმა", "სასჯელი", "ასაკი", "ზღვარი", "მინიმუმ", "მაქსიმუმ",
-        "ზომა", "პრომილი", "რაოდენობა", "ოდენობით",
-    }
-
-    def _query_involves_thresholds(self, message: str) -> bool:
-        """Heuristic: does the query mention quantities, amounts, or time limits?"""
-        lower = message.lower()
-        if any(c.isdigit() for c in message):
-            return True
-        return any(kw in lower for kw in self._THRESHOLD_KEYWORDS)
-
-    def _boost_threshold_chunks(
-        self, user_message: str, chunks: list[dict],
-    ) -> list[dict]:
-        """Reduce distance of threshold chunks by 1.5x if query involves quantities."""
-        if not self._query_involves_thresholds(user_message):
-            return chunks
-        boost_factor = 1.5
-        for chunk in chunks:
-            meta = chunk.get("metadata", {})
-            if meta.get("chunk_type") == "threshold":
-                chunk["distance"] = chunk.get("distance", 1.0) / boost_factor
-        return sorted(chunks, key=lambda x: x.get("distance", 1))
 
     async def _stage_4_rerank(
         self,

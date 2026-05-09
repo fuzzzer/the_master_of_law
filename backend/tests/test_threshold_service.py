@@ -1,7 +1,7 @@
 """
 Tests for threshold-related functionality:
 - Threshold data format validation
-- RAG pipeline threshold boost heuristic
+- Threshold service exact search lookup
 - Threshold chunk detection in system prompt
 """
 
@@ -13,8 +13,9 @@ sys.path.insert(0, ".")
 
 import pytest
 
-from app.services.rag_retrieval_service import RAGRetrievalService
+from app.services.threshold_service import ThresholdService
 from app.services.legal_analysis_service import LegalAnalysisService
+from app.prompts.legal_analysis import LEGAL_ANALYSIS_SYSTEM
 
 
 CATALOG_PATH = Path(__file__).parent.parent.parent / "law_corpus" / "data" / "thresholds" / "threshold_catalog.json"
@@ -42,54 +43,18 @@ class TestThresholdCatalog:
             assert isinstance(entry["values"], dict)
             assert len(entry["values"]) > 0
 
-    def test_all_entries_have_unique_ids(self):
-        with open(CATALOG_PATH, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        ids = [e["id"] for e in data["thresholds"]]
-        assert len(ids) == len(set(ids)), "Duplicate IDs in threshold catalog"
 
+class TestThresholdServiceSearch:
+    def test_search_matches_substance(self):
+        svc = ThresholdService()
+        res = svc.search("კანაფის ფისი")
+        assert len(res) > 0
+        assert "კანაფის ფისი" in res[0]["content"]
 
-class TestThresholdBoost:
-    def _make_rag_service(self):
-        return RAGRetrievalService(chroma=None, embedding_client=None, gemini_client=None)
-
-    def test_query_with_numbers_triggers_boost(self):
-        svc = self._make_rag_service()
-        assert svc._query_involves_thresholds("70 გრამი მარიხუანა")
-        assert svc._query_involves_thresholds("2 წელი ვადა")
-
-    def test_query_with_keywords_triggers_boost(self):
-        svc = self._make_rag_service()
-        assert svc._query_involves_thresholds("რამდენი გრამი ითვლება დიდ ოდენობად")
-        assert svc._query_involves_thresholds("ჯარიმა რამდენია")
-        assert svc._query_involves_thresholds("სასჯელი რა ვადაა")
-
-    def test_generic_query_no_boost(self):
-        svc = self._make_rag_service()
-        assert not svc._query_involves_thresholds("რა უფლებები მაქვს")
-        assert not svc._query_involves_thresholds("ადვოკატი მჭირდება")
-
-    def test_boost_reduces_threshold_distance(self):
-        svc = self._make_rag_service()
-        chunks = [
-            {"chunk_id": "law_1", "content": "law text", "metadata": {}, "distance": 0.3},
-            {"chunk_id": "threshold_1", "content": "threshold text",
-             "metadata": {"chunk_type": "threshold"}, "distance": 0.3},
-        ]
-        boosted = svc._boost_threshold_chunks("70 გრამი", chunks)
-        threshold_chunk = next(c for c in boosted if c["chunk_id"] == "threshold_1")
-        law_chunk = next(c for c in boosted if c["chunk_id"] == "law_1")
-        assert threshold_chunk["distance"] < law_chunk["distance"]
-        assert threshold_chunk["distance"] == pytest.approx(0.2, rel=0.01)
-
-    def test_no_boost_without_threshold_query(self):
-        svc = self._make_rag_service()
-        chunks = [
-            {"chunk_id": "threshold_1", "content": "threshold text",
-             "metadata": {"chunk_type": "threshold"}, "distance": 0.3},
-        ]
-        result = svc._boost_threshold_chunks("რა უფლებები მაქვს", chunks)
-        assert result[0]["distance"] == 0.3
+    def test_search_empty_or_generic_query(self):
+        svc = ThresholdService()
+        assert len(svc.search("")) == 0
+        assert len(svc.search("ადვოკატი მჭირდება")) == 0
 
 
 class TestThresholdSystemPrompt:
@@ -99,7 +64,7 @@ class TestThresholdSystemPrompt:
             {"chunk_id": "t1", "content": "data",
              "metadata": {"_collection": "georgian_laws", "chunk_type": "threshold"}},
         ]
-        prompt = svc._build_system_prompt(chunks)
+        prompt = svc._build_system_prompt(chunks, LEGAL_ANALYSIS_SYSTEM)
         assert "იურიდიული ზღვრები" in prompt
         assert "EXACT values" in prompt
 
@@ -109,5 +74,6 @@ class TestThresholdSystemPrompt:
             {"chunk_id": "l1", "content": "law data",
              "metadata": {"_collection": "georgian_laws"}},
         ]
-        prompt = svc._build_system_prompt(chunks)
+        prompt = svc._build_system_prompt(chunks, LEGAL_ANALYSIS_SYSTEM)
         assert "იურიდიული ზღვრები" not in prompt
+

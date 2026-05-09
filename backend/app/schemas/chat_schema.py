@@ -19,6 +19,14 @@ class ChatSendRequest(BaseModel):
         default=None,
         description="Optional config to toggle which knowledge sources to search. Default: all enabled.",
     )
+    mode: str = Field(
+        default="chat",
+        description="Chat mode: 'chat' for general Q&A, 'case_intake' for case-building with intake questions.",
+    )
+    case_context: str | None = Field(
+        default=None,
+        description="Optional case context summary to give AI awareness of an attached case.",
+    )
 
 
 class CitationInfo(BaseModel):
@@ -50,3 +58,7 @@ class ChatSendResponse(BaseModel):
     citations: list[CitationInfo] = Field(default_factory=list)
     retrieved_chunks: list[RetrievedChunk] = Field(default_factory=list)
     credits_remaining: int | None = None
+    case_analysis_ready: bool = Field(
+        default=False,
+        description="True when AI has gathered enough info for full case analysis.",
+    )

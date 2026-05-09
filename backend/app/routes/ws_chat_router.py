@@ -10,7 +10,11 @@ import json
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from app.config.settings import settings
+from app.models.database import get_session_factory
+from app.prompts.chat import CHAT_SYSTEM
 from app.services.citation_service import get_citation_service
+from app.services.conversation_service import ConversationService
 from app.services.legal_analysis_service import get_legal_analysis_service
 from app.services.rag_retrieval_service import get_rag_service
 from app.utils.logger import get_logger
@@ -61,72 +65,118 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str):
                 except Exception:
                     pass  # Invalid config — default to all collections
 
-            # Send processing status
-            await websocket.send_json({"type": "status", "message": "Checking query..."})
+            # All DB operations must stay within a single session scope
+            async with get_session_factory()() as db:
+                conv_svc = ConversationService(db)
 
-            try:
-                # Step 0: Guardrail — classify before RAG
-                from app.services.guardrail_service import get_guardrail_service
-                guardrail = get_guardrail_service()
-                decision = await guardrail.classify(user_message)
-
-                if not decision.should_proceed:
-                    await websocket.send_json({
-                        "type": "done",
-                        "full_response": decision.response_text or "",
-                        "citations": [],
-                        "chunk_count": 0,
-                        "guardrail_category": decision.category,
-                    })
+                # Verify conversation exists
+                conv = await conv_svc.get_conversation(conversation_id)
+                if not conv:
+                    await websocket.send_json({"type": "error", "message": "Conversation not found"})
                     continue
 
-                await websocket.send_json({"type": "status", "message": "Searching laws..."})
+                # Save user message to DB
+                await conv_svc.save_user_message(conversation_id, user_message)
 
-                # Step 1: RAG retrieval
-                rag = get_rag_service()
-                chunks = await rag.retrieve(user_message, collections=collections)
+                # Get conversation history for multi-turn context
+                history = await conv_svc.get_conversation_history(conversation_id)
 
-                await websocket.send_json({
-                    "type": "status",
-                    "message": f"Found {len(chunks)} relevant articles. Analyzing..."
-                })
+                # Send processing status
+                await websocket.send_json({"type": "status", "message": "Checking query..."})
 
-                # Step 2: Legal analysis
-                analysis = get_legal_analysis_service()
-                response_text = await analysis.analyze(
-                    user_message=user_message,
-                    retrieved_chunks=chunks,
-                )
+                try:
+                    # Step 0: Guardrail — classify before RAG
+                    from app.services.guardrail_service import get_guardrail_service
+                    guardrail = get_guardrail_service()
+                    decision = await guardrail.classify(user_message)
 
-                # Stream the response in chunks for a real-time feel
-                # Split into sentences/paragraphs for natural streaming
-                paragraphs = response_text.split("\n")
-                for para in paragraphs:
-                    if para.strip():
+                    if not decision.should_proceed:
+                        response_text = decision.response_text or ""
+                        await conv_svc.save_assistant_message(
+                            conversation_id=conversation_id,
+                            content=response_text,
+                            citations=[],
+                            retrieved_chunk_ids=[],
+                            credit_cost=0,
+                        )
+                        await db.commit()
+
                         await websocket.send_json({
-                            "type": "chunk",
-                            "content": para + "\n",
+                            "type": "done",
+                            "full_response": response_text,
+                            "citations": [],
+                            "chunk_count": 0,
+                            "guardrail_category": decision.category,
                         })
+                        continue
 
-                # Step 3: Citation verification
-                citation_svc = get_citation_service()
-                raw_citations = citation_svc.extract_citations(response_text)
-                verified_citations = citation_svc.verify_citations(raw_citations, chunks)
+                    await websocket.send_json({"type": "status", "message": "Searching laws..."})
 
-                # Send final message with citations
-                await websocket.send_json({
-                    "type": "done",
-                    "full_response": response_text,
-                    "citations": verified_citations,
-                    "chunk_count": len(chunks),
-                })
+                    # Step 1: RAG retrieval
+                    rag = get_rag_service()
+                    chunks = await rag.retrieve(user_message, collections=collections)
 
-            except Exception as e:
-                logger.error("ws_processing_error", error=str(e), exc_info=True)
-                await websocket.send_json({
-                    "type": "error",
-                    "message": "An error occurred during analysis. Please try again.",
-                })
+                    await websocket.send_json({
+                        "type": "status",
+                        "message": f"Found {len(chunks)} relevant articles. Analyzing..."
+                    })
+
+                    # Step 2: Legal analysis
+                    analysis = get_legal_analysis_service()
+                    response_text = await analysis.analyze(
+                        user_message=user_message,
+                        retrieved_chunks=chunks,
+                        conversation_history=history if history else None,
+                        system_prompt=CHAT_SYSTEM,
+                        model_name=settings.gemini_chat_model,
+                    )
+
+                    # Stream the response in chunks for a real-time feel
+                    # Split into sentences/paragraphs for natural streaming
+                    paragraphs = response_text.split("\n")
+                    for para in paragraphs:
+                        if para.strip():
+                            await websocket.send_json({
+                                "type": "chunk",
+                                "content": para + "\n",
+                            })
+
+                    # Step 3: Citation verification
+                    citation_svc = get_citation_service()
+                    raw_citations = citation_svc.extract_citations(response_text)
+                    verified_citations = citation_svc.verify_citations(raw_citations, chunks)
+
+                    # Save assistant response to DB
+                    chunk_ids = [c.get("chunk_id", "") for c in chunks[:20] if "chunk_id" in c]
+                    await conv_svc.save_assistant_message(
+                        conversation_id=conversation_id,
+                        content=response_text,
+                        citations=verified_citations,
+                        retrieved_chunk_ids=chunk_ids,
+                        credit_cost=1,  # Assuming 1 credit for WS chat as per docs
+                    )
+
+                    # Update conversation phase based on message count
+                    msg_count = len(history) + 2
+                    next_phase = await conv_svc.determine_next_phase(conversation_id, msg_count)
+                    await conv_svc.transition_phase(conversation_id, next_phase)
+
+                    await db.commit()
+
+                    # Send final message with citations
+                    await websocket.send_json({
+                        "type": "done",
+                        "full_response": response_text,
+                        "citations": verified_citations,
+                        "chunk_count": len(chunks),
+                    })
+
+                except Exception as e:
+                    logger.error("ws_processing_error", error=str(e), exc_info=True)
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "An error occurred during analysis. Please try again.",
+                    })
 
     except WebSocketDisconnect:
         logger.info("ws_disconnected", conversation_id=conversation_id)

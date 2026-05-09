@@ -28,6 +28,7 @@ class ConversationDetail(BaseModel):
     title: str = ""
     phase: str = "GREETING"
     legal_domain: str = ""
+    case_ready: bool = False
     messages: list[dict] = Field(default_factory=list)
     created_at: str = ""
 

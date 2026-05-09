@@ -51,6 +51,7 @@ class Initializer {
       ..registerAdapter(TimelineEventDataAdapter())
       ..registerAdapter(RiskDataAdapter())
       ..registerAdapter(ActionItemDataAdapter())
-      ..registerAdapter(LinkedArticleDataAdapter());
+      ..registerAdapter(LinkedArticleDataAdapter())
+      ..registerAdapter(ClarificationDataAdapter());
   }
 }

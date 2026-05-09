@@ -34,8 +34,9 @@ class ConsultationCubit extends Cubit<ConsultationState> {
   ConsultationCubit({
     required ConsultationRepository repository,
     ChatMode chatMode = ChatMode.allSources,
+    bool isCaseChat = false,
   })  : _repository = repository,
-        super(ConsultationState(chatMode: chatMode));
+        super(ConsultationState(chatMode: chatMode, isCaseChat: isCaseChat));
 
   Future<void> startConversation({String? caseId}) async {
     emit(state.copyWith(status: StateStatus.loading));
@@ -69,7 +70,8 @@ class ConsultationCubit extends Cubit<ConsultationState> {
             trustLevel: map['trust_level']?.toString(),
           );
         }).toList();
-        emit(state.copyWith(status: StateStatus.success, messages: messages));
+        final caseReady = data['case_ready'] == true;
+        emit(state.copyWith(status: StateStatus.success, messages: messages, caseAnalysisReady: caseReady));
       case ConsultationFailure<Map<String, dynamic>>(:final type):
         emit(state.copyWith(status: StateStatus.failed, failureType: type));
     }
@@ -87,6 +89,8 @@ class ConsultationCubit extends Cubit<ConsultationState> {
       conversationId: state.conversationId!,
       message: text,
       ragConfig: state.chatMode.ragConfig,
+      mode: state.isCaseChat ? 'case_intake' : 'chat',
+      caseContext: state.attachedCaseContext,
     );
     switch (result) {
       case ConsultationSuccess<Map<String, dynamic>>(:final data):
@@ -98,12 +102,12 @@ class ConsultationCubit extends Cubit<ConsultationState> {
           citations: _parseChatCitations(data['citations']),
           trustLevel: data['trust_level']?.toString(),
         );
+        final caseAnalysisReady = data['case_analysis_ready'] == true;
         final updatedMessages = [...state.messages, aiMsg];
-        final shouldShowChoice = !state.showIntakeChoice && updatedMessages.length == 2;
         emit(state.copyWith(
           messages: updatedMessages,
           isSending: false,
-          showIntakeChoice: shouldShowChoice || state.showIntakeChoice,
+          caseAnalysisReady: caseAnalysisReady,
         ));
       case ConsultationFailure<Map<String, dynamic>>(:final type):
         final errorMsg = ChatMessage(
@@ -115,9 +119,38 @@ class ConsultationCubit extends Cubit<ConsultationState> {
     }
   }
 
+  Future<Map<String, dynamic>?> buildCaseFile() async {
+    if (state.conversationId == null) return null;
+    emit(state.copyWith(isBuildingCase: true));
+
+    final result = await _repository.buildCaseFile(
+      conversationId: state.conversationId!,
+    );
+    switch (result) {
+      case ConsultationSuccess<Map<String, dynamic>>(:final data):
+        emit(state.copyWith(isBuildingCase: false, caseFileData: data));
+        return data;
+      case ConsultationFailure<Map<String, dynamic>>():
+        emit(state.copyWith(isBuildingCase: false));
+        return null;
+    }
+  }
+
   void switchMode(ChatMode mode) => emit(state.copyWith(chatMode: mode));
 
-  void dismissIntakeChoice() => emit(state.copyWith(showIntakeChoice: false));
+  void attachCase({required String caseId, required String caseTitle, required String caseContext}) {
+    emit(state.copyWith(
+      attachedCaseId: caseId,
+      attachedCaseTitle: caseTitle,
+      attachedCaseContext: caseContext,
+    ));
+  }
+
+  void detachCase() {
+    emit(state.copyWith(
+      clearAttachedCase: true,
+    ));
+  }
 
   List<CitationData>? _parseCitations(dynamic raw) {
     if (raw is! List) return null;
@@ -146,4 +179,9 @@ class ConsultationCubit extends Cubit<ConsultationState> {
       );
     }).toList();
   }
+
+  void reset() {
+    emit(ConsultationState(chatMode: state.chatMode, isCaseChat: state.isCaseChat));
+  }
 }
+

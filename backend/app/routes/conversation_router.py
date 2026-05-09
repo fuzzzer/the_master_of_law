@@ -96,6 +96,7 @@ async def get_conversation(
         title=conv["title"],
         phase=conv["phase"],
         legal_domain=conv.get("legal_domain", ""),
+        case_ready=conv.get("case_ready", False),
         messages=conv.get("messages", []),
         created_at=conv.get("created_at", ""),
     )

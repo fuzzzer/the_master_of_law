@@ -58,6 +58,9 @@ CASE_BUILDER = PromptTemplate(
         '      "done": false\n'
         "    }}\n"
         "  ],\n"
+        '  "unclear_items": [\n'
+        '    "information that was NOT provided by the user but could affect the case"\n'
+        "  ],\n"
         '  "lawyer_brief": {{\n'
         '    "key_points": ["what to tell your lawyer"],\n'
         '    "questions_to_ask": ["questions for lawyer"],\n'
@@ -77,11 +80,12 @@ CASE_BUILDER = PromptTemplate(
         "- Every law reference must cite a specific article\n"
         "- Use ONLY laws from the provided context — never fabricate\n"
         "- Include both favorable AND unfavorable laws\n"
-        "- Be thorough — this document may be used in court\n\n"
+        "- Be thorough — this document may be used in court\n"
+        "- unclear_items: list ALL details the user did NOT provide that could matter (witnesses, exact amounts, documents, etc.)\n\n"
         "Return ONLY the JSON object, no markdown wrapping."
     ),
     description="Generates a structured 8-section defense case file from conversation + law context.",
     variables=("conversation_text", "law_context"),
-    temperature=0.1,
+    temperature=1,
     response_format="json",
 )

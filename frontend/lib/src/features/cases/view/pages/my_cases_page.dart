@@ -112,18 +112,6 @@ class _MyCasesPageState extends State<MyCasesPage> {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
-            TextButton(
-              onPressed: () {
-                // Navigate to Laws tab
-              },
-              child: Text(
-                'ან შეისწავლეთ კანონები →',
-                style: uiTextStyles.body14.copyWith(
-                  color: uiColors.accentColor,
-                ),
-              ),
-            ),
           ],
         ),
       ),

@@ -45,6 +45,18 @@ class LawBrowserService:
                     "article_count": data.get("article_count", 0),
                     "source_url": data.get("source_url", ""),
                 })
+            elif isinstance(data, list):
+                unique_articles = set()
+                for chunk_id in data:
+                    # e.g. "admin_offences_code.article_1.chunk_0"
+                    article_part = chunk_id.split(".chunk_")[0]
+                    unique_articles.add(article_part)
+                codes.append({
+                    "code_id": code_id,
+                    "name": code_id,
+                    "article_count": len(unique_articles),
+                    "source_url": "",
+                })
             else:
                 codes.append({"code_id": code_id, "name": code_id})
         return codes
@@ -52,7 +64,33 @@ class LawBrowserService:
     def get_code(self, code_id: str) -> dict[str, Any] | None:
         """Get a specific code with its structure."""
         index = self._load_code_index()
-        return index.get(code_id)
+        data = index.get(code_id)
+        if data is None:
+            return None
+            
+        if isinstance(data, dict):
+            return data
+            
+        if isinstance(data, list):
+            try:
+                results = self.chroma.collection.get(
+                    where={"code_name": code_id},
+                    include=["documents", "metadatas"]
+                )
+                items = []
+                if results.get("ids"):
+                    for i, cid in enumerate(results["ids"]):
+                        items.append({
+                            "chunk_id": cid,
+                            "content": results["documents"][i] if results.get("documents") else "",
+                            "metadata": results["metadatas"][i] if results.get("metadatas") else {},
+                        })
+                return {"code_id": code_id, "chunks": items}
+            except Exception as e:
+                logger.error("get_code_failed", code_id=code_id, error=str(e))
+                return {"code_id": code_id, "chunks": []}
+                
+        return {"code_id": code_id, "chunks": []}
 
     def get_article(self, article_id: str) -> list[dict[str, Any]]:
         """Get all chunks for a specific article."""

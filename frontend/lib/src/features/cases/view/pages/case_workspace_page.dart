@@ -29,6 +29,7 @@ class _CaseWorkspacePageState extends State<CaseWorkspacePage> with SingleTicker
   static const _tabLabels = [
     '📊 მიმოხილვა',
     '💬 AI',
+    '✅ დავალებები',
     '📋 ფაქტები',
     '⚖️ არგუმენტები',
     '📎 მტკიცებ.',
@@ -209,6 +210,7 @@ class _CaseWorkspacePageState extends State<CaseWorkspacePage> with SingleTicker
                   children: [
                     CaseOverviewSection(caseData: caseData, onTabSwitch: _switchToTab),
                     CaseChatSection(caseId: widget.caseId),
+                    CaseTasksSection(caseData: caseData),
                     CaseFactsSection(caseData: caseData),
                     CaseArgumentsSection(caseData: caseData),
                     CaseEvidenceSection(caseData: caseData),

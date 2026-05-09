@@ -54,6 +54,6 @@ LEGAL_ANALYSIS_SYSTEM = PromptTemplate(
         "Switch to English if the user writes in English."
     ),
     description="System prompt for legal analysis. Defines the AI's persona, rules, and response format.",
-    temperature=0.1,
+    temperature=1,
     max_output_tokens=8192,
 )

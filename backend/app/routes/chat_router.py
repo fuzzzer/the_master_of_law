@@ -7,11 +7,14 @@ Now persists messages to PostgreSQL and deducts credits after success.
 
 from __future__ import annotations
 
+import re
+
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.constants import CreditAction
+from app.config.settings import settings
 from app.models.database import get_db
 from app.repositories.credit_repository import CreditRepository
 from app.repositories.user_repository import UserRepository
@@ -21,6 +24,7 @@ from app.schemas.chat_schema import (
     CitationInfo,
     RetrievedChunk,
 )
+from app.prompts.chat import CASE_INTAKE_SYSTEM, CHAT_SYSTEM
 from app.services.citation_service import get_citation_service
 from app.services.conversation_service import ConversationService
 from app.services.guardrail_service import get_guardrail_service
@@ -70,6 +74,13 @@ async def send_message(
     # Save user message to DB
     await conv_svc.save_user_message(conversation_id, body.message)
 
+    # Auto-generate title from first user message if conversation has no title
+    if not conv.get("title"):
+        title_preview = body.message[:60].strip()
+        if len(body.message) > 60:
+            title_preview += '...'
+        await conv_svc.update_title(conversation_id, title_preview)
+
     # Step 0: Guardrail — classify before RAG
     user_info = getattr(request.state, "user", None)
     user_tier = user_info.get("tier", "FREE") if user_info else "FREE"
@@ -100,6 +111,19 @@ async def send_message(
 
     # Get conversation history from DB for multi-turn context
     history = await conv_svc.get_conversation_history(conversation_id)
+    msg_count = len(history) if history else 0
+
+    # Select system prompt based on mode
+    system_prompt = CASE_INTAKE_SYSTEM if body.mode == "case_intake" else CHAT_SYSTEM
+
+    # Enrich user message with case context if a case is attached
+    enriched_message = body.message
+    if body.case_context:
+        enriched_message = (
+            f"[ATTACHED CASE CONTEXT]\n{body.case_context}\n"
+            f"[END CASE CONTEXT]\n\n"
+            f"USER MESSAGE: {body.message}"
+        )
 
     # Step 1: RAG Retrieval
     rag = get_rag_service()
@@ -109,9 +133,11 @@ async def send_message(
     # Step 2: Legal Analysis
     analysis = get_legal_analysis_service()
     response_text = await analysis.analyze(
-        user_message=body.message,
+        user_message=enriched_message,
         retrieved_chunks=chunks,
         conversation_history=history if history else None,
+        system_prompt=system_prompt,
+        model_name=settings.gemini_chat_model,
     )
 
     # Step 3: Citation Verification
@@ -139,7 +165,12 @@ async def send_message(
             distance=c.get("distance", 0.0),
         ))
 
-    # Save assistant response to DB
+    # Strip machine-readable tag before saving/returning
+    tag_ready = bool(re.search(r'\[CASE_READY\]', response_text))
+    if tag_ready:
+        response_text = re.sub(r'\s*\[CASE_READY\]\s*', '', response_text).rstrip()
+
+    # Save assistant response to DB (clean, without tag)
     credit_cost = CreditAction.CHAT.cost
     await conv_svc.save_assistant_message(
         conversation_id=conversation_id,
@@ -182,9 +213,23 @@ async def send_message(
         credits_remaining=credits_remaining,
     )
 
+    # Heuristic fallback: 6+ messages in case_intake mode, no questions left
+    intake_history_ready = (
+        body.mode == "case_intake"
+        and msg_count >= 6
+        and not any(q in response_text for q in ["?", "კითხვა", "დამაზუსტებელი"])
+    )
+
+    case_analysis_ready = tag_ready or intake_history_ready
+
+    # Persist readiness on the conversation so it survives page refresh
+    if case_analysis_ready:
+        await conv_svc.mark_case_ready(conversation_id)
+
     return ChatSendResponse(
         response=response_text,
         citations=citation_models,
         retrieved_chunks=chunk_models,
         credits_remaining=credits_remaining,
+        case_analysis_ready=case_analysis_ready,
     )

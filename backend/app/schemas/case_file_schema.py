@@ -47,6 +47,7 @@ class CaseFileDetail(BaseModel):
     defense_strategies: dict[str, Any] | None = None
     prosecution_args: dict[str, Any] | None = None
     action_checklist: dict[str, Any] | None = None
+    unclear_items: list[str] | None = None
     lawyer_brief: dict[str, Any] | None = None
     citations: dict[str, Any] | None = None
     rendered_text: str = ""

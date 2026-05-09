@@ -19,8 +19,8 @@ class ConsultationRemoteDataSource {
   }
 
   Future<List<dynamic>> getConversations() async {
-    final response = await _httpClient.get<List<dynamic>>(_uri('/api/v1/conversations'));
-    return response.data!;
+    final response = await _httpClient.get<Map<String, dynamic>>(_uri('/api/v1/conversations'));
+    return (response.data!['conversations'] as List<dynamic>?) ?? [];
   }
 
   Future<Map<String, dynamic>> getConversation(String conversationId) async {
@@ -38,13 +38,27 @@ class ConsultationRemoteDataSource {
     required String conversationId,
     required String message,
     Map<String, dynamic>? ragConfig,
+    String mode = 'chat',
+    String? caseContext,
   }) async {
     final response = await _httpClient.post<Map<String, dynamic>>(
       _uri('/api/v1/chat/$conversationId/send'),
       body: {
         'message': message,
         if (ragConfig != null) 'rag_config': ragConfig,
+        'mode': mode,
+        if (caseContext != null) 'case_context': caseContext,
       },
+    );
+    return response.data!;
+  }
+
+  Future<Map<String, dynamic>> buildCaseFile({
+    required String conversationId,
+  }) async {
+    final response = await _httpClient.post<Map<String, dynamic>>(
+      _uri('/api/v1/case-files/build'),
+      body: {'conversation_id': conversationId},
     );
     return response.data!;
   }
