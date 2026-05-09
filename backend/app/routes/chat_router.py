@@ -23,6 +23,7 @@ from app.schemas.chat_schema import (
 )
 from app.services.citation_service import get_citation_service
 from app.services.conversation_service import ConversationService
+from app.services.guardrail_service import get_guardrail_service
 from app.services.legal_analysis_service import get_legal_analysis_service
 from app.services.rag_retrieval_service import get_rag_service
 from app.utils.logger import get_logger
@@ -68,6 +69,34 @@ async def send_message(
 
     # Save user message to DB
     await conv_svc.save_user_message(conversation_id, body.message)
+
+    # Step 0: Guardrail — classify before RAG
+    user_info = getattr(request.state, "user", None)
+    user_tier = user_info.get("tier", "FREE") if user_info else "FREE"
+    guardrail = get_guardrail_service()
+    decision = await guardrail.classify(body.message, user_tier=user_tier)
+
+    if not decision.should_proceed:
+        response_text = decision.response_text or ""
+        await conv_svc.save_assistant_message(
+            conversation_id=conversation_id,
+            content=response_text,
+            citations=[],
+            retrieved_chunk_ids=[],
+            credit_cost=0,
+        )
+        await db.commit()
+        logger.info(
+            "chat_guardrail_blocked",
+            conversation_id=conversation_id,
+            category=decision.category,
+        )
+        return ChatSendResponse(
+            response=response_text,
+            citations=[],
+            retrieved_chunks=[],
+            credits_remaining=None,
+        )
 
     # Get conversation history from DB for multi-turn context
     history = await conv_svc.get_conversation_history(conversation_id)

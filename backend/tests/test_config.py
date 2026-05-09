@@ -22,7 +22,7 @@ class TestUserTiers:
 
 class TestConversationPhases:
     def test_phase_count(self):
-        assert len(ConversationPhase) == 6
+        assert len(ConversationPhase) == 7
 
 class TestCreditActions:
     def test_costs(self):

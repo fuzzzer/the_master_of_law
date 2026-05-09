@@ -78,6 +78,12 @@ GEMINI_TEMPERATURE = 0.1              # Low for legal accuracy
 GEMINI_MAX_OUTPUT_TOKENS = 8192
 GEMINI_TOP_P = 0.8
 
+# ── Guardrails ───────────────────────────────────────────────
+
+GUARDRAIL_ENABLED: bool = True
+GUARDRAIL_CONFIDENCE_THRESHOLD: float = 0.7
+GUARDRAIL_MODEL: str = "gemini-2.0-flash"
+
 # ── Disclaimer ───────────────────────────────────────────────
 
 LEGAL_DISCLAIMER_KA = (

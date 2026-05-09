@@ -49,6 +49,18 @@ _RAG_INSTRUCTIONS: dict[str, str] = {
     ),
 }
 
+_THRESHOLD_INSTRUCTIONS = (
+    "\n[იურიდიული ზღვრები / Legal Thresholds]\n"
+    "When threshold chunks are present in the context:\n"
+    "- Use EXACT values from threshold data (quantities, time periods, amounts)\n"
+    "- NEVER approximate or round threshold values — precision is critical\n"
+    "- Cite the specific article and paragraph for each threshold\n"
+    "- If the user asks about quantities/amounts, present ALL relevant thresholds\n"
+    "- Compare the user's situation against the exact threshold values\n"
+    "- If no threshold data exists for a query, say \"ამ ინფორმაციას ჩვენს "
+    "მონაცემთა ბაზაში ვერ ვპოულობ\" — NEVER invent numbers\n"
+)
+
 
 class LawContextFormatter:
     """Formats retrieved chunks into context for Gemini prompts.
@@ -236,7 +248,8 @@ class LegalAnalysisService:
         When only georgian_laws chunks are present, this returns the base
         system prompt unchanged (fully backward compatible). When court_practice
         or grand_chamber chunks are present, source-specific instructions
-        are appended.
+        are appended. When threshold chunks are present, threshold usage
+        instructions are appended.
         """
         base = LEGAL_ANALYSIS_SYSTEM.template
         sources = self._law_formatter.get_source_types(chunks)
@@ -245,6 +258,12 @@ class LegalAnalysisService:
         for source in sorted(sources):
             if source in _RAG_INSTRUCTIONS:
                 extra.append(_RAG_INSTRUCTIONS[source])
+
+        has_thresholds = any(
+            c.get("metadata", {}).get("chunk_type") == "threshold" for c in chunks
+        )
+        if has_thresholds:
+            extra.append(_THRESHOLD_INSTRUCTIONS)
 
         if not extra:
             return base

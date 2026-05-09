@@ -101,12 +101,15 @@ class TestGlobalRegistry:
             "legal_classifier",
             "explain_simplify",
             "explain_article",
+            "questionnaire_generator",
+            "narrative_extractor",
+            "guardrail_classifier",
         ]
         for name in expected:
             assert name in prompts, f"Prompt '{name}' not in registry"
 
     def test_prompt_count(self):
-        assert len(prompts) == 7
+        assert len(prompts) == 10
 
     def test_all_valid(self):
         issues = prompts.validate_all()

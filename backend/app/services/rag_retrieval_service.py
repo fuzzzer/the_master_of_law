@@ -102,6 +102,8 @@ class RAGRetrievalService:
         merged = self._stage_3_merge_and_dedup(vector_hits, fulltext_hits)
         logger.info("rag_stage_3_done", merged_count=len(merged))
 
+        merged = self._boost_threshold_chunks(user_message, merged)
+
         if len(merged) > top_k:
             reranked = await self._stage_4_rerank(user_message, merged, top_k)
         else:
@@ -220,6 +222,34 @@ class RAGRetrievalService:
             except Exception:
                 pass
         return sorted(seen.values(), key=lambda x: x.get("distance", 1))
+
+    # ── Threshold Boost ──────────────────────────────────────
+
+    _THRESHOLD_KEYWORDS = {
+        "გრამი", "კილო", "ოდენობა", "ვადა", "წელი", "თვე", "ლარი",
+        "ჯარიმა", "სასჯელი", "ასაკი", "ზღვარი", "მინიმუმ", "მაქსიმუმ",
+        "ზომა", "პრომილი", "რაოდენობა", "ოდენობით",
+    }
+
+    def _query_involves_thresholds(self, message: str) -> bool:
+        """Heuristic: does the query mention quantities, amounts, or time limits?"""
+        lower = message.lower()
+        if any(c.isdigit() for c in message):
+            return True
+        return any(kw in lower for kw in self._THRESHOLD_KEYWORDS)
+
+    def _boost_threshold_chunks(
+        self, user_message: str, chunks: list[dict],
+    ) -> list[dict]:
+        """Reduce distance of threshold chunks by 1.5x if query involves quantities."""
+        if not self._query_involves_thresholds(user_message):
+            return chunks
+        boost_factor = 1.5
+        for chunk in chunks:
+            meta = chunk.get("metadata", {})
+            if meta.get("chunk_type") == "threshold":
+                chunk["distance"] = chunk.get("distance", 1.0) / boost_factor
+        return sorted(chunks, key=lambda x: x.get("distance", 1))
 
     async def _stage_4_rerank(
         self,

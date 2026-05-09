@@ -62,9 +62,26 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str):
                     pass  # Invalid config — default to all collections
 
             # Send processing status
-            await websocket.send_json({"type": "status", "message": "Searching laws..."})
+            await websocket.send_json({"type": "status", "message": "Checking query..."})
 
             try:
+                # Step 0: Guardrail — classify before RAG
+                from app.services.guardrail_service import get_guardrail_service
+                guardrail = get_guardrail_service()
+                decision = await guardrail.classify(user_message)
+
+                if not decision.should_proceed:
+                    await websocket.send_json({
+                        "type": "done",
+                        "full_response": decision.response_text or "",
+                        "citations": [],
+                        "chunk_count": 0,
+                        "guardrail_category": decision.category,
+                    })
+                    continue
+
+                await websocket.send_json({"type": "status", "message": "Searching laws..."})
+
                 # Step 1: RAG retrieval
                 rag = get_rag_service()
                 chunks = await rag.retrieve(user_message, collections=collections)
