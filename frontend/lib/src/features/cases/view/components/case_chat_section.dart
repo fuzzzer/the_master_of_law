@@ -186,37 +186,41 @@ class _CaseChatSectionState extends State<CaseChatSection> {
                 child: hasAgent
                     ? Row(
                         children: [
-                          // Expanded(
-                          //   child: GestureDetector(
-                          //     onTap: consultState.isAgentMode ? _toggleAgentMode : null,
-                          //     child: Container(
-                          //       padding: const EdgeInsets.symmetric(vertical: 8),
-                          //       decoration: BoxDecoration(
-                          //         color: !consultState.isAgentMode
-                          //             ? uiColors.accentColor.withValues(alpha: 0.12)
-                          //             : Colors.transparent,
-                          //         borderRadius: BorderRadius.circular(8),
-                          //       ),
-                          //       child: Row(
-                          //         mainAxisAlignment: MainAxisAlignment.center,
-                          //         children: [
-                          //           Icon(Icons.chat_bubble_outline, size: 14,
-                          //             color: !consultState.isAgentMode
-                          //                 ? uiColors.accentColor
-                          //                 : uiColors.secondaryTextColor),
-                          //           const SizedBox(width: 6),
-                          //           Text('ჩატი',
-                          //             style: uiTextStyles.labelBold12.copyWith(
-                          //               color: !consultState.isAgentMode
-                          //                   ? uiColors.accentColor
-                          //                   : uiColors.secondaryTextColor,
-                          //             ),
-                          //           ),
-                          //         ],
-                          //       ),
-                          //     ),
-                          //   ),
-                          // ),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: consultState.isAgentMode ? _toggleAgentMode : null,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: !consultState.isAgentMode
+                                      ? uiColors.accentColor.withValues(alpha: 0.12)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.chat_bubble_outline,
+                                      size: 14,
+                                      color: !consultState.isAgentMode
+                                          ? uiColors.accentColor
+                                          : uiColors.secondaryTextColor,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'ჩატი',
+                                      style: uiTextStyles.labelBold12.copyWith(
+                                        color: !consultState.isAgentMode
+                                            ? uiColors.accentColor
+                                            : uiColors.secondaryTextColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
                           Container(
                             width: 1,
                             height: 24,
