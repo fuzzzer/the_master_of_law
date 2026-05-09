@@ -149,6 +149,7 @@ class RAGRetrievalService:
             queries = await self.gemini.generate_json(
                 prompt=prompt,
                 temperature=QUERY_EXPANSION.temperature,
+                model_name=settings.gemini_chat_model,
             )
             if isinstance(queries, list):
                 return [q for q in queries if isinstance(q, str) and q.strip()]
@@ -288,6 +289,7 @@ class RAGRetrievalService:
             ids = await self.gemini.generate_json(
                 prompt=prompt,
                 temperature=RERANK.temperature,
+                model_name=settings.gemini_chat_model,
             )
             if isinstance(ids, list):
                 lookup = {c["chunk_id"]: c for c in candidates}

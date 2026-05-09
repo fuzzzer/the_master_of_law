@@ -65,7 +65,7 @@ class VertexAIClient:
         if response_mime_type:
             config.response_mime_type = response_mime_type
 
-        response = client.models.generate_content(
+        response = await client.aio.models.generate_content(
             model=model_name or self._model,
             contents=prompt,
             config=config,
@@ -99,7 +99,7 @@ class VertexAIClient:
         if system_instruction:
             config.system_instruction = system_instruction
 
-        return client.models.generate_content(
+        return await client.aio.models.generate_content(
             model=model_name or self._model,
             contents=contents,
             config=config,

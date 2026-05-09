@@ -10,6 +10,7 @@ Credit cost: 3 credits per case file build.
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from typing import Any
 
@@ -331,12 +332,15 @@ class CaseBuilderService:
         # Step 1: Flash model expands raw user language into legal search queries
         expanded_queries = await self._expand_for_rag(combined)
 
-        # Step 2: RAG retrieve with each expanded query, merge results
+        # Step 2: RAG retrieve with each expanded query, merge results in parallel
         rag = get_rag_service()
         all_chunks: list[dict[str, Any]] = []
         seen_ids: set[str] = set()
-        for query in expanded_queries:
-            chunks = await rag.retrieve(query)
+        
+        tasks = [rag.retrieve(query) for query in expanded_queries]
+        results = await asyncio.gather(*tasks)
+        
+        for chunks in results:
             for chunk in chunks:
                 cid = chunk.get("chunk_id", "")
                 if cid not in seen_ids:
