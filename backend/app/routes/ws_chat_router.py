@@ -38,15 +38,19 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
     await websocket.accept()
     logger.info("ws_connected", conversation_id=conversation_id)
 
-    # Authenticate via token query parameter
-    if not token and settings.app_env != "development":
-        await websocket.send_json({"type": "error", "message": "Authentication token required"})
-        await websocket.close(code=1008)
-        return
-
-    uid = "anonymous"
-    if settings.app_env == "development" and not token:
-        uid = "dev-user-001"
+    # Authenticate via token or api_key query parameter
+    api_key = websocket.query_params.get("api_key")
+    if api_key:
+        if api_key == settings.admin_api_key:
+            uid = "admin-api-key"
+        else:
+            from app.utils.api_keys import is_valid_api_key
+            if is_valid_api_key(api_key):
+                uid = f"api-user-{api_key[:8]}"
+            else:
+                await websocket.send_json({"type": "error", "message": "Invalid API key"})
+                await websocket.close(code=1008)
+                return
     elif token:
         try:
             from app.integrations.firebase_client import verify_id_token
@@ -56,6 +60,12 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
             await websocket.send_json({"type": "error", "message": f"Invalid token: {str(e)}"})
             await websocket.close(code=1008)
             return
+    elif settings.app_env == "development":
+        uid = "dev-user-001"
+    else:
+        await websocket.send_json({"type": "error", "message": "Authentication required"})
+        await websocket.close(code=1008)
+        return
 
     try:
         while True:
