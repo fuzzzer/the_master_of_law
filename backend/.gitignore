@@ -18,6 +18,7 @@
 .env
 .env.*
 !.env.example
+.deploy.env
 
 
 # --- Python Virtual Environments ---

@@ -26,10 +26,16 @@ fi
 echo "⚠️ Make sure you have pushed your changes to GitHub before deploying!"
 echo "🖥️ Deploying Backend to Hetzner VPS..."
 
-# Configuration for VPS
-VPS_USER="fuzzzer"
-VPS_HOST="api.zrdai.work"
-VPS_DIR="/var/www/the_master_of_law"
+# Load deploy config (not tracked in git)
+DEPLOY_ENV="$PROJECT_PATH/.deploy.env"
+if [[ ! -f "$DEPLOY_ENV" ]]; then
+    echo "❌ Missing .deploy.env — create it with VPS_HOST=<your-server-ip>"
+    exit 1
+fi
+source "$DEPLOY_ENV"
+
+VPS_USER="${VPS_USER:-fuzzzer}"
+VPS_DIR="${VPS_DIR:-/var/www/the_master_of_law}"
 
 ssh -o StrictHostKeyChecking=no ${VPS_USER}@${VPS_HOST} "cd ${VPS_DIR} && git pull origin main && cd backend && docker compose build && docker compose up -d"
 
