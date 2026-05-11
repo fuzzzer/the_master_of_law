@@ -47,7 +47,7 @@ async def build_case_file(
     user = await user_repo.get_by_firebase_uid(uid)
 
     if not user:
-        # User is authenticated via Firebase but missing in our DB. Auto-create them.
+
         user = await user_repo.create_or_update(
             firebase_uid=uid,
             email=user_info.get("email"),
