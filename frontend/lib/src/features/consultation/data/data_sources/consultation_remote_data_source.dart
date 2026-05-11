@@ -114,7 +114,11 @@ class ConsultationRemoteDataSource {
   }) async* {
     final baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://127.0.0.1:8000';
     final wsUrl = baseUrl.replaceFirst('http://', 'ws://').replaceFirst('https://', 'wss://');
-    final uri = Uri.parse('$wsUrl/api/v1/chat/$conversationId/ws');
+
+    final secureStorage = sl.get<SecureStorageService>();
+    final apiKey = await secureStorage.getData('temporary_api_key');
+    final queryParams = apiKey != null && apiKey.isNotEmpty ? '?api_key=$apiKey' : '';
+    final uri = Uri.parse('$wsUrl/api/v1/chat/$conversationId/ws$queryParams');
     
     final channel = WebSocketChannel.connect(uri);
     
