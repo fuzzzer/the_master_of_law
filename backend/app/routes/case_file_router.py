@@ -46,10 +46,15 @@ async def build_case_file(
     user_repo = UserRepository(db)
     user = await user_repo.get_by_firebase_uid(uid)
 
-    from app.config.settings import settings
-
-    if not user and settings.app_env != "development":
-        return JSONResponse(status_code=404, content={"error": "User not found"})
+    if not user:
+        # User is authenticated via Firebase but missing in our DB. Auto-create them.
+        user = await user_repo.create_or_update(
+            firebase_uid=uid,
+            email=user_info.get("email"),
+            display_name=user_info.get("name"),
+            photo_url=user_info.get("picture"),
+        )
+        await db.commit()
 
     cost = CreditAction.CASE_FILE.cost
     credit_repo = CreditRepository(db)
