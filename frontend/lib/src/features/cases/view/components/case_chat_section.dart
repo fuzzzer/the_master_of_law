@@ -102,6 +102,18 @@ class _CaseChatSectionState extends State<CaseChatSection> {
     if (caseFileData != null && mounted) {
       context.read<CaseDetailCubit>().populateFromAiAnalysis(caseFileData);
       final serverId = caseFileData['id']?.toString();
+      
+      final fullText = caseFileData['full_analysis_text']?.toString();
+      if (fullText != null && fullText.isNotEmpty) {
+        final aiMsg = ChatMessage(
+          id: 'analysis_${DateTime.now().millisecondsSinceEpoch}',
+          text: fullText,
+          isUser: false,
+          timestamp: DateTime.now(),
+        );
+        _cubit.injectMessage(aiMsg);
+      }
+
       if (serverId != null) {
         _cubit.enterAgentMode(caseFileId: serverId);
         setState(() {});
@@ -110,6 +122,7 @@ class _CaseChatSectionState extends State<CaseChatSection> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('✅ საქმის სექციები შეივსო AI-ის ანალიზით')),
         );
+        _scrollToBottom();
       }
     }
   }
@@ -144,6 +157,7 @@ class _CaseChatSectionState extends State<CaseChatSection> {
     var serverId = context.read<CaseDetailCubit>().state.caseData?.serverCaseFileId;
     if (serverId == null) {
       await _tryResolveServerCaseFileId();
+      if (!mounted) return;
       serverId = context.read<CaseDetailCubit>().state.caseData?.serverCaseFileId;
     }
     if (serverId != null && mounted) {

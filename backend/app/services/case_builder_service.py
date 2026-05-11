@@ -221,6 +221,16 @@ class CaseBuilderService:
         # Stage 1: Rich legal analysis from conversation
         full_analysis = await self._generate_full_analysis(conv_text, law_context)
         logger.info("case_analysis_done", analysis_length=len(full_analysis))
+        
+        # Save the full analysis as an assistant message so it persists in chat
+        conv_svc = ConversationService(db)
+        await conv_svc.save_assistant_message(
+            conversation_id=conversation_id,
+            content=full_analysis,
+            citations=[],
+            retrieved_chunk_ids=[],
+            credit_cost=0,
+        )
 
         case_data = await self._generate_case_data(full_analysis, law_context)
         rendered = self._renderer.render(case_data)
@@ -230,7 +240,71 @@ class CaseBuilderService:
         )
 
         logger.info("case_build_done", case_file_id=str(cf.id))
-        return self._to_dict(cf, rendered)
+        result = self._to_dict(cf, rendered)
+        result["full_analysis_text"] = full_analysis
+        return result
+
+    async def update_case_file(
+        self,
+        db: AsyncSession,
+        case_file_id: uuid.UUID,
+        conversation_id: str,
+        retrieved_chunks: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Build a full defense case file from a conversation and UPDATE an existing case file.
+        Used by the case agent to populate an empty case after intake.
+        """
+        logger.info("case_update_start", case_file_id=str(case_file_id))
+
+        history = await self._load_conversation(db, conversation_id)
+        conv_text = self._format_conversation(history)
+
+        if not retrieved_chunks:
+            retrieved_chunks = await self._auto_retrieve_chunks(history)
+
+        law_context = self._law_formatter.format(retrieved_chunks or [])
+
+        # Stage 1: Rich legal analysis from conversation
+        full_analysis = await self._generate_full_analysis(conv_text, law_context)
+        logger.info("case_analysis_done", analysis_length=len(full_analysis))
+        
+        # Save the full analysis as an assistant message so it persists in chat
+        conv_svc = ConversationService(db)
+        await conv_svc.save_assistant_message(
+            conversation_id=conversation_id,
+            content=full_analysis,
+            citations=[],
+            retrieved_chunk_ids=[],
+            credit_cost=0,
+        )
+
+        case_data = await self._generate_case_data(full_analysis, law_context)
+        rendered = self._renderer.render(case_data)
+
+        # Update the existing case file
+        cf_repo = CaseFileRepository(db)
+        cf = await cf_repo.update(
+            case_file_id,
+            title=case_data.get("title", "Defense Case File"),
+            facts=case_data.get("facts"),
+            evidence=case_data.get("evidence"),
+            applicable_laws=case_data.get("applicable_laws"),
+            defense_strategies=case_data.get("defense_strategies"),
+            prosecution_args=case_data.get("prosecution_args"),
+            action_checklist=case_data.get("action_checklist"),
+            unclear_items=case_data.get("unclear_items"),
+            lawyer_brief=case_data.get("lawyer_brief"),
+            citations=case_data.get("citations"),
+            retrieved_chunks=retrieved_chunks,
+            rendered_text=rendered,
+            status="active",
+        )
+
+        logger.info("case_update_done", case_file_id=str(cf.id))
+        result = self._to_dict(cf, rendered)
+        result["full_analysis_text"] = full_analysis
+        return result
 
     async def _load_conversation(
         self,

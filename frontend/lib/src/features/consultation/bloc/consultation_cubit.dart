@@ -221,6 +221,12 @@ class ConsultationCubit extends Cubit<ConsultationState> {
     ));
   }
 
+  void injectMessage(ChatMessage message) {
+    emit(state.copyWith(
+      messages: [...state.messages, message],
+    ));
+  }
+
   void enterAgentMode({required String caseFileId}) {
     emit(state.copyWith(caseFileId: caseFileId));
   }

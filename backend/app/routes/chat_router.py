@@ -210,6 +210,13 @@ async def send_message(
     )
     case_analysis_ready = tag_ready or intake_history_ready
 
+    # Suggest questionnaire if we have some context but aren't ready yet
+    suggest_questionnaire = (
+        body.mode == "case_intake"
+        and msg_count >= 2
+        and not case_analysis_ready
+    )
+
     # Persist readiness on the conversation so it survives page refresh
     if case_analysis_ready:
         await conv_svc.mark_case_ready(conversation_id)
@@ -231,5 +238,6 @@ async def send_message(
         retrieved_chunks=chunk_models,
         credits_remaining=credits_remaining,
         case_analysis_ready=case_analysis_ready,
+        suggest_questionnaire=suggest_questionnaire,
     )
 

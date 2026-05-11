@@ -12,7 +12,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.config.settings import settings
 from app.models.database import get_session_factory
-from app.prompts.chat import CHAT_SYSTEM
+from app.prompts.chat import CHAT_SYSTEM, CASE_INTAKE_SYSTEM
 from app.services.citation_service import get_citation_service
 from app.services.conversation_service import ConversationService
 from app.services.legal_analysis_service import get_legal_analysis_service
@@ -82,6 +82,8 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
             if not user_message:
                 await websocket.send_json({"type": "error", "message": "Empty message"})
                 continue
+
+            mode = payload.get("mode", "chat")
 
             # Parse optional rag_config from WS message
             rag_config_data = payload.get("rag_config")
@@ -153,6 +155,9 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                         "message": f"Found {len(chunks)} relevant articles. Analyzing..."
                     })
 
+                    # Select system prompt based on mode
+                    system_prompt = CASE_INTAKE_SYSTEM if mode == "case_intake" else CHAT_SYSTEM
+
                     # Step 2: Legal analysis
                     analysis = get_legal_analysis_service()
                     response_text = ""
@@ -160,7 +165,7 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                         user_message=user_message,
                         retrieved_chunks=chunks,
                         conversation_history=history if history else None,
-                        system_prompt=CHAT_SYSTEM,
+                        system_prompt=system_prompt,
                         model_name=settings.gemini_chat_model,
                     ):
                         response_text += chunk
@@ -168,6 +173,12 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                             "type": "chunk",
                             "content": chunk,
                         })
+
+                    import re
+                    tag_ready = bool(re.search(r'\[CASE_READY\]', response_text))
+                    if tag_ready:
+                        response_text = re.sub(r'\s*\[CASE_READY\]\s*', '', response_text).rstrip()
+                        await conv_svc.mark_case_ready(conversation_id)
 
                     # Step 3: Citation verification
                     citation_svc = get_citation_service()
@@ -197,6 +208,7 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                         "full_response": response_text,
                         "citations": verified_citations,
                         "chunk_count": len(chunks),
+                        "case_analysis_ready": tag_ready,
                     })
 
                 except Exception as e:

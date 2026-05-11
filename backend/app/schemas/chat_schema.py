@@ -76,6 +76,10 @@ class ChatSendResponse(BaseModel):
         default=False,
         description="True when AI has gathered enough info for full case analysis.",
     )
+    suggest_questionnaire: bool = Field(
+        default=False,
+        description="True when the system suggests generating a structured questionnaire.",
+    )
     tool_results: list[ToolResultInfo] = Field(
         default_factory=list,
         description="Results of tool executions in case_agent mode.",

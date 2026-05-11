@@ -94,6 +94,10 @@ class RAGRetrievalService:
         expanded = await self._stage_0_expand_queries(user_message)
         logger.info("rag_stage_0_done", query_count=len(expanded))
 
+        if not expanded:
+            logger.info("rag_pipeline_skipped", reason="no_search_needed")
+            return []
+
         vector_hits = await self._stage_1_vector_search(expanded, collections=collections)
         logger.info("rag_stage_1_done", hit_count=len(vector_hits))
 
@@ -152,6 +156,9 @@ class RAGRetrievalService:
                 model_name=settings.gemini_chat_model,
             )
             if isinstance(queries, list):
+                # If the AI explicitly returned an empty list, it means no search is needed
+                if not queries:
+                    return []
                 return [q for q in queries if isinstance(q, str) and q.strip()]
             return [user_message]
         except Exception as e:

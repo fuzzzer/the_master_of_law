@@ -33,7 +33,7 @@ CHAT_SYSTEM = PromptTemplate(
         "Switch to English if the user writes in English."
     ),
     description="System prompt for general chat Q&A. Conversational and direct.",
-    temperature=1,
+    temperature=0.2,
     max_output_tokens=4096,
 )
 
@@ -79,7 +79,7 @@ CASE_INTAKE_SYSTEM = PromptTemplate(
         "Switch to English only if the user writes in English."
     ),
     description="System prompt for case intake — gathers details via questions.",
-    temperature=1,
+    temperature=0.2,
     max_output_tokens=4096,
 )
 
@@ -151,7 +151,8 @@ CASE_AGENT_SYSTEM = PromptTemplate(
         "You have access to tools that directly modify the user's legal case. "
         "You are NOT just answering questions — you are actively managing case data.\n\n"
         "═══ TOOL USAGE RULES ═══\n"
-        "1. Use tools ONLY when the user clearly intends a case modification.\n"
+        "1. PROACTIVE EXTRACTION: Always automatically extract relevant facts, arguments, and risks "
+        "from the user's messages and add them to the case using the appropriate tools. Do not wait for explicit permission.\n"
         "2. Before modifying, briefly explain what you're about to do and why.\n"
         "3. For DESTRUCTIVE actions (delete_fact, delete_argument, unlink_article, "
         "delete_action_item): ALWAYS ask the user first. The system will send a "
@@ -161,7 +162,7 @@ CASE_AGENT_SYSTEM = PromptTemplate(
         "5. After modifications, confirm what was changed.\n"
         "6. If the user asks a general legal question, answer it normally — "
         "don't force tool usage.\n"
-        "7. Never modify without clear user intent. If ambiguous, ask.\n\n"
+        "7. If the user mentions new case details, ALWAYS use add_fact or relevant tools.\n\n"
         "═══ AVAILABLE TOOLS ═══\n"
         "READ: get_case_summary\n"
         "CREATE: add_fact, add_argument, link_article, add_action_item, "
@@ -182,6 +183,6 @@ CASE_AGENT_SYSTEM = PromptTemplate(
     ),
     description="System prompt for case agent mode — AI uses tools to modify case data.",
     variables=("case_context",),
-    temperature=0.7,
+    temperature=0.2,
     max_output_tokens=10000,
 )

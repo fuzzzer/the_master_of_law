@@ -105,67 +105,59 @@ async def send_agent_message(
     law_context = LawContextFormatter.format(chunks)
 
     full_context = f"{case_context}\n\n{law_context}"
-    system_prompt = CASE_AGENT_SYSTEM.render(case_context=full_context)
-
-
-
     contents = _build_gemini_contents(history, body.message)
-
     gemini = get_vertex_ai_client()
-    tool_executor = CaseToolExecutor(db)
+
+    is_case_empty = not case_file.facts and not case_file.applicable_laws and not case_file.defense_strategies
     tool_results: list[ToolResultInfo] = []
     response_text = ""
-    tool_call_count = 0
+    case_analysis_ready = False
 
-    response = await gemini.generate_with_tools(
-        contents=contents,
-        tools=CASE_TOOLS,
-        system_instruction=system_prompt,
-        temperature=CASE_AGENT_SYSTEM.temperature,
-        max_output_tokens=CASE_AGENT_SYSTEM.max_output_tokens,
-        model_name=settings.gemini_chat_model,
-    )
-
-    while tool_call_count < MAX_TOOL_CALLS_PER_MESSAGE:
-        function_calls = _extract_function_calls(response)
-        text_parts = _extract_text(response)
-
-        if text_parts:
-            response_text += text_parts
-
-        if not function_calls:
-            break
-
-        tool_call_count += len(function_calls)
-        if tool_call_count > MAX_TOOL_CALLS_PER_MESSAGE:
-            response_text += "\n\n⚠️ Maximum tool calls per message reached."
-            break
-
-        function_response_parts = []
-        for fc in function_calls:
-            tool_name = fc.name
-            tool_args = dict(fc.args) if fc.args else {}
-
-            result = await tool_executor.execute(
-                tool_name=tool_name,
-                args=tool_args,
-                case_file_id=body.case_file_id,
-                user_id=uid,
-            )
-            tool_results.append(ToolResultInfo(**result.to_dict()))
-
-            function_response_parts.append(
-                types.Part.from_function_response(
-                    name=tool_name,
-                    response=result.to_dict(),
+    if is_case_empty:
+        # Phase 1: Intake Questions
+        from app.prompts.chat import CASE_INTAKE_SYSTEM
+        system_prompt = CASE_INTAKE_SYSTEM.render()
+        
+        # In intake phase, we don't use tools. We use standard generation
+        # We use generate_with_tools with tools=None to pass the full conversation history.
+        response = await gemini.generate_with_tools(
+            contents=contents,
+            tools=None,
+            system_instruction=system_prompt,
+            temperature=CASE_INTAKE_SYSTEM.temperature,
+            max_output_tokens=CASE_INTAKE_SYSTEM.max_output_tokens,
+            model_name=settings.gemini_chat_model,
+        )
+        response_text = _extract_text(response)
+        
+        import re
+        tag_ready = bool(re.search(r'\[CASE_READY\]', response_text))
+        if tag_ready:
+            response_text = re.sub(r'\s*\[CASE_READY\]\s*', '', response_text).rstrip()
+            
+            # Phase 2: Full Analysis and Case Building
+            from app.services.case_builder_service import get_case_builder_service
+            case_builder = get_case_builder_service()
+            try:
+                result = await case_builder.update_case_file(
+                    db=db,
+                    case_file_id=cf_uuid,
+                    conversation_id=conversation_id,
+                    retrieved_chunks=chunks,
                 )
-            )
+                
+                if "full_analysis_text" in result:
+                    response_text += "\n\n" + result["full_analysis_text"]
+                
+                case_analysis_ready = True
+            except Exception as e:
+                logger.error("case_agent_auto_build_failed", error=str(e))
 
-        contents.append(response.candidates[0].content)
-        contents.append(types.Content(
-            role="user",
-            parts=function_response_parts,
-        ))
+    else:
+        # Phase 3: Case Agent with Tools
+        system_prompt = CASE_AGENT_SYSTEM.render(case_context=full_context)
+        tool_executor = CaseToolExecutor(db)
+        tool_call_count = 0
 
         response = await gemini.generate_with_tools(
             contents=contents,
@@ -176,12 +168,62 @@ async def send_agent_message(
             model_name=settings.gemini_chat_model,
         )
 
-    final_text = _extract_text(response)
-    if final_text:
-        response_text += final_text
+        while tool_call_count < MAX_TOOL_CALLS_PER_MESSAGE:
+            function_calls = _extract_function_calls(response)
+            text_parts = _extract_text(response)
 
-    if not response_text.strip():
-        response_text = "Tool operations completed."
+            if text_parts:
+                response_text += text_parts
+
+            if not function_calls:
+                break
+
+            tool_call_count += len(function_calls)
+            if tool_call_count > MAX_TOOL_CALLS_PER_MESSAGE:
+                response_text += "\n\n⚠️ Maximum tool calls per message reached."
+                break
+
+            function_response_parts = []
+            for fc in function_calls:
+                tool_name = fc.name
+                tool_args = dict(fc.args) if fc.args else {}
+
+                result = await tool_executor.execute(
+                    tool_name=tool_name,
+                    args=tool_args,
+                    case_file_id=body.case_file_id,
+                    user_id=uid,
+                )
+                tool_results.append(ToolResultInfo(**result.to_dict()))
+
+                function_response_parts.append(
+                    types.Part.from_function_response(
+                        name=tool_name,
+                        response=result.to_dict(),
+                    )
+                )
+
+            contents.append(response.candidates[0].content)
+            contents.append(types.Content(
+                role="user",
+                parts=function_response_parts,
+            ))
+
+            response = await gemini.generate_with_tools(
+                contents=contents,
+                tools=CASE_TOOLS,
+                system_instruction=system_prompt,
+                temperature=CASE_AGENT_SYSTEM.temperature,
+                max_output_tokens=CASE_AGENT_SYSTEM.max_output_tokens,
+                model_name=settings.gemini_chat_model,
+            )
+
+        final_text = _extract_text(response)
+        if final_text:
+            response_text += final_text
+
+        if not response_text.strip():
+            response_text = "Tool operations completed."
 
     # Citation verification
     citation_svc = get_citation_service()
@@ -217,7 +259,6 @@ async def send_agent_message(
     logger.info(
         "case_agent_done",
         conversation_id=conversation_id,
-        tool_calls=tool_call_count,
         tool_results=len(tool_results),
     )
 
@@ -247,6 +288,7 @@ async def send_agent_message(
         ],
         credits_remaining=credits_remaining,
         tool_results=tool_results,
+        case_analysis_ready=case_analysis_ready,
     )
 
 
