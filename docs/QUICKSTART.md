@@ -2,7 +2,7 @@
 
 > **Zero-to-running in under 30 minutes.** 
 
-This guide will help you set up The Master of Law (კანონის ოსტატი) on your local machine for development.
+This guide covers both **local development** and **production deployment** for The Master of Law (კანონის ოსტატი).
 
 ## System Requirements
 
@@ -12,13 +12,13 @@ Ensure you have the following installed before starting:
 - **Flutter:** 3.x
 - **Docker & Docker Compose**
 - **Git**
+- **Firebase CLI:** `npm install -g firebase-tools`
+- **Google Cloud SDK:** `gcloud` (for Vertex AI)
 
 ## 1. Clone and Initial Setup
 
-Clone the repository to your local machine:
-
 ```bash
-git clone https://github.com/YOUR_REPO/the_master_of_law.git
+git clone https://github.com/fuzzzer/the_master_of_law.git
 cd the_master_of_law
 ```
 
@@ -70,7 +70,7 @@ If you are part of the core team, ask a team member for the latest `law_corpus/d
 unzip data.zip -d law_corpus/
 ```
 
-## 3. Backend Setup
+## 3. Backend Setup (Local Development)
 
 The backend uses FastAPI, PostgreSQL, Redis, and ChromaDB. We use Docker to make local development easy.
 
@@ -80,14 +80,26 @@ cd backend
 # Create your local environment variables
 cp .env.example .env
 
-# Edit .env and ensure GCP_SA_KEY_PATH points to your gcloud credentials
-# Typically: ~/.config/gcloud/application_default_credentials.json
+# Edit .env and ensure:
+# - GCP_SA_KEY_PATH points to your gcloud credentials
+#   (typically: ~/.config/gcloud/application_default_credentials.json)
+# - APP_ENV=development (enables mock auth, no API key needed)
 
 # Start the services in the background
 docker compose up -d
 
-# Run database migrations
-docker compose exec api alembic upgrade head
+# Initialize database tables
+docker compose exec api python -c "
+import asyncio
+from app.models.database import Base, get_engine
+from app.models import conversation, user, feedback, case_file, message, questionnaire, user_credits
+async def init():
+    engine = get_engine()
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    print('All tables created!')
+asyncio.run(init())
+"
 ```
 
 Verify the backend is running:
@@ -106,31 +118,37 @@ cd ../frontend
 # Get dependencies
 flutter pub get
 
-# Run the app (select your target device, e.g., iOS Simulator, Android Emulator, or Chrome)
-flutter run
+# Run the app in development mode
+flutter run --target lib/main_development.dart --flavor development
+
+# Or for web:
+flutter run -d chrome --target lib/main_development.dart
 ```
 
 ## 5. First API Call
 
-Test the RAG (Retrieval-Augmented Generation) collections endpoint to ensure the law corpus is available:
+Test the RAG collections endpoint to ensure the law corpus is available:
 
 ```bash
 curl http://localhost:8000/api/v1/rag/collections
 ```
 You should see a list of available legal sources (e.g., `georgian_laws`, `court_practice`, `grand_chamber`).
 
+---
+
 ## Common Errors and Fixes
 
-- **Port 8000 is in use:** If the backend fails to start, make sure no other service is using port 8000 (`lsof -i :8000` on macOS).
-- **Docker RAM limit:** ChromaDB requires some memory. Ensure your Docker Desktop is allocated at least 4GB of RAM.
-- **Flutter build errors:** Run `flutter clean` followed by `flutter pub get` to resolve dependency conflicts.
-- **Missing API Keys:** Some features (like the chat) require a Vertex AI/Gemini API key. Ensure `GOOGLE_API_KEY` or GCP credentials are set if testing LLM features. Note: In dev mode, the backend mocks the ADMIN user so you bypass Firebase Auth.
+- **Port 8000 is in use:** `lsof -i :8000` on macOS to find what's using it.
+- **Docker RAM limit:** Ensure Docker Desktop has at least 4GB of RAM.
+- **Flutter build errors:** Run `flutter clean && flutter pub get`.
+- **Database "table does not exist":** Run the table creation script from Section 3.
+- **Missing API Keys:** If testing LLM features without the mock auth bypass, ensure `GOOGLE_API_KEY` or GCP credentials are set.
 
 ## Verify Your Setup Checklist
 
 - [ ] Backend is running (`docker compose ps` shows `api`, `postgres`, `redis` as Up/Healthy)
 - [ ] `curl http://localhost:8000/api/v1/health` returns `ok`
-- [ ] Database migrations ran successfully
+- [ ] Database tables are created
 - [ ] Flutter app compiles and opens on a device/emulator
 - [ ] `curl http://localhost:8000/api/v1/rag/collections` returns the legal data sources
 

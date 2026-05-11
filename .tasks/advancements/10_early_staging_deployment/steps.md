@@ -64,15 +64,56 @@
    # Verify:
    sudo ufw status
    ```
+7. **Reboot (if system restart is required):**
+   ```bash
+   sudo reboot
+   ```
+   Wait ~30 seconds, then SSH back in.
 
 ## Phase 2: DNS & Cloudflare Setup
-1. **DNS Records:** In Cloudflare, add an `A` record pointing `masteroflaw.ge` to your Hetzner VPS IP.
-2. **Cloudflare Proxy:** Ensure the orange cloud (Proxy status) is turned ON. This hides your origin IP from the public and provides DDoS protection.
+1. **DNS Records:** In Cloudflare, add TWO `A` records:
+   | Type | Name | Content | Proxy |
+   |------|------|---------|-------|
+   | A | `@` (root) | `<SERVER_IP>` | Proxied ☁️ |
+   | A | `api` | `<SERVER_IP>` | Proxied ☁️ |
+2. **Cloudflare Proxy:** Ensure the orange cloud (Proxy status) is turned ON for both records. This hides your origin IP.
 3. **SSL/TLS Mode:** Go to Cloudflare SSL/TLS -> Overview, set it to **Full (Strict)**.
+4. **Cloudflare Origin Certificate:**
+   - In Cloudflare → SSL/TLS → Origin Server → Create Certificate
+   - Download the certificate (PEM) and private key
+   - On the server:
+     ```bash
+     sudo nano /etc/ssl/cloudflare-origin.pem       # paste certificate
+     sudo nano /etc/ssl/cloudflare-origin-key.pem    # paste private key
+     sudo chmod 600 /etc/ssl/cloudflare-origin-key.pem
+     ```
+5. **DNS Propagation:** After adding records, DNS can take 1-5 minutes to propagate. If your browser shows `DNS_PROBE_FINISHED_NXDOMAIN`:
+   - Change Mac DNS to `8.8.8.8` (System Settings → Wi-Fi → Details → DNS)
+   - Or wait a few minutes and retry
 
-## Phase 3: Backend Deployment (Hetzner)
+> **Important:** SSH connections CANNOT go through Cloudflare proxy. Always use the server's **actual IP** for SSH/SCP/rsync — never the domain name.
 
-### 3A. Initial Server Setup (one-time)
+## Phase 3: GCP Service Account (for Vertex AI)
+1. **Create a dedicated service account:**
+   ```bash
+   gcloud iam service-accounts create master-of-law-backend \
+     --display-name="Master of Law Backend"
+   ```
+2. **Grant Vertex AI access:**
+   ```bash
+   gcloud projects add-iam-policy-binding master-of-law-prod \
+     --member="serviceAccount:master-of-law-backend@master-of-law-prod.iam.gserviceaccount.com" \
+     --role="roles/aiplatform.user"
+   ```
+3. **Generate the key file:**
+   ```bash
+   gcloud iam service-accounts keys create ~/Downloads/mol-backend-key.json \
+     --iam-account=master-of-law-backend@master-of-law-prod.iam.gserviceaccount.com
+   ```
+
+## Phase 4: Backend Deployment (Hetzner)
+
+### 4A. Initial Server Setup (one-time)
 1. **Install Docker on the server:**
    ```bash
    sudo apt update && sudo apt install -y docker.io docker-compose-plugin
@@ -90,26 +131,35 @@
    cd the_master_of_law
    ```
 
-### 3B. Transfer Gitignored Secrets (from Mac)
+### 4B. Transfer Gitignored Secrets (from Mac)
 These files are in `.gitignore` so they must be copied manually via `scp`.
+Always use the **server IP** (not domain) for SSH/SCP.
 
 1. **Backend `.env`:**
    ```bash
    scp backend/.env fuzzzer@<SERVER_IP>:/var/www/the_master_of_law/backend/.env
    ```
    Then SSH in and update the production-specific values:
+   - `APP_ENV=production`
    - `GCP_SA_KEY_PATH=/etc/master-of-law/gcp-sa-key.json`
-   - `APP_CORS_ORIGINS` to include your Firebase domain
-   - Generate fresh passwords for `POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `APP_SECRET_KEY`, `ADMIN_API_KEY`
+   - `APP_CORS_ORIGINS=https://master-of-law.web.app`
+   - Generate fresh passwords for `POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `APP_SECRET_KEY`, `ADMIN_API_KEY`:
+     ```bash
+     python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+     ```
 
 2. **GCP Service Account Key:**
    ```bash
    # On server: create the directory
-   ssh fuzzzer@<SERVER_IP> "sudo mkdir -p /etc/master-of-law && sudo chown fuzzzer:fuzzzer /etc/master-of-law"
+   sudo mkdir -p /etc/master-of-law && sudo chown fuzzzer:fuzzzer /etc/master-of-law
+   ```
+   ```bash
    # From Mac: copy the key
-   scp ~/.config/gcloud/application_default_credentials.json fuzzzer@<SERVER_IP>:/etc/master-of-law/gcp-sa-key.json
+   scp ~/Downloads/mol-backend-key.json fuzzzer@<SERVER_IP>:/etc/master-of-law/gcp-sa-key.json
+   ```
+   ```bash
    # On server: lock it down
-   ssh fuzzzer@<SERVER_IP> "chmod 600 /etc/master-of-law/gcp-sa-key.json"
+   chmod 600 /etc/master-of-law/gcp-sa-key.json
    ```
 
 3. **Law Corpus Data** (ChromaDB collections):
@@ -118,16 +168,23 @@ These files are in `.gitignore` so they must be copied manually via `scp`.
    rsync -avz --progress law_corpus/data/ fuzzzer@<SERVER_IP>:/var/www/the_master_of_law/law_corpus/data/
    ```
 
-### 3C. First Launch (on server)
+### 4C. First Launch (on server)
 ```bash
 cd /var/www/the_master_of_law/backend
 docker compose up -d --build
-# Verify:
+# Verify all 3 services are running:
 docker compose ps
 docker compose logs -f api
 ```
 
-### 3D. Server-Side Redeploy Script
+### 4D. Initialize Database Tables
+The database starts empty — tables must be created manually using the provided initialization script:
+```bash
+cd /var/www/the_master_of_law/backend
+docker compose exec api python scripts/init_db.py
+```
+
+### 4E. Server-Side Redeploy Script
 Create `/var/www/the_master_of_law/redeploy.sh` on the server:
 ```bash
 #!/bin/bash
@@ -143,7 +200,7 @@ docker compose ps
 ```
 Make it executable: `chmod +x /var/www/the_master_of_law/redeploy.sh`
 
-### 3E. Deployment Workflow (from Mac)
+### 4F. Deployment Workflow (from Mac)
 Two options — both work:
 
 **Option A: From Mac (automated)** — uses existing scripts:
@@ -160,41 +217,52 @@ git push origin main
 cd /var/www/the_master_of_law && ./redeploy.sh
 ```
 
-## Phase 4: Nginx & SSL (Backend Proxy)
+## Phase 5: Nginx & SSL (Backend Proxy)
 1. **Install Nginx:**
    ```bash
-   sudo apt install nginx
+   sudo apt install -y nginx
    ```
 2. **Configure Nginx:**
-   - Create config: `sudo nano /etc/nginx/sites-available/api.zrdai.work`
-   - Copy contents from `.tasks/advancements/10_early_staging_deployment/nginx.conf.example`
-   - Update `server_name` to `api.zrdai.work`
-   - *Note:* Since the frontend is on Firebase, Nginx only serves the API (`/api` and `/ws` paths).
-   - Link it: `sudo ln -s /etc/nginx/sites-available/api.zrdai.work /etc/nginx/sites-enabled/`
-   - Remove the default: `sudo rm /etc/nginx/sites-enabled/default`
-3. **SSL with Cloudflare Origin Certificate** (already created):
-   - Certificates are already at `/etc/ssl/cloudflare-origin.pem` and `/etc/ssl/cloudflare-origin-key.pem`
-   - Add to your Nginx config:
-     ```nginx
-     ssl_certificate     /etc/ssl/cloudflare-origin.pem;
-     ssl_certificate_key /etc/ssl/cloudflare-origin-key.pem;
-     ```
-   - Test and restart: `sudo nginx -t && sudo systemctl restart nginx`
+   ```bash
+   # Copy the provided nginx configuration example
+   sudo cp /var/www/the_master_of_law/backend/scripts/nginx.conf.example /etc/nginx/sites-available/api.zrdai.work
+   ```
+3. **Enable the site:**
+   ```bash
+   sudo ln -s /etc/nginx/sites-available/api.zrdai.work /etc/nginx/sites-enabled/
+   sudo rm -f /etc/nginx/sites-enabled/default
+   sudo nginx -t && sudo systemctl restart nginx
+   ```
 
-## Phase 5: Frontend Deployment (Firebase Hosting)
-1. **Initial Setup (First time only):**
-   - Open your local terminal in the `frontend/` directory.
-   - Run `firebase login` to authenticate.
-   - Run `firebase init hosting`.
-   - Select your existing Firebase project (`gen-lang-client-0225498420`).
-   - For "What do you want to use as your public directory?", type `build/web`.
-   - For "Configure as a single-page app?", type `y` (Yes).
-   - For "Set up automatic builds and deploys with GitHub?", type `N` (No, we use our own `deploy.sh`).
-2. **Deploy:**
-   - Run the `./deploy.sh` script from the project root (or `cd frontend && ./deploy.sh`). This automatically runs `flutter build web --release` and `firebase deploy --only hosting`.
+## Phase 6: Frontend Deployment (Firebase Hosting)
+1. **Create Firebase project** at [console.firebase.google.com](https://console.firebase.google.com):
+   - Project name: `master-of-law`
+   - Skip Google Analytics
+2. **Initialize (first time only):**
+   ```bash
+   cd frontend
+   firebase login
+   firebase init hosting
+   ```
+   - Select project: `master-of-law`
+   - Public directory: `build/web`
+   - Single-page app: `y`
+   - GitHub deploys: `N`
+3. **Deploy:**
+   ```bash
+   cd frontend
+   ./bump.sh    # increment version
+   ./deploy.sh  # builds Flutter web + deploys to Firebase
+   ```
+   Or manually:
+   ```bash
+   flutter build web --release --target lib/main_production.dart
+   firebase deploy --only hosting
+   ```
+4. **Live URL:** `https://master-of-law.web.app`
 
-## Phase 5: Generating Access Keys
-1. Open the deployed application (e.g., `https://masteroflaw.ge`).
+## Phase 7: Generating Access Keys
+1. Open the deployed application at `https://master-of-law.web.app`.
 2. When prompted for the Staging API Key, enter the exact `ADMIN_API_KEY` string you defined in the backend `.env` file.
 3. Once authenticated, you will see a purple Admin Panel floating button in the bottom right corner of the screen.
 4. Click the button to automatically generate a secure user `sk_...` key.
@@ -202,7 +270,33 @@ cd /var/www/the_master_of_law && ./redeploy.sh
 
 ---
 
-## Analysis of Impenetrability (Security Posture)
+## Troubleshooting
+
+### DNS not resolving
+- Cloudflare DNS propagation takes 1-5 minutes after adding records
+- Flush Mac DNS cache: `sudo dscacheutil -flushcache && sudo killall -HUP mDNSResponder`
+- Or change Mac DNS to 8.8.8.8 temporarily
+- Verify with: `dig api.zrdai.work +short @8.8.8.8`
+
+### CORS errors in browser
+- Ensure `APP_CORS_ORIGINS` in server `.env` exactly matches frontend URL (e.g., `https://master-of-law.web.app`)
+- After changing `.env`, restart: `docker compose restart api`
+
+### Database "table does not exist" errors
+- Run the table creation command from Phase 4D
+- All model files must be imported for `create_all` to find them
+
+### WebSocket "connection closed immediately"
+- Check that Nginx config includes WebSocket headers (Phase 5)
+- Verify the frontend passes `api_key` as query parameter for WS auth
+
+### SSH "permission denied" or "password required"
+- Always use the server **IP** for SSH — never the Cloudflare-proxied domain
+- Ensure your SSH key is in `~/.ssh/authorized_keys` on the server
+
+---
+
+## Architecture & Security Posture
 
 ### The Defenses
 1. **Infrastructure Level (Cloudflare + Hetzner + UFW):**
@@ -223,7 +317,7 @@ cd /var/www/the_master_of_law && ./redeploy.sh
 2. **Leaked Admin Key:** If the `ADMIN_API_KEY` is leaked, anyone could generate user keys and abuse the API. 
    - *Mitigation:* Treat this key like a production database password. Do not hardcode it in Git; keep it strictly inside the VPS `.env` file.
 3. **Origin IP Discovery:** If an attacker finds the real Hetzner IP, they could theoretically bypass Cloudflare and hit Nginx directly. 
-   - *Mitigation:* Nginx relies on the `server_name` directive. If traffic hits the IP directly without the `Host` header set to `masteroflaw.ge`, Nginx will drop it. For maximum impenetrability, configure UFW to only allow incoming traffic on ports 80/443 from Cloudflare's officially published IP ranges.
+   - *Mitigation:* Nginx relies on the `server_name` directive. If traffic hits the IP directly without the `Host` header set to `api.zrdai.work`, Nginx will drop it. For maximum impenetrability, configure UFW to only allow incoming traffic on ports 80/443 from Cloudflare's officially published IP ranges.
 
 **Conclusion:** 
 For an early staging environment, this architecture is exceptionally robust. The separation of concerns (Cloudflare -> Nginx -> FastAPI -> Internal DB) ensures multiple layers of impenetrable walls, and the strict API key middleware provides absolute certainty against unauthorized AI usage and credit draining.
