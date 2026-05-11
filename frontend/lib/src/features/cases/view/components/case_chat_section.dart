@@ -298,7 +298,9 @@ class _CaseChatSectionState extends State<CaseChatSection> {
           Expanded(
             child: BlocConsumer<ConsultationCubit, ConsultationState>(
               listenWhen: (prev, curr) => prev.messages.length != curr.messages.length,
-              listener: (context, state) => _scrollToBottom(),
+              listener: (context, state) {
+                _scrollToBottom();
+              },
               builder: (context, state) {
                 if (!_initialized || (state.status.isLoading && state.messages.isEmpty)) {
                   return Center(
