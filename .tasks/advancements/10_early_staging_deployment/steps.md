@@ -2,15 +2,68 @@
 
 ## Phase 1: VPS Provisioning & Initial Security (Hetzner)
 1. **Create VPS:** Provision an Ubuntu 24.04 server in Hetzner Cloud.
-2. **Initial Server Security:**
-   - Create a non-root user (e.g., `fuzzzer`).
-   - Setup SSH key authentication for `fuzzzer` and disable root login.
-   - Disable password authentication in `/etc/ssh/sshd_config` (`PasswordAuthentication no`).
-   - Configure UFW (Uncomplicated Firewall):
-     - `sudo ufw allow OpenSSH`
-     - `sudo ufw allow 80/tcp`
-     - `sudo ufw allow 443/tcp`
-     - `sudo ufw enable`
+2. **Create Non-Root User (on the server as root):**
+   ```bash
+   adduser fuzzzer
+   usermod -aG sudo fuzzzer
+   ```
+3. **SSH Key Authentication:**
+   - **Generate a key on your LOCAL machine** (Mac/Linux/Windows — run locally, not on the server):
+     ```bash
+     # Check if you already have a key:
+     ls ~/.ssh/id_ed25519.pub
+     # If not, generate one:
+     ssh-keygen -t ed25519 -C "fuzzzer-mac"
+     # Press Enter for default path, optionally set a passphrase.
+     ```
+   - **Copy the public key to the server** (while password auth still works):
+     ```bash
+     ssh-copy-id fuzzzer@<SERVER_IP>
+     ```
+   - **Verify key login works** — open a NEW terminal:
+     ```bash
+     ssh fuzzzer@<SERVER_IP>
+     # Should log in WITHOUT asking for a password.
+     ```
+   - **Repeat for every device** you want SSH access from (each device gets its own key pair).
+4. **Disable Root Login & Password Auth (on the server):**
+   - ⚠️ Only do this AFTER verifying key login works. Keep your current session open!
+   - Edit the SSH config:
+     ```bash
+     sudo nano /etc/ssh/sshd_config
+     ```
+   - Find (or add) these lines and set them to:
+     ```
+     PermitRootLogin no
+     PasswordAuthentication no
+     ```
+   - Also check drop-in overrides:
+     ```bash
+     cat /etc/ssh/sshd_config.d/*.conf
+     # If any file sets PermitRootLogin or PasswordAuthentication, change those too.
+     ```
+   - Restart SSH:
+     ```bash
+     sudo systemctl restart sshd
+     ```
+   - Test again in a NEW terminal before closing anything.
+5. **Adding a New Device Later (after password auth is disabled):**
+   - On the new device, generate a key: `ssh-keygen -t ed25519 -C "fuzzzer-new-device"`
+   - Print the public key: `cat ~/.ssh/id_ed25519.pub`
+   - From an already-authorized device, append it to the server:
+     ```bash
+     ssh fuzzzer@<SERVER_IP> "echo 'PASTE_PUBLIC_KEY_HERE' >> ~/.ssh/authorized_keys"
+     ```
+   - Alternative: use Hetzner's web Console (Dashboard → Server → Console) to temporarily re-enable password auth.
+6. **Configure UFW (Uncomplicated Firewall):**
+   ```bash
+   sudo ufw allow OpenSSH
+   sudo ufw allow 80/tcp
+   sudo ufw allow 443/tcp
+   sudo ufw enable
+   # Verify:
+   sudo ufw status
+   ```
 
 ## Phase 2: DNS & Cloudflare Setup
 1. **DNS Records:** In Cloudflare, add an `A` record pointing `masteroflaw.ge` to your Hetzner VPS IP.
