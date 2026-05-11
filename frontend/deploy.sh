@@ -24,7 +24,9 @@ if [[ "$CURRENT_VERSION" == "$LAST_VERSION" ]]; then
 fi
 
 echo "🌐 Deploying Frontend to Firebase..."
-flutter build web --release || { echo "❌ Build failed"; exit 1; }
+flutter build web --release \
+    --target lib/main_production.dart \
+    || { echo "❌ Build failed"; exit 1; }
 firebase deploy --only hosting || { echo "❌ Firebase deploy failed"; exit 1; }
 
 echo "$CURRENT_VERSION" > "$STATE_FILE"

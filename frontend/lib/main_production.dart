@@ -3,7 +3,7 @@ import 'src/src.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  appEnvironment = Environment.development;
+  appEnvironment = Environment.production;
   await Environment.initialize();
 
   ThemasteroflawApp.run();

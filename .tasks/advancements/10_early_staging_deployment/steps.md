@@ -71,26 +71,115 @@
 3. **SSL/TLS Mode:** Go to Cloudflare SSL/TLS -> Overview, set it to **Full (Strict)**.
 
 ## Phase 3: Backend Deployment (Hetzner)
-1. **Clone & Setup:** Clone the repository on the VPS.
-2. **Backend Configuration:**
-   - Create the `.env` file from `.env.example` in the `backend/` directory.
-   - Update `APP_CORS_ORIGINS` to include your Firebase domain (e.g., `https://the-master-of-law.web.app`).
-   - Set `ADMIN_API_KEY` to a strong, random secret.
-   - Run `docker compose up -d --build`. This starts FastAPI, PostgreSQL, and Redis within the secure internal Docker network.
+
+### 3A. Initial Server Setup (one-time)
+1. **Install Docker on the server:**
+   ```bash
+   sudo apt update && sudo apt install -y docker.io docker-compose-plugin
+   sudo usermod -aG docker fuzzzer
+   # Log out and back in for group to take effect:
+   exit
+   ssh fuzzzer@<SERVER_IP>
+   ```
+2. **Clone the repo:**
+   ```bash
+   sudo mkdir -p /var/www
+   sudo chown fuzzzer:fuzzzer /var/www
+   cd /var/www
+   git clone https://github.com/fuzzzer/the_master_of_law.git
+   cd the_master_of_law
+   ```
+
+### 3B. Transfer Gitignored Secrets (from Mac)
+These files are in `.gitignore` so they must be copied manually via `scp`.
+
+1. **Backend `.env`:**
+   ```bash
+   scp backend/.env fuzzzer@<SERVER_IP>:/var/www/the_master_of_law/backend/.env
+   ```
+   Then SSH in and update the production-specific values:
+   - `GCP_SA_KEY_PATH=/etc/master-of-law/gcp-sa-key.json`
+   - `APP_CORS_ORIGINS` to include your Firebase domain
+   - Generate fresh passwords for `POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `APP_SECRET_KEY`, `ADMIN_API_KEY`
+
+2. **GCP Service Account Key:**
+   ```bash
+   # On server: create the directory
+   ssh fuzzzer@<SERVER_IP> "sudo mkdir -p /etc/master-of-law && sudo chown fuzzzer:fuzzzer /etc/master-of-law"
+   # From Mac: copy the key
+   scp ~/.config/gcloud/application_default_credentials.json fuzzzer@<SERVER_IP>:/etc/master-of-law/gcp-sa-key.json
+   # On server: lock it down
+   ssh fuzzzer@<SERVER_IP> "chmod 600 /etc/master-of-law/gcp-sa-key.json"
+   ```
+
+3. **Law Corpus Data** (ChromaDB collections):
+   ```bash
+   # From Mac: sync the law corpus data directory
+   rsync -avz --progress law_corpus/data/ fuzzzer@<SERVER_IP>:/var/www/the_master_of_law/law_corpus/data/
+   ```
+
+### 3C. First Launch (on server)
+```bash
+cd /var/www/the_master_of_law/backend
+docker compose up -d --build
+# Verify:
+docker compose ps
+docker compose logs -f api
+```
+
+### 3D. Server-Side Redeploy Script
+Create `/var/www/the_master_of_law/redeploy.sh` on the server:
+```bash
+#!/bin/bash
+cd /var/www/the_master_of_law || exit 1
+echo "📥 Pulling latest code..."
+git pull origin main
+echo "🔨 Rebuilding backend..."
+cd backend
+docker compose build
+docker compose up -d
+echo "✅ Redeployed. Checking status..."
+docker compose ps
+```
+Make it executable: `chmod +x /var/www/the_master_of_law/redeploy.sh`
+
+### 3E. Deployment Workflow (from Mac)
+Two options — both work:
+
+**Option A: From Mac (automated)** — uses existing scripts:
+```bash
+./bump.sh    # bumps version, commits, tags, pushes to GitHub
+./deploy.sh  # SSHs into server, pulls code, rebuilds containers
+```
+
+**Option B: Manual** — when you want more control:
+```bash
+# On Mac:
+git push origin main
+# On server (SSH in):
+cd /var/www/the_master_of_law && ./redeploy.sh
+```
 
 ## Phase 4: Nginx & SSL (Backend Proxy)
-1. **Install Nginx:** `sudo apt install nginx`.
-2. **Configure Nginx:** 
-   - Create a configuration file: `sudo nano /etc/nginx/sites-available/masteroflaw.ge`.
-   - Copy the contents from `.tasks/advancements/10_early_staging_deployment/nginx.conf.example`.
-   - *Note:* Since the frontend is on Firebase, you can remove the `/` location block serving static files from Nginx, or just point the root API to `/api`.
-   - Link it: `sudo ln -s /etc/nginx/sites-available/masteroflaw.ge /etc/nginx/sites-enabled/`.
-   - Remove the default config: `sudo rm /etc/nginx/sites-enabled/default`.
-3. **Certbot (Let's Encrypt):**
-   - Install Certbot: `sudo apt install certbot python3-certbot-nginx`.
-   - Generate SSL certificate: `sudo certbot --nginx -d masteroflaw.ge -d www.masteroflaw.ge`.
-   - Certbot will automatically update your Nginx config with the correct SSL certificate paths.
-   - Restart Nginx: `sudo systemctl restart nginx`.
+1. **Install Nginx:**
+   ```bash
+   sudo apt install nginx
+   ```
+2. **Configure Nginx:**
+   - Create config: `sudo nano /etc/nginx/sites-available/api.zrdai.work`
+   - Copy contents from `.tasks/advancements/10_early_staging_deployment/nginx.conf.example`
+   - Update `server_name` to `api.zrdai.work`
+   - *Note:* Since the frontend is on Firebase, Nginx only serves the API (`/api` and `/ws` paths).
+   - Link it: `sudo ln -s /etc/nginx/sites-available/api.zrdai.work /etc/nginx/sites-enabled/`
+   - Remove the default: `sudo rm /etc/nginx/sites-enabled/default`
+3. **SSL with Cloudflare Origin Certificate** (already created):
+   - Certificates are already at `/etc/ssl/cloudflare-origin.pem` and `/etc/ssl/cloudflare-origin-key.pem`
+   - Add to your Nginx config:
+     ```nginx
+     ssl_certificate     /etc/ssl/cloudflare-origin.pem;
+     ssl_certificate_key /etc/ssl/cloudflare-origin-key.pem;
+     ```
+   - Test and restart: `sudo nginx -t && sudo systemctl restart nginx`
 
 ## Phase 5: Frontend Deployment (Firebase Hosting)
 1. **Initial Setup (First time only):**
