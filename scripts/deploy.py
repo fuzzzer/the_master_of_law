@@ -6,8 +6,8 @@ import subprocess
 import sys
 
 # Configuration for VPS
-VPS_USER = "mol_admin"
-VPS_HOST = "masteroflaw.ge"
+VPS_USER = "fuzzzer"
+VPS_HOST = "api.zrdai.work"
 VPS_DIR = "/var/www/the_master_of_law"
 
 DEPLOY_STATE_FILE = ".last_deployed_versions.json"
