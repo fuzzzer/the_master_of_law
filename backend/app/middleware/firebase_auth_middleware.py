@@ -47,6 +47,10 @@ class FirebaseAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint):
         path = request.url.path
 
+        # CORS preflight requests must pass through unauthenticated
+        if request.method == "OPTIONS":
+            return await call_next(request)
+
         # Skip auth for public endpoints
         if path in PUBLIC_PATHS or path.startswith(PUBLIC_PREFIXES):
             return await call_next(request)
