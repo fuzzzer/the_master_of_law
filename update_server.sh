@@ -9,9 +9,9 @@ git pull origin main
 
 echo "🔄 Rebuilding and restarting backend container..."
 # Build the new image and recreate the container in detached mode
-# We only target the 'backend' service to prevent downtime for DB, Redis, etc.
+# We only target the 'api' service to prevent downtime for DB, Redis, etc.
 cd backend
-docker compose up -d --build backend
+docker compose up -d --build api
 
 echo "🧹 Cleaning up old unused images to save disk space..."
 docker image prune -f
