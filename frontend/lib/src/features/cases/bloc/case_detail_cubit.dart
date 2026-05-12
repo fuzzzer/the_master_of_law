@@ -298,31 +298,39 @@ class CaseDetailCubit extends Cubit<CaseDetailState> {
       var i = 0;
       for (final chunk in retrievedChunks) {
         if (chunk is! Map<String, dynamic>) continue;
-        final articleId = chunk['article_number']?.toString() ?? 'rag_art_${idBase}_${i++}';
-        // Avoid adding duplicates if already added by applicable_laws
-        if (!caseData.linkedArticles.any((a) => a.articleId == articleId)) {
+        final rawArticleId = chunk['article_number']?.toString() ?? 'rag_art_${idBase}_${i++}';
+        final codeName = chunk['code_name']?.toString() ?? '';
+        final articleText = chunk['article_text']?.toString() ?? chunk['article_title']?.toString() ?? '';
+        final articleUrl = chunk['article_url']?.toString();
+
+        // Normalise article IDs to match accurately (e.g. "მუხლი 150" vs "150")
+        String normalizeArticle(String a) => a.replaceAll('მუხლი', '').trim();
+        final normRawId = normalizeArticle(rawArticleId);
+
+        final existingIdx = caseData.linkedArticles.indexWhere((a) => 
+            a.codeName == codeName && normalizeArticle(a.articleId) == normRawId);
+
+        if (existingIdx == -1) {
           caseData.linkedArticles.add(
             LinkedArticleData(
-              articleId: articleId,
-              title: '${chunk['code_name'] ?? ''} ${chunk['article_number'] ?? ''}',
-              codeName: chunk['code_name']?.toString() ?? '',
-              snippet: chunk['article_text']?.toString() ?? chunk['article_title']?.toString() ?? '',
+              articleId: rawArticleId,
+              title: '$codeName $rawArticleId',
+              codeName: codeName,
+              snippet: articleText,
               savedAt: now,
-              url: chunk['article_url']?.toString(),
+              url: articleUrl,
             ),
           );
         } else {
-          // If already exists, update URL and snippet if missing
-          final existing = caseData.linkedArticles.firstWhere((a) => a.articleId == articleId);
+          final existing = caseData.linkedArticles[existingIdx];
           if (existing.url == null || existing.url!.isEmpty) {
-            final idx = caseData.linkedArticles.indexOf(existing);
-            caseData.linkedArticles[idx] = LinkedArticleData(
+            caseData.linkedArticles[existingIdx] = LinkedArticleData(
               articleId: existing.articleId,
               title: existing.title,
               codeName: existing.codeName,
-              snippet: existing.snippet.isEmpty ? (chunk['article_text']?.toString() ?? '') : existing.snippet,
+              snippet: existing.snippet.isEmpty ? articleText : existing.snippet,
               savedAt: existing.savedAt,
-              url: chunk['article_url']?.toString(),
+              url: articleUrl,
             );
           }
         }

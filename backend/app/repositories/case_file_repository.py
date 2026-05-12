@@ -54,9 +54,20 @@ class CaseFileRepository:
         cf = await self.get_by_id(case_file_id)
         if not cf:
             return None
+        
+        from sqlalchemy.orm.attributes import flag_modified
+        json_columns = {
+            "facts", "evidence", "applicable_laws", "defense_strategies", 
+            "prosecution_args", "action_checklist", "unclear_items", 
+            "lawyer_brief", "citations", "retrieved_chunks"
+        }
+        
         for k, v in kwargs.items():
             if hasattr(cf, k) and v is not None:
                 setattr(cf, k, v)
+                if k in json_columns:
+                    flag_modified(cf, k)
+                    
         await self._db.flush()
         return cf
 

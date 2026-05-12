@@ -91,7 +91,7 @@ class ConsultationCubit extends Cubit<ConsultationState> {
     );
 
     emit(state.copyWith(
-      messages: [...state.messages, userMsg, aiMsg], 
+      messages: [...state.messages, userMsg], 
       isSending: true,
       streamingMessageId: streamingId,
       clearStreamingStatus: true,
@@ -124,7 +124,15 @@ class ConsultationCubit extends Cubit<ConsultationState> {
               isUser: false,
               timestamp: oldMsg.timestamp,
             );
-            emit(state.copyWith(messages: msgs, clearStreamingStatus: true));
+            emit(state.copyWith(messages: msgs, clearStreamingStatus: true, isSending: false));
+          } else {
+            final aiMsg = ChatMessage(
+              id: streamingId,
+              text: event['content']?.toString() ?? '',
+              isUser: false, timestamp: DateTime.now(),
+            );
+            msgs.add(aiMsg);
+            emit(state.copyWith(messages: msgs, clearStreamingStatus: true, isSending: false));
           }
         } else if (type == 'tool_executed') {
           toolResultsCollected.add(ToolResultData(
@@ -161,14 +169,25 @@ class ConsultationCubit extends Cubit<ConsultationState> {
               trustLevel: event['trust_level']?.toString(),
               toolResults: toolResultsCollected.isNotEmpty ? toolResultsCollected : null,
             );
-            emit(state.copyWith(
-              messages: msgs,
-              isSending: false,
-              clearStreamingStatus: true,
-              clearStreamingMessageId: true,
-              caseAnalysisReady: event['case_analysis_ready'] == true,
-            ));
+          } else {
+            final aiMsg = ChatMessage(
+              id: streamingId,
+              text: event['full_response']?.toString() ?? '',
+              isUser: false,
+              timestamp: DateTime.now(),
+              citations: _parseChatCitations(event['citations']),
+              trustLevel: event['trust_level']?.toString(),
+              toolResults: toolResultsCollected.isNotEmpty ? toolResultsCollected : null,
+            );
+            msgs.add(aiMsg);
           }
+          emit(state.copyWith(
+            messages: msgs,
+            isSending: false,
+            clearStreamingStatus: true,
+            clearStreamingMessageId: true,
+            caseAnalysisReady: event['case_analysis_ready'] == true,
+          ));
           break;
         } else if (type == 'error') {
           final errorMsg = ChatMessage(
@@ -391,6 +410,7 @@ class ConsultationCubit extends Cubit<ConsultationState> {
         codeTitle: map['code_title']?.toString() ?? '',
         snippet: map['snippet']?.toString() ?? '',
         trustLevel: map['trust_level']?.toString() ?? 'guidance',
+        url: map['article_url']?.toString() ?? map['source_url']?.toString(),
       );
     }).toList();
   }
@@ -405,6 +425,7 @@ class ConsultationCubit extends Cubit<ConsultationState> {
         codeTitle: map['code_name']?.toString() ?? map['code_title']?.toString() ?? '',
         snippet: map['citation_text']?.toString() ?? map['snippet']?.toString() ?? '',
         trustLevel: map['verified'] == true ? 'verified' : 'guidance',
+        url: map['article_url']?.toString() ?? map['source_url']?.toString(),
       );
     }).toList();
   }
