@@ -84,6 +84,7 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                 continue
 
             mode = payload.get("mode", "chat")
+            case_context = payload.get("case_context")
 
             # Parse optional rag_config from WS message
             rag_config_data = payload.get("rag_config")
@@ -155,6 +156,14 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                         "message": f"Found {len(chunks)} relevant articles. Analyzing..."
                     })
 
+                    # Build Conversation Status metadata
+                    conv_status_metadata = {
+                        "Current Phase": conv.get("phase", "UNKNOWN"),
+                        "Message Count": len(history),
+                        "System Mode": mode,
+                        "User ID": uid,
+                    }
+
                     # Select system prompt based on mode
                     system_prompt = CASE_INTAKE_SYSTEM if mode == "case_intake" else CHAT_SYSTEM
 
@@ -167,6 +176,8 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                         conversation_history=history if history else None,
                         system_prompt=system_prompt,
                         model_name=settings.gemini_chat_model,
+                        case_context=case_context,
+                        conversation_status=conv_status_metadata,
                     ):
                         response_text += chunk
                         await websocket.send_json({

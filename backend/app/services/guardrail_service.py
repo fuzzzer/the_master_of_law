@@ -89,6 +89,9 @@ class GuardrailService:
                 max_output_tokens=50,
                 response_mime_type="application/json",
             )
+            if not raw:
+                logger.warning("guardrail_classification_empty", message="Empty response from Gemini")
+                return GuardrailDecision(category="legal", confidence=0.0, should_proceed=True)
             parsed = json.loads(raw)
             category = parsed.get("category", "legal")
             confidence = float(parsed.get("confidence", 0.5))

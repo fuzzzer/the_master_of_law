@@ -204,6 +204,8 @@ class LegalAnalysisService:
         conversation_history: list[dict[str, str]] | None = None,
         system_prompt: PromptTemplate | None = None,
         model_name: str | None = None,
+        case_context: str | None = None,
+        conversation_status: dict[str, Any] | None = None,
     ) -> str:
         """
         Generate a legal analysis response.
@@ -212,12 +214,16 @@ class LegalAnalysisService:
             user_message: The user's current message.
             retrieved_chunks: Law chunks from the RAG pipeline.
             conversation_history: Previous messages for context.
+            system_prompt: Optional override for system prompt.
+            model_name: Optional override for model.
+            case_context: Optional context from an existing case file.
+            conversation_status: Metadata about the conversation state.
 
         Returns:
             The AI-generated legal analysis text.
         """
         user_prompt = self._build_user_prompt(
-            user_message, retrieved_chunks, conversation_history,
+            user_message, retrieved_chunks, conversation_history, case_context, conversation_status
         )
 
         prompt_tpl = system_prompt or LEGAL_ANALYSIS_SYSTEM
@@ -252,12 +258,14 @@ class LegalAnalysisService:
         conversation_history: list[dict[str, str]] | None = None,
         system_prompt: PromptTemplate | None = None,
         model_name: str | None = None,
+        case_context: str | None = None,
+        conversation_status: dict[str, Any] | None = None,
     ):
         """
         Generate a legal analysis response in a stream.
         """
         user_prompt = self._build_user_prompt(
-            user_message, retrieved_chunks, conversation_history,
+            user_message, retrieved_chunks, conversation_history, case_context, conversation_status
         )
 
         prompt_tpl = system_prompt or LEGAL_ANALYSIS_SYSTEM
@@ -326,9 +334,24 @@ class LegalAnalysisService:
         user_message: str,
         chunks: list[dict[str, Any]],
         history: list[dict[str, str]] | None,
+        case_context: str | None = None,
+        conversation_status: dict[str, Any] | None = None,
     ) -> str:
         """Assemble the full user prompt from law context + history + message."""
-        parts = [self._law_formatter.format(chunks), "\n---\n"]
+        parts = []
+        if conversation_status:
+            parts.append("SYSTEM METADATA FOR AI AWARENESS:")
+            for k, v in conversation_status.items():
+                parts.append(f"- {k}: {v}")
+            parts.append("\n---\n")
+
+        if case_context:
+            parts.append("CURRENT CASE CONTEXT (For your awareness):")
+            parts.append(case_context)
+            parts.append("\n---\n")
+
+        parts.append(self._law_formatter.format(chunks))
+        parts.append("\n---\n")
 
         if history:
             parts.append(self._history_formatter.format(history))
