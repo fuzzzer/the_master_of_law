@@ -19,23 +19,10 @@ Run this workflow after you:
 
 ## Step 1: Scan Current State
 
-Run these commands to get accurate numbers:
+Run this command to get accurate numbers:
 
 ```bash
-# Backend stats
-echo "=== Endpoints ===" && grep -r "@router\." backend/app/routes/ --include="*.py" | wc -l
-echo "=== Router files ===" && find backend/app/routes -name "*.py" ! -name "__init__.py" | wc -l
-echo "=== Services ===" && find backend/app/services -name "*.py" ! -name "__init__.py" | wc -l
-echo "=== Repositories ===" && find backend/app/repositories -name "*.py" ! -name "__init__.py" | wc -l
-echo "=== Models ===" && find backend/app/models -name "*.py" ! -name "__init__.py" | wc -l
-echo "=== Schemas ===" && find backend/app/schemas -name "*.py" ! -name "__init__.py" | wc -l
-echo "=== Test files ===" && find backend/tests -name "test_*.py" -o -name "*_test.py" | wc -l
-echo "=== Test functions ===" && find backend/tests -name "test_*.py" -o -name "*_test.py" | xargs grep -c "def test_" | awk -F: '{sum+=$2} END {print sum}'
-echo "=== Python files ===" && find backend/app -name "*.py" | wc -l
-echo "=== Lines of code ===" && find backend/app -name "*.py" | xargs wc -l | tail -1
-
-# Frontend stats
-echo "=== Flutter features ===" && find frontend/lib/src/features -maxdepth 1 -type d | tail -n +2
+./scripts/codebase_stats.sh
 ```
 
 ## Step 2: Compare With Documented State
