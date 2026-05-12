@@ -96,6 +96,7 @@ class ConsultationRepository {
     Map<String, dynamic>? ragConfig,
     String mode = 'chat',
     String? caseContext,
+    String? caseFileId,
   }) {
     return _remoteDataSource.streamMessage(
       conversationId: conversationId,
@@ -103,6 +104,7 @@ class ConsultationRepository {
       ragConfig: ragConfig,
       mode: mode,
       caseContext: caseContext,
+      caseFileId: caseFileId,
     );
   }
 

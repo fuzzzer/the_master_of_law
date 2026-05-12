@@ -3,9 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:themasteroflaw/src/src.dart';
 import 'package:ui_kit/ui_kit.dart';
 
-/// In-case AI chat section — fully functional.
-/// Persists conversation across tab switches. Uses case_intake mode
-/// so AI asks clarifying questions. Offers "Build Case" when ready.
+/// In-case AI chat section — unified advocate.
+/// Persists conversation across tab switches. When case_file_id is available,
+/// AI automatically uses tools (add_fact, link_article, etc.) via WebSocket.
 class CaseChatSection extends StatefulWidget {
   const CaseChatSection({super.key, required this.caseId});
   final String caseId;
@@ -50,6 +50,7 @@ class _CaseChatSectionState extends State<CaseChatSection> {
       await _createAndLinkConversation(caseDetailCubit);
     }
     if (mounted) {
+      // Auto-set case file ID so tools are available via unified WebSocket
       final caseData = caseDetailCubit.state.caseData;
       final serverId = caseData?.serverCaseFileId;
       if (serverId != null && serverId.isNotEmpty) {
@@ -148,24 +149,6 @@ class _CaseChatSectionState extends State<CaseChatSection> {
     } catch (_) {}
   }
 
-  Future<void> _toggleAgentMode() async {
-    if (_cubit.state.isAgentMode) {
-      _cubit.exitAgentMode();
-      setState(() {});
-      return;
-    }
-    var serverId = context.read<CaseDetailCubit>().state.caseData?.serverCaseFileId;
-    if (serverId == null) {
-      await _tryResolveServerCaseFileId();
-      if (!mounted) return;
-      serverId = context.read<CaseDetailCubit>().state.caseData?.serverCaseFileId;
-    }
-    if (serverId != null && mounted) {
-      _cubit.enterAgentMode(caseFileId: serverId);
-      setState(() {});
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final uiColors = context.uiColors;
@@ -175,121 +158,48 @@ class _CaseChatSectionState extends State<CaseChatSection> {
       value: _cubit,
       child: Column(
         children: [
-          // Context banner — reactive to agent mode
+          // Context banner — shows AI capabilities
           BlocBuilder<ConsultationCubit, ConsultationState>(
             bloc: _cubit,
-            buildWhen: (prev, curr) => prev.caseFileId != curr.caseFileId,
+            buildWhen: (prev, curr) => prev.caseFileId != curr.caseFileId || prev.streamingStatus != curr.streamingStatus,
             builder: (context, consultState) {
-              final caseData = context.read<CaseDetailCubit>().state.caseData;
-              final hasBuiltCase =
-                  caseData != null && (caseData.serverCaseFileId != null || caseData.facts.any((f) => f.isAiGenerated));
-              final hasAgent = consultState.isAgentMode || hasBuiltCase;
+              final hasTools = consultState.isAgentMode;
+              final statusText = consultState.streamingStatus;
 
               return Container(
                 margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
-                  color: consultState.isAgentMode
+                  color: hasTools
                       ? uiColors.accentColor.withValues(alpha: 0.08)
                       : uiColors.backgroundSecondaryColor,
                   borderRadius: BorderRadius.circular(12),
-                  border: consultState.isAgentMode
+                  border: hasTools
                       ? Border.all(color: uiColors.accentColor.withValues(alpha: 0.3))
                       : null,
                 ),
-                child: hasAgent
-                    ? Row(
-                        children: [
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: consultState.isAgentMode ? _toggleAgentMode : null,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: !consultState.isAgentMode
-                                      ? uiColors.accentColor.withValues(alpha: 0.12)
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.chat_bubble_outline,
-                                      size: 14,
-                                      color: !consultState.isAgentMode
-                                          ? uiColors.accentColor
-                                          : uiColors.secondaryTextColor,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      'ჩატი',
-                                      style: uiTextStyles.labelBold12.copyWith(
-                                        color: !consultState.isAgentMode
-                                            ? uiColors.accentColor
-                                            : uiColors.secondaryTextColor,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          Container(
-                            width: 1,
-                            height: 24,
-                            color: uiColors.secondaryTextColor.withValues(alpha: 0.2),
-                          ),
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: !consultState.isAgentMode ? _toggleAgentMode : null,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: consultState.isAgentMode
-                                      ? uiColors.accentColor.withValues(alpha: 0.15)
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.smart_toy,
-                                      size: 14,
-                                      color: consultState.isAgentMode
-                                          ? uiColors.accentColor
-                                          : uiColors.secondaryTextColor,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      '🤖 აგენტი',
-                                      style: uiTextStyles.labelBold12.copyWith(
-                                        color: consultState.isAgentMode
-                                            ? uiColors.accentColor
-                                            : uiColors.secondaryTextColor,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      )
-                    : Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.folder_open, size: 16, color: uiColors.accentColor),
-                          const SizedBox(width: 8),
-                          Text(
-                            'AI-ს აქვს საქმის სრული კონტექსტი',
-                            style: uiTextStyles.labelBold12.copyWith(
-                              color: uiColors.secondaryTextColor,
-                            ),
-                          ),
-                        ],
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      hasTools ? Icons.auto_awesome : Icons.chat_bubble_outline,
+                      size: 14,
+                      color: hasTools ? uiColors.accentColor : uiColors.secondaryTextColor,
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        statusText ?? (hasTools
+                            ? 'AI ავტომატურად აკეთებს საქმის ცვლილებებს'
+                            : 'AI-ს აქვს საქმის სრული კონტექსტი'),
+                        style: uiTextStyles.labelBold12.copyWith(
+                          color: hasTools ? uiColors.accentColor : uiColors.secondaryTextColor,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
+                    ),
+                  ],
+                ),
               );
             },
           ),

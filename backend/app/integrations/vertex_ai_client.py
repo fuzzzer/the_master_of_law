@@ -135,6 +135,51 @@ class VertexAIClient:
             config=config,
         )
 
+    async def generate_stream_with_tools(
+        self,
+        contents: list[Any],
+        tools: list[Any] | None = None,
+        system_instruction: str | None = None,
+        temperature: float = GEMINI_TEMPERATURE,
+        max_output_tokens: int = GEMINI_MAX_OUTPUT_TOKENS,
+        model_name: str | None = None,
+    ):
+        """Stream text with optional function calling support.
+
+        Yields text chunks as they arrive. After the stream completes,
+        yields any function_call parts as dicts: {"function_call": FunctionCall}.
+        The caller must handle tool execution and re-invocation.
+        """
+        client = self._get_client()
+
+        config = GenerateContentConfig(
+            temperature=temperature,
+            max_output_tokens=max_output_tokens,
+            top_p=GEMINI_TOP_P,
+        )
+        if tools:
+            config.tools = tools
+        if system_instruction:
+            config.system_instruction = system_instruction
+
+        response_stream = await client.aio.models.generate_content_stream(
+            model=model_name or self._model,
+            contents=contents,
+            config=config,
+        )
+
+        function_calls = []
+        async for chunk in response_stream:
+            if chunk.candidates:
+                for part in chunk.candidates[0].content.parts:
+                    if part.text:
+                        yield {"text": part.text}
+                    elif part.function_call:
+                        function_calls.append(part.function_call)
+
+        for fc in function_calls:
+            yield {"function_call": fc}
+
     async def generate_json(
         self,
         prompt: str,

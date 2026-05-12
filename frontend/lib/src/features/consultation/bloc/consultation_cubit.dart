@@ -79,9 +79,6 @@ class ConsultationCubit extends Cubit<ConsultationState> {
 
   Future<void> sendMessage(String text) async {
     if (state.conversationId == null) return;
-    if (state.isAgentMode) {
-      return sendAgentMessage(text);
-    }
     final userMsg = ChatMessage(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       text: text, isUser: true, timestamp: DateTime.now(),
@@ -106,7 +103,10 @@ class ConsultationCubit extends Cubit<ConsultationState> {
       ragConfig: state.chatMode.ragConfig,
       mode: state.isCaseChat ? 'case_intake' : 'chat',
       caseContext: state.attachedCaseContext,
+      caseFileId: state.caseFileId,
     );
+
+    final toolResultsCollected = <ToolResultData>[];
 
     try {
       await for (final event in stream) {
@@ -126,6 +126,27 @@ class ConsultationCubit extends Cubit<ConsultationState> {
             );
             emit(state.copyWith(messages: msgs, clearStreamingStatus: true));
           }
+        } else if (type == 'tool_executed') {
+          toolResultsCollected.add(ToolResultData(
+            toolName: event['tool']?.toString() ?? '',
+            status: event['status']?.toString() ?? 'executed',
+            result: (event['result'] as Map<String, dynamic>?) ?? {},
+          ));
+          emit(state.copyWith(
+            streamingStatus: '🔧 ${_toolNameKa(event['tool']?.toString() ?? '')}',
+          ));
+        } else if (type == 'confirmation_required') {
+          final pending = ToolResultData(
+            toolName: event['tool_name']?.toString() ?? '',
+            status: 'pending_confirmation',
+            requiresConfirmation: true,
+            confirmationId: event['confirmation_id']?.toString(),
+            description: event['description']?.toString(),
+          );
+          toolResultsCollected.add(pending);
+          emit(state.copyWith(
+            pendingConfirmations: [...state.pendingConfirmations, pending],
+          ));
         } else if (type == 'done') {
           final msgs = List<ChatMessage>.from(state.messages);
           final index = msgs.indexWhere((m) => m.id == streamingId);
@@ -138,6 +159,7 @@ class ConsultationCubit extends Cubit<ConsultationState> {
               timestamp: oldMsg.timestamp,
               citations: _parseChatCitations(event['citations']),
               trustLevel: event['trust_level']?.toString(),
+              toolResults: toolResultsCollected.isNotEmpty ? toolResultsCollected : null,
             );
             emit(state.copyWith(
               messages: msgs,
@@ -157,7 +179,7 @@ class ConsultationCubit extends Cubit<ConsultationState> {
           );
           
           final msgs = List<ChatMessage>.from(state.messages);
-          msgs.removeWhere((m) => m.id == streamingId); // Remove empty streaming msg
+          msgs.removeWhere((m) => m.id == streamingId);
           
           emit(state.copyWith(
             messages: [...msgs, errorMsg], 
@@ -187,6 +209,18 @@ class ConsultationCubit extends Cubit<ConsultationState> {
       ));
     }
   }
+
+  String _toolNameKa(String name) => switch (name) {
+    'add_fact' => 'ფაქტი დამატებულია',
+    'edit_fact' => 'ფაქტი განახლდა',
+    'add_argument' => 'არგუმენტი დამატებულია',
+    'link_article' => 'მუხლი მიბმულია',
+    'set_strategy' => 'სტრატეგია დაყენებულია',
+    'add_action_item' => 'დავალება დამატებულია',
+    'add_risk' => 'რისკი დამატებულია',
+    'get_case_summary' => 'საქმის მიმოხილვა',
+    _ => name,
+  };
 
   Future<Map<String, dynamic>?> buildCaseFile() async {
     if (state.conversationId == null) return null;

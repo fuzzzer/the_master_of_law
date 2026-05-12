@@ -111,6 +111,7 @@ class ConsultationRemoteDataSource {
     Map<String, dynamic>? ragConfig,
     String mode = 'chat',
     String? caseContext,
+    String? caseFileId,
   }) async* {
     final baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://127.0.0.1:8000';
     final wsUrl = baseUrl.replaceFirst('http://', 'ws://').replaceFirst('https://', 'wss://');
@@ -128,6 +129,7 @@ class ConsultationRemoteDataSource {
       if (ragConfig != null) 'rag_config': ragConfig,
       'mode': mode,
       if (caseContext != null) 'case_context': caseContext,
+      if (caseFileId != null) 'case_file_id': caseFileId,
     }));
     
     try {
