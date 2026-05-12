@@ -151,7 +151,12 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                         except (ValueError, Exception):
                             pass
 
+                    # Check if case is empty (needs intake)
+                    is_case_empty = False
                     if case_file:
+                        is_case_empty = not case_file.facts and not case_file.applicable_laws and not case_file.defense_strategies
+
+                    if case_file and not is_case_empty:
                         response_text, tool_results = await _handle_advocate_with_tools(
                             websocket=websocket,
                             user_message=user_message,
@@ -176,11 +181,40 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                         )
                         tool_results = []
 
-                    # Check for [CASE_READY] tag (legacy intake flow)
+                    # Check for [CASE_READY] tag (intake flow)
                     tag_ready = bool(re.search(r'\[CASE_READY\]', response_text))
                     if tag_ready:
                         response_text = re.sub(r'\s*\[CASE_READY\]\s*', '', response_text).rstrip()
                         await conv_svc.mark_case_ready(conversation_id)
+                        
+                        # Auto-build the case
+                        from app.services.case_builder_service import get_case_builder_service
+                        case_builder = get_case_builder_service()
+                        try:
+                            await websocket.send_json({"type": "status", "message": "საქმის სრული ანალიზი მიმდინარეობს..."})
+                            
+                            if case_file_id:
+                                import uuid as _uuid
+                                result = await case_builder.update_case_file(
+                                    db=db,
+                                    case_file_id=_uuid.UUID(case_file_id),
+                                    conversation_id=conversation_id,
+                                    retrieved_chunks=chunks,
+                                )
+                            else:
+                                result = await case_builder.build_case_file(
+                                    db=db,
+                                    user_id=uid,
+                                    conversation_id=conversation_id,
+                                    retrieved_chunks=chunks,
+                                )
+                                
+                            if "full_analysis_text" in result:
+                                extra = "\n\n" + result["full_analysis_text"]
+                                response_text += extra
+                                await websocket.send_json({"type": "chunk", "content": extra})
+                        except Exception as e:
+                            logger.error("case_agent_auto_build_failed", error=str(e))
 
                     # Citation verification
                     citation_svc = get_citation_service()
