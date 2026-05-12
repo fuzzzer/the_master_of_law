@@ -1,110 +1,111 @@
 # კანონის ოსტატი — The Master of Law
 
-> AI-powered legal advocate for Georgian citizens. Case-centric architecture.
+> AI-powered legal advocate for Georgian citizens.
 
-## Mindset
+## ⛔ MANDATORY: Read Before ANY Code
 
-**Empower people with easily accessible law.** Make it fit real cases. Really help people.
+**You MUST complete these steps before writing a single line of code. No exceptions.**
 
-The law exists to protect everyone — but in practice, it's buried in dense codes, scattered across court rulings, and written in language that shuts ordinary people out. This app exists to change that. We put the full weight of Georgian law — statutes, Supreme Court practice, Grand Chamber decisions — into the hands of the people who need it most, when they need it most.
+### Step 1: Read the project mindset and coding principles
+→ Read `.agents/context/mindset_and_principles.md` — **STOP** until you've internalized the rules.
 
-This is not a legal search engine. This is a legal advocate. Every feature we build must pass one test: **does this help a real person win a real case?** If it doesn't, we don't build it.
+### Step 2: Read the context file for YOUR task type
 
-## Principles
+| Your task involves… | MUST read first |
+|---------------------|-----------------|
+| **Backend** (endpoints, services, DB, RAG) | `.agents/context/backend.md` |
+| **Flutter / UI** | `frontend/.agents/orchestrator.md` → `frontend/.agents/general_guide/flutter_architecture.md` |
+| **Production deploy** | `.agents/context/production.md` |
+| **Debugging** | `.agents/debug_surgeon/context.md` |
+| **Design system** | `packages/open-design/design-systems/kanonis-ostati/DESIGN.md` |
+| **Law corpus / RAG tuning** | `.agents/context/law_corpus.md` + `.agents/rag_specialist/context.md` |
+| **Feature planning** | `master_plan/04_feature_roadmap.md` |
+| **Evaluation** | `eval/steps.md` |
+| **New feature / architecture** | `.agents/code_architect/context.md` |
+| **Security hardening** | `.agents/security_hardener/context.md` |
 
-### 1. Think Before Coding
-Don't assume. Don't hide confusion. Surface tradeoffs.
+### Step 3: Verify current state
 
-- State your assumptions explicitly. If uncertain, ask.
-- If multiple interpretations exist, present them — don't pick silently.
-- If a simpler approach exists, say so. Push back when warranted.
-- If something is unclear, stop. Name what's confusing. Ask.
-
-### 2. Simplicity First
-Minimum code that solves the problem. Nothing speculative.
-
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No "flexibility" or "configurability" that wasn't requested.
-- No error handling for impossible scenarios.
-- If you write 200 lines and it could be 50, rewrite it.
-- Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
-- Is name understandable for someone who knows noting about the code? If no, refine it, make it more descriptive.
-- Need to add comments? Then it means code is not descriptive enough, refine naming, describe process with methods, talk with code clearly.
-
-### 3. Surgical Changes
-Touch only what you must. Clean up only your own mess.
-
-When editing existing code:
-- Don't "improve" adjacent code, comments, or formatting.
-- Don't refactor things that aren't broken.
-- Match existing style, even if you'd do it differently.
-- If you notice unrelated dead code, mention it — don't delete it.
-
-When your changes create orphans:
-- Remove imports/variables/functions that YOUR changes made unused.
-- Don't remove pre-existing dead code unless asked.
-- The test: every changed line should trace directly to the user's request.
-
-### 4. Goal-Driven Execution
-Define success criteria. Loop until verified.
-
-Transform tasks into verifiable goals:
-- "Add validation" → "Write tests for invalid inputs, then make them pass"
-- "Fix the bug" → "Write a test that reproduces it, then make it pass"
-- "Refactor X" → "Ensure tests pass before and after"
-
-For multi-step tasks, state a brief plan:
-1. [Step] → verify: [check]
-2. [Step] → verify: [check]
-3. [Step] → verify: [check]
-
-Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+Before modifying any file, read it first. Check recent git history if behavior is unclear:
+```bash
+git log --oneline -10 -- <file>
+```
 
 ---
 
-## Status: Step 3 — Design System & Flutter App 🔄
-
-| Component | Status | Key File |
-|-----------|--------|----------|
-| Law Corpus (9,450 chunks) | ✅ Done | `law_corpus/data/chroma/` |
-| Backend (25 endpoints) | ✅ Done | `.agents/context/backend.md` |
-| Design System | 🔄 In Progress | `packages/open-design/design-systems/kanonis-ostati/DESIGN.md` |
-| Flutter App | 🔄 In Progress | `frontend/` (package: `master_of_law`) |
-
-## Context Loading — Read by Task
-
-### Always read first:
-- `.agents/context/project_status.md` — Current state, what's done, what's next
-
-### By task:
-| Task | Load These |
-|------|-----------|
-| **Backend work** | `.agents/context/backend.md` |
-| **Flutter / UI** | `frontend/.agents/orchestrator.md` → `frontend/.agents/general_guide/flutter_architecture.md` |
-| **Design system** | `packages/open-design/design-systems/kanonis-ostati/DESIGN.md` |
-| **Feature planning** | `master_plan/04_feature_roadmap.md` |
-| **Production deploy** | `.agents/context/production.md` |
-| **Law corpus** | `.agents/context/law_corpus.md` |
-| **Original specs** | `master_plan/01_...`, `02_...`, `03_...` |
-
-## Architecture (compact)
+## Architecture
 
 ```
 Flutter App (master_of_law, ge.fuzzycore.masteroflaw)
-  │ 5 tabs: Chat │ Cases ⭐ │ Laws │ Notes │ Profile
-  │ HTTPS / WebSocket
+  │ Features: auth, cases, consultation, feedback, laws, profile
+  │ HTTPS / WebSocket + RAGCollectionConfig (feature flags)
   ▼
-FastAPI Backend (25 endpoints, 10 services)
-  │ Firebase Auth → Credit Gate → Rate Limit
-  │ 5-stage RAG: Expand → Vector → FullText → Merge → Rerank
-  │ Gemini 3.1 Pro legal analysis
+FastAPI Backend (~10K lines, 90 files)
+  │ 13 routers → 36 endpoints
+  │ 14 services, 7 repositories, 8 models, 9 schemas
+  │ Firebase Auth → Credit Gate → Rate Limit → Error Handler
+  │ 5-stage RAG: Expand → Vector (multi-collection) → FullText → Merge → Rerank
+  │ Gemini 3.1 Pro legal analysis + source-specific prompt injection
+  │ 204 tests across 24 test files
   ▼
-Data: PostgreSQL + ChromaDB (9,450 law chunks) + Redis
+Data: PostgreSQL + ChromaDB (3 collections, 20,712 chunks) + Redis
+  │ georgian_laws: 15,338 (12 legal codes)
+  │ court_practice: 5,197 (Supreme Court rulings)
+  │ grand_chamber: 177 (binding decisions)
 ```
+
+### Backend Layer Pattern
+```
+Route (thin, HTTP only) → Service (business logic) → Repository (DB) → Model (ORM)
+```
+
+### Tech Stack (non-negotiable)
+- **Backend**: Python 3.11 + FastAPI + SQLAlchemy 2.x async
+- **AI SDK**: `google-genai` (NOT `google-cloud-aiplatform` or `vertexai`)
+- **Vector DB**: ChromaDB (local, 20,712 docs)
+- **Database**: PostgreSQL 16 via asyncpg
+- **Cache**: Redis 7
+- **Auth**: Firebase Authentication
+- **Frontend**: Flutter (Dart) with BLoC/Cubit pattern
+
+```python
+from google import genai  # ✅ CORRECT — the ONLY way
+import vertexai            # ❌ WRONG — never use this
+```
+
+### Key Identifiers
+- **Package:** `master_of_law` | **Bundle ID:** `ge.fuzzycore.masteroflaw`
+- **GCP Project:** `gen-lang-client-0225498420` | **Region:** `us-central1`
+- **LLM:** `gemini-3.1-pro` | **Embeddings:** `gemini-embedding-001` (768 dims)
+
+---
 
 ## Core Decision: Cases = Projects
 
 Every feature serves one purpose: building the strongest legal case.
 Users dump raw info → AI organizes it.
 Everything links to everything (facts ↔ arguments ↔ laws ↔ evidence ↔ conversations).
+
+---
+
+## Post-Task: Update Documentation
+
+After completing any task that changes the codebase structure, you MUST:
+1. Update the relevant context file (e.g., `backend.md` if you added/removed endpoints)
+2. Ensure numbers match reality
+3. See `.agents/workflows/09_doc_sync.md` for the full workflow.
+
+---
+
+## Current Status
+
+> **Last verified:** 2026-05-12
+
+| Component | Status | Location |
+|-----------|--------|----------|
+| Law Corpus (20,712 chunks, 3 collections) | ✅ Done | `law_corpus/data/chroma/` |
+| Backend (36 endpoints, 14 services) | ✅ Done | `backend/` |
+| Eval Pipeline (50 cases) | ✅ Done | `eval/` |
+| Design System | 🔄 In Progress | `packages/open-design/` |
+| Flutter App | 🔄 In Progress | `frontend/` |
+| Production (Hetzner VPS) | 🔄 Deployed | `.agents/context/production.md` |

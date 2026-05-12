@@ -1,15 +1,14 @@
 # Backend Context — The Master of Law
 
 > FastAPI backend with multi-source RAG pipeline + Gemini 3.1 Pro legal analysis.
-> **Status:** ✅ Complete (32 endpoints, 10 services, 179 tests)
-> **Last updated:** 2026-05-07
+> **Last verified:** 2026-05-12
 
 ---
 
 ## Architecture
 
 ```
-Flutter App → HTTP/WS with Firebase ID token
+Flutter App → HTTP/WS with Firebase ID token (or API key)
   → CORS → Firebase Auth → Credit Gate → Rate Limit → Error Handler
   → Route Handler → Service → Repository → Response
 ```
@@ -28,7 +27,6 @@ User Message + RAGCollectionConfig (feature flags)
 
 ### RAG Collection Feature Flags
 ```python
-# Per-request control of which knowledge sources to search
 class RAGCollectionConfig(BaseModel):
     legal_codes: bool = True       # georgian_laws (15,338 chunks)
     court_practice: bool = True    # court_practice (5,197 chunks)
@@ -44,46 +42,137 @@ decisions are BINDING and override all lower court interpretations").
 
 ---
 
-## API Endpoints (32 total)
+## Codebase Stats
 
+| Metric | Count |
+|--------|-------|
+| Python files | 90 |
+| Lines of code | ~10,261 |
+| Router files | 13 |
+| Endpoints | 36 |
+| Services | 14 |
+| Repositories | 7 |
+| Models | 8 |
+| Schemas | 9 |
+| Test files | 24 |
+| Test functions | 204 |
+
+---
+
+## API Endpoints (36 total, 13 routers)
+
+### health_router (2)
 | Method | Path | Credits | Description |
 |--------|------|---------|-------------|
 | GET | `/api/v1/health` | 0 | Liveness |
 | GET | `/api/v1/health/ready` | 0 | Readiness (reports collection count) |
+
+### auth_router (2)
+| Method | Path | Credits | Description |
+|--------|------|---------|-------------|
 | POST | `/api/v1/auth/verify-token` | 0 | Firebase token → user |
 | GET | `/api/v1/auth/me` | 0 | Current user |
+
+### account_router (2)
+| Method | Path | Credits | Description |
+|--------|------|---------|-------------|
 | GET | `/api/v1/account/credits` | 0 | Credit balance |
 | GET | `/api/v1/account/transactions` | 0 | Credit history |
+
+### conversation_router (4)
+| Method | Path | Credits | Description |
+|--------|------|---------|-------------|
 | POST | `/api/v1/conversations` | 0 | Start conversation |
 | GET | `/api/v1/conversations` | 0 | List conversations |
 | GET | `/api/v1/conversations/{id}` | 0 | Get with messages |
 | DELETE | `/api/v1/conversations/{id}` | 0 | Delete |
+
+### chat_router (1)
+| Method | Path | Credits | Description |
+|--------|------|---------|-------------|
 | POST | `/api/v1/chat/{id}/send` | **1** | Send → AI response (accepts `rag_config`) |
+
+### ws_chat_router (1)
+| Method | Path | Credits | Description |
+|--------|------|---------|-------------|
 | WS | `/api/v1/chat/{id}/ws` | 1 | WebSocket streaming (accepts `rag_config`) |
-| **GET** | **`/api/v1/rag/collections`** | 0 | **List RAG sources + availability** |
+
+### case_file_router (5)
+| Method | Path | Credits | Description |
+|--------|------|---------|-------------|
 | POST | `/api/v1/case-files/build` | **3** | Build defense case (accepts `rag_config`) |
 | GET | `/api/v1/case-files` | 0 | List case files |
 | GET | `/api/v1/case-files/{id}` | 0 | Get case file |
 | PATCH | `/api/v1/case-files/{id}` | 0 | Update notes/status |
 | DELETE | `/api/v1/case-files/{id}` | 0 | Delete case file |
+
+### case_agent_router (2)
+| Method | Path | Credits | Description |
+|--------|------|---------|-------------|
+| POST | `/api/v1/chat/{id}/agent` | — | AI agent interaction |
+| POST | `/api/v1/chat/{id}/confirm-tool` | — | Tool confirmation |
+
+### questionnaire_router (5)
+| Method | Path | Credits | Description |
+|--------|------|---------|-------------|
+| POST | `/api/v1/questionnaire/{id}/generate` | — | Generate questionnaire |
+| GET | `/api/v1/questionnaire/{id}` | 0 | Get questionnaire state |
+| POST | `/api/v1/questionnaire/{id}/answer` | — | Submit answer |
+| POST | `/api/v1/questionnaire/{id}/skip` | — | Skip question |
+| POST | `/api/v1/questionnaire/{id}/extract` | — | Extract case data |
+
+### law_browser_router (4)
+| Method | Path | Credits | Description |
+|--------|------|---------|-------------|
 | GET | `/api/v1/laws/search?q=...` | 0 | Search laws (free) |
-| GET | `/api/v1/laws/codes` | 0 | List codes (free) |
+| GET | `/api/v1/laws/codes` | 0 | List codes |
 | GET | `/api/v1/laws/codes/{id}` | 0 | Code structure |
 | GET | `/api/v1/laws/articles/{id}` | 0 | Article text |
-| POST | `/api/v1/feedback` | 0 | Submit feedback (auth optional) |
-| GET | `/api/v1/feedback/{target_id}` | 0 | Get feedback for a case/conversation |
-| GET | `/api/v1/feedback/summary` | 0 | Aggregated dashboard (ADMIN only) |
-| PATCH | `/api/v1/feedback/{id}` | 0 | Update own feedback (24h window) |
+
+### feedback_router (5)
+| Method | Path | Credits | Description |
+|--------|------|---------|-------------|
+| POST | `/api/v1/feedback` | 0 | Submit feedback |
+| GET | `/api/v1/feedback/summary` | 0 | Aggregated dashboard (ADMIN) |
+| GET | `/api/v1/feedback/{target_id}` | 0 | Get feedback for target |
+| PATCH | `/api/v1/feedback/{id}` | 0 | Update own feedback |
 | DELETE | `/api/v1/feedback/{id}` | 0 | Delete own feedback |
+
+### rag_router (1)
+| Method | Path | Credits | Description |
+|--------|------|---------|-------------|
+| GET | `/api/v1/rag/collections` | 0 | List RAG sources + availability |
+
+### api_key_router (2)
+| Method | Path | Credits | Description |
+|--------|------|---------|-------------|
+| GET | `/api/v1/api-keys/check` | 0 | Check API key validity |
+| POST | `/api/v1/api-keys` | 0 | Create API key (ADMIN) |
+
+---
+
+## Services (14)
+
+| Service | Purpose |
+|---------|---------|
+| rag_retrieval_service | 5-stage RAG pipeline |
+| legal_analysis_service | Gemini system prompt + grounded analysis |
+| citation_service | Extract `მუხლი N` patterns, verify against corpus |
+| case_builder_service | 8-section defense case (3 credits) |
+| case_tool_executor | Tool execution for case agent |
+| conversation_service | State machine + message persistence |
+| intake_flow_service | 6 guided questions in Georgian |
+| questionnaire_service | Structured case intake questionnaire |
+| legal_classifier_service | 9 legal domains classification |
+| explanation_service | Simplify legal language |
+| context_cache_service | 30-min TTL per conversation |
+| law_browser_service | Search/browse corpus (free) |
+| guardrail_service | Input/output safety checks |
+| threshold_service | Credit threshold management |
 
 ---
 
 ## Key Patterns
-
-### Layer Architecture
-```
-Route (thin) → Service (logic) → Repository (DB) → Model (ORM)
-```
 
 ### Dependency Injection
 ```python
@@ -113,23 +202,6 @@ client = genai.Client(api_key=settings.vertex_ai_api_key, vertexai=True,
 
 ---
 
-## Services
-
-| Service | Purpose |
-|---------|---------|
-| RAG Retrieval | 5-stage pipeline |
-| Legal Analysis | Gemini system prompt + grounded analysis |
-| Citation | Extract `მუხლი N` patterns, verify against corpus |
-| Case Builder | 8-section defense case (3 credits) |
-| Conversation | State machine + message persistence |
-| Intake Flow | 6 guided questions in Georgian |
-| Legal Classifier | 9 legal domains |
-| Explanation | Simplify legal language |
-| Context Cache | 30-min TTL per conversation |
-| Law Browser | Search/browse corpus (free) |
-
----
-
 ## Config
 
 | Setting | Value |
@@ -138,9 +210,8 @@ client = genai.Client(api_key=settings.vertex_ai_api_key, vertexai=True,
 | Region | `us-central1` |
 | LLM | `gemini-3.1-pro` |
 | Embeddings | `gemini-embedding-001` (768 dims) |
-| ChromaDB | 3 collections: `georgian_laws` (15,338), `court_practice` (5,197), `grand_chamber` (177) |
-| DB | PostgreSQL 16 (7 tables: users, credits, conversations, messages, case_files, credit_transactions, feedback) |
-| State Machine | GREETING → INTAKE → CLARIFICATION → ANALYSIS → ADVICE → FOLLOW_UP |
+| ChromaDB | 3 collections: `georgian_laws`, `court_practice`, `grand_chamber` |
+| DB | PostgreSQL 16 (8 models: user, user_credits, conversation, message, case_file, feedback, questionnaire, database) |
 
 ---
 
@@ -152,11 +223,11 @@ cd backend && source .venv/bin/activate
 uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 
 # Docker
-cd backend && docker compose up -d
+cd backend && docker compose up --build -d
 docker compose exec api alembic upgrade head
 
 # Tests
-.venv/bin/python -m pytest tests/ -v  # 179 tests
+.venv/bin/python -m pytest tests/ -v  # 204 tests
 ```
 
 ---

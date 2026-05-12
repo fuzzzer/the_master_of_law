@@ -1,6 +1,6 @@
 # Project Status — კანონის ოსტატი
 
-> **Last updated:** 2026-05-07
+> **Last verified:** 2026-05-12
 
 ## Completed ✅
 
@@ -14,25 +14,32 @@
 - Location: `law_corpus/` — **DO NOT MODIFY**
 
 ### Step 2 — FastAPI Backend
-- 70+ files, ~5,000 lines, 27 API endpoints, 10 services, 5 repositories
+- 90 Python files, ~10,261 lines
+- 36 API endpoints across 13 routers
+- 14 services, 7 repositories, 8 models, 9 schemas
 - 5-stage RAG pipeline (query expansion → vector → full-text → merge → rerank)
-- **Multi-collection RAG** with per-request feature flags (`RAGCollectionConfig`)
+- Multi-collection RAG with per-request feature flags (`RAGCollectionConfig`)
 - Source-specific prompt injection for court_practice and grand_chamber
-- `GET /api/v1/rag/collections` — list available sources with counts
-- Gemini 3.1 Pro legal analysis with grounded citations
-- Firebase auth, credit system (FREE/PRO/ADMIN), rate limiting
-- Docker production setup, 124 tests passing
+- AI case agent with tool execution and questionnaire intake
+- WebSocket streaming chat
+- Firebase auth + API key auth, credit system (FREE/PRO/ADMIN), rate limiting
+- 204 test functions across 24 test files
+- Docker production setup
 - Location: `backend/`
 
-### Step 2b — Evaluation Pipeline ✅ NEW
+### Step 2b — Evaluation Pipeline ✅
 - 50 real Supreme Court cases (32 criminal, 15 civil, 3 admin)
 - LLM-as-judge scoring: verdict_alignment, legal_reasoning, article_accuracy, practical_value
 - Holdout system: removes eval cases from ChromaDB during testing → restores after
 - Crash-safe: results save after each case, auto-resume on restart
-- Per-case AI generation export to `eval/test_cases/generations/evaluated/`
-- v1 baseline: avg overall 3.47/5 (17 cases evaluated)
-- v2 re-eval of low-scoring cases in progress
 - Location: `eval/`
+
+### Step 2c — Production Deployment ✅
+- Hetzner VPS deployed with Nginx reverse proxy + SSL (Certbot)
+- Domain: `api.zrdai.work`
+- Firebase + API key authentication working
+- Docker Compose (api + postgres + redis)
+- Deploy script: `deploy.sh`
 
 ## In Progress 🔄
 
@@ -44,28 +51,10 @@
 - ⬜ Extract design tokens → Flutter ui_kit
 
 ### Step 3b — Flutter App
-- ✅ Renamed: `themasteroflaw` → `master_of_law` (`ge.fuzzycore.masteroflaw`)
-- ✅ 5-tab navigation: Chat, Cases ⭐, Laws, Notes, Profile
-- ✅ Localization: Georgian (ka) + English (en)
-- ⬜ Inject design tokens into ui_kit
-- ⬜ Scaffold features using gen.sh
-- ⬜ Implement navigation with GoRouter
-- ⬜ Connect to backend API
-- ⬜ **Implement RAG source toggles in chat UI** (feature flags for collections)
-
-## Next Steps (Priority Order)
-1. **Implement RAG collection feature flags in Flutter** (toggle laws/court/GC per chat)
-2. Finish mockup generation in open-design
-3. Extract design tokens → inject into `packages/ui_kit/`
-4. Scaffold Flutter features (chat, case_builder, laws, notes, profile)
-5. Build 5-tab bottom navigation
-6. Connect law browser to backend API
-7. Build basic AI chat with collection toggles
-
-## Key Identifiers
-- **App name:** კანონის ოსტატი (The Master of Law)
-- **Package:** `master_of_law`
-- **Bundle ID:** `ge.fuzzycore.masteroflaw`
-- **GCP Project:** `gen-lang-client-0225498420`
-- **Backend:** FastAPI on port 8000
-- **Database:** PostgreSQL + ChromaDB (3 collections) + Redis
+- ✅ Package: `master_of_law` (`ge.fuzzycore.masteroflaw`)
+- ✅ Features scaffolded: auth, cases, consultation, feedback, laws, profile
+- ✅ WebSocket chat with streaming
+- ✅ AI case intake flow with questionnaire
+- ✅ Connected to production backend
+- 🔄 Design system integration
+- ⬜ RAG source toggles in chat UI
