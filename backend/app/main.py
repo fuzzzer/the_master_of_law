@@ -94,7 +94,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="The Master of Law API",
         description="AI-powered legal advocate backend for Georgian citizens — კანონის ოსტატი",
-        version="0.2.4",
+        version="0.2.5",
         lifespan=lifespan,
         docs_url="/docs" if not settings.is_production else None,
         redoc_url="/redoc" if not settings.is_production else None,
