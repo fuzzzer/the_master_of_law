@@ -20,21 +20,38 @@ logger = get_logger(__name__)
 # Pattern to match Georgian law citations like "მუხლი 45" or "მუხლი 120"
 ARTICLE_PATTERN = re.compile(r"მუხლი\s+(\d+)", re.UNICODE)
 
-# Pattern to match code names
+# Code names as they appear in the corpus (full "საქართველოს" prefix form).
+# The model may output shorter forms — verify_citations handles both via normalization.
 CODE_NAMES = [
+    "საქართველოს სისხლის სამართლის კოდექსი",
+    "საქართველოს სამოქალაქო კოდექსი",
+    "საქართველოს ადმინისტრაციულ სამართალდარღვევათა კოდექსი",
+    "საქართველოს სისხლის სამართლის საპროცესო კოდექსი",
+    "საქართველოს სამოქალაქო საპროცესო კოდექსი",
+    "საქართველოს შრომის კოდექსი",
+    "საქართველოს საგადასახადო კოდექსი",
+    "საქართველოს კონსტიტუცია",
+    "საქართველოს ზოგადი ადმინისტრაციული კოდექსი",
+    "საქართველოს ადმინისტრაციული საპროცესო კოდექსი",
+    "ნარკოტიკული საშუალებების შესახებ კანონი",
+    "პერსონალურ მონაცემთა დაცვის შესახებ",
+    # Short forms the model commonly outputs (without "საქართველოს" prefix)
     "სისხლის სამართლის კოდექსი",
     "სამოქალაქო კოდექსი",
-    "ადმინისტრაციულ სამართალდარღვევათა კოდექსი",
-    "სისხლის სამართლის საპროცესო კოდექსი",
     "სამოქალაქო საპროცესო კოდექსი",
     "შრომის კოდექსი",
     "საგადასახადო კოდექსი",
     "კონსტიტუცია",
     "ზოგადი ადმინისტრაციული კოდექსი",
-    "სამეწარმეო კანონი",
-    "საოჯახო კანონი",
-    "მიწის კოდექსი",
+    "ადმინისტრაციულ სამართალდარღვევათა კოდექსი",
 ]
+
+_GEO_PREFIX = "საქართველოს "
+
+
+def _normalize_code_name(name: str) -> str:
+    """Strip the 'საქართველოს' prefix for fuzzy matching."""
+    return name.removeprefix(_GEO_PREFIX).strip()
 
 
 class CitationService:
@@ -102,24 +119,33 @@ class CitationService:
         """
         Verify extracted citations against retrieved corpus chunks.
 
+        Builds a dual-key lookup: one under the full corpus code name and one
+        under the normalized (no 'საქართველოს' prefix) form.  This handles the
+        mismatch between what the model outputs (short form) and what the corpus
+        stores (full form with prefix).
+
         Returns enriched citations with verification status and metadata.
         """
-        # Build lookup from retrieved chunks
-        chunk_lookup: dict[str, dict] = {}
+        chunk_lookup: dict[tuple[str, str], dict] = {}
         for chunk in retrieved_chunks:
             meta = chunk.get("metadata", {})
-            key = (meta.get("code_name", ""), meta.get("article_number", ""))
-            if key not in chunk_lookup:
-                chunk_lookup[key] = {
-                    "content": chunk.get("content", ""),
-                    "metadata": meta,
-                }
+            full_code = meta.get("code_name", "")
+            article = meta.get("article_number", "")
+            normalized_code = _normalize_code_name(full_code)
+            entry = {"content": chunk.get("content", ""), "metadata": meta}
+            # Store under both full name and normalized (prefix-stripped) name
+            for key in [(full_code, article), (normalized_code, article)]:
+                if key not in chunk_lookup:
+                    chunk_lookup[key] = entry
 
         verified = []
         for citation in citations:
-            key = (citation["code_name"], citation["article_number"])
-            if key in chunk_lookup:
-                info = chunk_lookup[key]
+            code = citation["code_name"]
+            article = citation["article_number"]
+            normalized = _normalize_code_name(code)
+            # Try full name first, then normalized
+            info = chunk_lookup.get((code, article)) or chunk_lookup.get((normalized, article))
+            if info:
                 verified.append({
                     **citation,
                     "verified": True,

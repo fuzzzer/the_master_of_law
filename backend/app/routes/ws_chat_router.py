@@ -26,7 +26,6 @@ from app.services.citation_service import get_citation_service
 from app.services.conversation_service import ConversationService
 from app.services.legal_analysis_service import (
     LawContextFormatter,
-    LegalAnalysisService,
     get_legal_analysis_service,
 )
 from app.services.rag_retrieval_service import get_rag_service
@@ -71,7 +70,6 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                 await websocket.send_json({"type": "error", "message": "Invalid JSON"})
                 continue
 
-            # Handle confirmation messages
             if payload.get("type") == "confirm":
                 await _handle_confirmation(websocket, payload, uid)
                 continue
@@ -106,7 +104,6 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                 await websocket.send_json({"type": "status", "message": "Checking query..."})
 
                 try:
-                    # Guardrail check
                     from app.services.guardrail_service import get_guardrail_service
                     guardrail = get_guardrail_service()
                     decision = await guardrail.classify(user_message)
@@ -132,7 +129,6 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
 
                     await websocket.send_json({"type": "status", "message": "Searching laws..."})
 
-                    # RAG retrieval
                     rag = get_rag_service()
                     chunks = await rag.retrieve(user_message, collections=collections)
 
@@ -141,7 +137,6 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                         "message": f"Found {len(chunks)} relevant articles. Analyzing..."
                     })
 
-                    # Load case file if provided
                     case_file = None
                     if case_file_id:
                         from app.repositories.case_file_repository import CaseFileRepository
@@ -151,7 +146,11 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                         except (ValueError, Exception):
                             pass
 
+                    is_case_empty = False
                     if case_file:
+                        is_case_empty = not case_file.facts and not case_file.applicable_laws and not case_file.defense_strategies
+
+                    if case_file and not is_case_empty:
                         response_text, tool_results = await _handle_advocate_with_tools(
                             websocket=websocket,
                             user_message=user_message,
@@ -176,11 +175,37 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                         )
                         tool_results = []
 
-                    # Check for [CASE_READY] tag (legacy intake flow)
                     tag_ready = bool(re.search(r'\[CASE_READY\]', response_text))
                     if tag_ready:
                         response_text = re.sub(r'\s*\[CASE_READY\]\s*', '', response_text).rstrip()
                         await conv_svc.mark_case_ready(conversation_id)
+                        
+                        from app.services.case_builder_service import get_case_builder_service
+                        case_builder = get_case_builder_service()
+                        try:
+                            await websocket.send_json({"type": "status", "message": "საქმის სრული ანალიზი მიმდინარეობს..."})
+                            
+                            if case_file_id:
+                                result = await case_builder.update_case_file(
+                                    db=db,
+                                    case_file_id=_uuid.UUID(case_file_id),
+                                    conversation_id=conversation_id,
+                                    retrieved_chunks=chunks,
+                                )
+                            else:
+                                result = await case_builder.build_case_file(
+                                    db=db,
+                                    user_id=uid,
+                                    conversation_id=conversation_id,
+                                    retrieved_chunks=chunks,
+                                )
+                                
+                            if "full_analysis_text" in result:
+                                extra = "\n\n" + result["full_analysis_text"]
+                                response_text += extra
+                                await websocket.send_json({"type": "chunk", "content": extra})
+                        except Exception as e:
+                            logger.error("case_agent_auto_build_failed", error=str(e))
 
                     # Citation verification
                     citation_svc = get_citation_service()
@@ -252,19 +277,10 @@ async def _handle_advocate_with_tools(
 
     law_context = LawContextFormatter.format(chunks)
 
-    # Build Gemini multi-turn contents
-    contents = _build_gemini_contents(history, user_message)
-
-    # Inject law context as a system-level user message
     if law_context and law_context != "No relevant legal context was found.":
-        contents.insert(0, types.Content(
-            role="user",
-            parts=[types.Part.from_text(text=f"RETRIEVED LAW ARTICLES:\n{law_context}")],
-        ))
-        contents.insert(1, types.Content(
-            role="model",
-            parts=[types.Part.from_text(text="I have received the law articles and will use them in my analysis.")],
-        ))
+        system_prompt = system_prompt + f"\n\nRETRIEVED LAW ARTICLES:\n{law_context}"
+
+    contents = _build_gemini_contents(history, user_message)
 
     gemini = get_vertex_ai_client()
     tool_executor = CaseToolExecutor(db)
@@ -316,8 +332,6 @@ async def _handle_advocate_with_tools(
                     "result": result.result,
                 })
 
-    # If we got function calls, do a follow-up call for the AI to
-    # acknowledge tool results in its response
     if tool_results and any(not r.requires_confirmation for r in tool_results):
         executed_summaries = []
         for r in tool_results:
@@ -325,7 +339,6 @@ async def _handle_advocate_with_tools(
                 executed_summaries.append(f"{r.tool_name}: {r.status} — {json.dumps(r.result, ensure_ascii=False, default=str)[:200]}")
 
         if executed_summaries:
-            # Append a brief note about what tools did
             tool_note = "\n\n📌 " + " | ".join(
                 _tool_summary_ka(r.tool_name, r.result)
                 for r in tool_results
@@ -353,30 +366,86 @@ async def _handle_standard_chat(
     is_case_chat: bool,
     case_context: str | None,
 ) -> str:
-    """Handle standard chat without case tools (original flow)."""
-    conv_status_metadata = {
-        "Current Phase": conv.get("phase", "UNKNOWN"),
-        "Message Count": len(history),
-        "User ID": uid,
-    }
+    """Handle standard chat with the search_law tool available."""
+    from app.tools.case_tools import SEARCH_LAW_TOOL
+    from google.genai import types as gtypes
 
     system_prompt = CASE_INTAKE_SYSTEM if is_case_chat else CHAT_SYSTEM
 
-    analysis = get_legal_analysis_service()
+    analysis_svc = get_legal_analysis_service()
+    system_prompt_text = analysis_svc._build_system_prompt(chunks, system_prompt)
+    law_context = LawContextFormatter.format(chunks)
+
+    if law_context and law_context != "No relevant legal context was found.":
+        system_prompt_text += f"\n\nRETRIEVED LAW ARTICLES:\n{law_context}"
+
+    if case_context:
+        system_prompt_text += f"\n\nCURRENT CASE CONTEXT:\n{case_context}"
+
+    contents = _build_gemini_contents(history, user_message)
+
+    gemini = get_vertex_ai_client()
+    rag_svc = get_rag_service()
     response_text = ""
-    async for chunk in analysis.analyze_stream(
-        user_message=user_message,
-        retrieved_chunks=chunks,
-        conversation_history=history if history else None,
-        system_prompt=system_prompt,
-        model_name=settings.gemini_chat_model,
-        case_context=case_context,
-        conversation_status=conv_status_metadata,
-    ):
-        response_text += chunk
-        await websocket.send_json({"type": "chunk", "content": chunk})
+    search_call_count = 0
+    MAX_SEARCH_CALLS = 2  
+
+    while True:
+        async for event in gemini.generate_stream_with_tools(
+            contents=contents,
+            tools=[SEARCH_LAW_TOOL],
+            system_instruction=system_prompt_text,
+            temperature=system_prompt.temperature,
+            max_output_tokens=system_prompt.max_output_tokens,
+            model_name=settings.gemini_chat_model,
+        ):
+            if "text" in event:
+                response_text += event["text"]
+                await websocket.send_json({"type": "chunk", "content": event["text"]})
+            elif "function_call" in event and search_call_count < MAX_SEARCH_CALLS:
+                fc = event["function_call"]
+                if fc.name == "search_law":
+                    search_call_count += 1
+                    args = dict(fc.args) if fc.args else {}
+                    query = args.get("query", user_message)
+                    article_number = args.get("article_number")
+                    code_name = args.get("code_name")
+
+                    await websocket.send_json({
+                        "type": "status",
+                        "message": f"🔍 კანონის ბაზის შემოწმება: {article_number or query[:40]}...",
+                    })
+
+                    found_chunks = await rag_svc.search_law(
+                        query=query,
+                        article_number=article_number,
+                        code_name=code_name,
+                    )
+
+                    if found_chunks:
+                        result_text = LawContextFormatter.format(found_chunks)
+                    else:
+                        result_text = "No matching law articles found in database."
+
+                    contents.append(gtypes.Content(
+                        role="model",
+                        parts=[gtypes.Part(function_call=fc)],
+                    ))
+                    contents.append(gtypes.Content(
+                        role="user",
+                        parts=[gtypes.Part(
+                            function_response=gtypes.FunctionResponse(
+                                name="search_law",
+                                response={"result": result_text},
+                            )
+                        )],
+                    ))
+                    break
+        else:
+            break
 
     return response_text
+
 
 
 def _build_gemini_contents(
@@ -384,17 +453,32 @@ def _build_gemini_contents(
     current_message: str,
 ) -> list[Any]:
     """Build Gemini-compatible contents from conversation history."""
-    contents = []
-    for msg in history[-10:]:
+    raw_messages = []
+    for msg in history[-20:]:
         role = "user" if msg["role"] == "user" else "model"
+        raw_messages.append({"role": role, "content": msg["content"]})
+        
+    raw_messages.append({"role": "user", "content": current_message})
+    
+    merged = []
+    for msg in raw_messages:
+        if not merged:
+            merged.append(msg)
+        else:
+            if merged[-1]["role"] == msg["role"]:
+                merged[-1]["content"] += "\n\n" + msg["content"]
+            else:
+                merged.append(msg)
+                
+    if merged and merged[0]["role"] == "model":
+        merged.pop(0)
+        
+    contents = []
+    for msg in merged:
         contents.append(types.Content(
-            role=role,
+            role=msg["role"],
             parts=[types.Part.from_text(text=msg["content"])],
         ))
-    contents.append(types.Content(
-        role="user",
-        parts=[types.Part.from_text(text=current_message)],
-    ))
     return contents
 
 

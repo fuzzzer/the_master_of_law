@@ -295,3 +295,47 @@ CASE_TOOL_DECLARATIONS = [
 ]
 
 CASE_TOOLS = [types.Tool(function_declarations=CASE_TOOL_DECLARATIONS)]
+
+# ── Standalone law search tool (available in all chat modes) ──────────────
+
+SEARCH_LAW_DECLARATION = types.FunctionDeclaration(
+    name="search_law",
+    description=(
+        "Search the Georgian law database for a specific law article when you need to verify "
+        "exact wording, check a specific article number, or find laws related to a topic. "
+        "Use this when the initially retrieved context doesn't contain the specific article "
+        "you need, or when the user asks about a specific article number. "
+        "კანონის მონაცემთა ბაზაში კონკრეტული მუხლის ძებნა. "
+        "გამოიყენე, როდესაც საჭიროა კონკრეტული მუხლის ზუსტი ტექსტის შემოწმება."
+    ),
+    parameters=types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "query": types.Schema(
+                type=types.Type.STRING,
+                description=(
+                    "Natural language description of what you're looking for. "
+                    "e.g. 'criminal liability for assault' or 'statute of limitations for misdemeanor'"
+                ),
+            ),
+            "article_number": types.Schema(
+                type=types.Type.STRING,
+                description=(
+                    "Specific article number to look up, e.g. 'მუხლი 77' or '77'. "
+                    "Include this when you know the exact article number."
+                ),
+            ),
+            "code_name": types.Schema(
+                type=types.Type.STRING,
+                description=(
+                    "Name of the legal code to search within, e.g. "
+                    "'საქართველოს სისხლის სამართლის საპროცესო კოდექსი'. "
+                    "Use the full Georgian name with 'საქართველოს' prefix."
+                ),
+            ),
+        },
+        required=["query"],
+    ),
+)
+
+SEARCH_LAW_TOOL = types.Tool(function_declarations=[SEARCH_LAW_DECLARATION])

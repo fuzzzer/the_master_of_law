@@ -56,6 +56,11 @@ class CreditGateMiddleware(BaseHTTPMiddleware):
 
         uid = user_info.get("uid", "")
         tier = user_info.get("tier", "FREE")
+        
+        # Bypass credit check for app testers and admins
+        if tier in ("ADMIN", "SUPERADMIN"):
+            return await call_next(request)
+            
         cost = credit_action.cost if credit_action else 1
 
         # Query real credit balance from DB

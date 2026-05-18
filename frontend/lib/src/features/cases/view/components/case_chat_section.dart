@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:themasteroflaw/src/src.dart';
 import 'package:ui_kit/ui_kit.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// In-case AI chat section — unified advocate.
 /// Persists conversation across tab switches. When case_file_id is available,
@@ -121,7 +122,7 @@ class _CaseChatSectionState extends State<CaseChatSection> {
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ საქმის სექციები შეივსო AI-ის ანალიზით')),
+          const SnackBar(content: Text('✅ საქმის სექციები შეივსო დამხმარის ანალიზით')),
         );
         _scrollToBottom();
       }
@@ -190,8 +191,8 @@ class _CaseChatSectionState extends State<CaseChatSection> {
                     Flexible(
                       child: Text(
                         statusText ?? (hasTools
-                            ? 'AI ავტომატურად აკეთებს საქმის ცვლილებებს'
-                            : 'AI-ს აქვს საქმის სრული კონტექსტი'),
+                            ? 'დამხმარე ავტომატურად აკეთებს საქმის ცვლილებებს'
+                            : 'დამხმარეს აქვს საქმის სრული კონტექსტი'),
                         style: uiTextStyles.labelBold12.copyWith(
                           color: hasTools ? uiColors.accentColor : uiColors.secondaryTextColor,
                         ),
@@ -220,7 +221,7 @@ class _CaseChatSectionState extends State<CaseChatSection> {
                         Icon(Icons.psychology, size: 64, color: uiColors.accentColor.withValues(alpha: 0.4)),
                         const SizedBox(height: 20),
                         Text(
-                          'AI კონსულტაცია',
+                          'დამხმარე კონსულტაცია',
                           style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor),
                         ),
                         const SizedBox(height: 8),
@@ -282,12 +283,12 @@ class _CaseChatSectionState extends State<CaseChatSection> {
                         Icon(Icons.psychology, size: 64, color: uiColors.accentColor.withValues(alpha: 0.4)),
                         const SizedBox(height: 20),
                         Text(
-                          'AI კონსულტაცია',
+                          'დამხმარე კონსულტაცია',
                           style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor),
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'აღწერეთ თქვენი სიტუაცია და AI დაგისვამთ\nდამაზუსტებელ კითხვებს.',
+                          'აღწერეთ თქვენი სიტუაცია და დამხმარე დაგისვამთ\nდამაზუსტებელ კითხვებს.',
                           style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
                           textAlign: TextAlign.center,
                         ),
@@ -358,6 +359,28 @@ class _CaseChatSectionState extends State<CaseChatSection> {
                       style: uiTextStyles.labelBold12.copyWith(color: uiColors.accentColor),
                     ),
                   ],
+                ),
+              );
+            },
+          ),
+
+          // Pending confirmations
+          BlocBuilder<ConsultationCubit, ConsultationState>(
+            buildWhen: (prev, curr) => prev.pendingConfirmations != curr.pendingConfirmations,
+            builder: (context, state) {
+              if (state.pendingConfirmations.isEmpty) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  children: state.pendingConfirmations.map((pending) {
+                    return _PendingConfirmationCard(
+                      uiColors: uiColors,
+                      uiTextStyles: uiTextStyles,
+                      data: pending,
+                      onConfirm: () => _cubit.confirmToolAction(pending.confirmationId!),
+                      onReject: () => _cubit.rejectToolAction(pending.confirmationId!),
+                    );
+                  }).toList(),
                 ),
               );
             },
@@ -496,7 +519,7 @@ class _BuildCaseCtaState extends State<_BuildCaseCta> {
               if (widget.isRegenerate) const SizedBox(width: 24), // balance for expand_less icon
               Expanded(
                 child: Text(
-                  widget.isRegenerate ? '🔄 განახლებული ინფორმაცია ხელმისაწვდომია' : '✅ AI-მ საკმარისი ინფორმაცია შეაგროვა',
+                  widget.isRegenerate ? '🔄 განახლებული ინფორმაცია ხელმისაწვდომია' : '✅ დამხმარემ საკმარისი ინფორმაცია შეაგროვა',
                   style: widget.uiTextStyles.bodyBold14.copyWith(color: widget.uiColors.accentColor),
                   textAlign: TextAlign.center,
                 ),
@@ -592,27 +615,50 @@ class _MessageBubble extends StatelessWidget {
             if (message.citations != null && message.citations!.isNotEmpty) ...[
               const SizedBox(height: 12),
               ...message.citations!.map(
-                (c) => Container(
-                  margin: const EdgeInsets.only(bottom: 6),
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: uiColors.backgroundPrimaryColor.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: uiColors.accentColor.withValues(alpha: 0.2)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.gavel, size: 12, color: uiColors.accentColor),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          c.articleTitle,
-                          style: uiTextStyles.labelBold12.copyWith(color: uiColors.accentColor),
+                (c) {
+                  final hasUrl = c.url != null && c.url!.isNotEmpty;
+                  final content = Container(
+                    margin: const EdgeInsets.only(bottom: 6),
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: uiColors.backgroundPrimaryColor.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: uiColors.accentColor.withValues(alpha: 0.2)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.gavel, size: 12, color: uiColors.accentColor),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            c.articleTitle,
+                            style: uiTextStyles.labelBold12.copyWith(
+                              color: uiColors.accentColor,
+                              decoration: hasUrl ? TextDecoration.underline : null,
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
+                        if (hasUrl) ...[
+                          const SizedBox(width: 6),
+                          Icon(Icons.open_in_new, size: 12, color: uiColors.accentColor),
+                        ]
+                      ],
+                    ),
+                  );
+
+                  if (hasUrl) {
+                    return GestureDetector(
+                      onTap: () async {
+                        final uri = Uri.parse(c.url!);
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri);
+                        }
+                      },
+                      child: MouseRegion(cursor: SystemMouseCursors.click, child: content),
+                    );
+                  }
+                  return content;
+                },
               ),
             ],
           ],
@@ -665,7 +711,7 @@ class _TypingIndicator extends StatelessWidget {
               child: CircularProgressIndicator(strokeWidth: 2, color: uiColors.accentColor),
             ),
             const SizedBox(width: 10),
-            Text('AI ფიქრობს...', style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor)),
+            Text('დამხმარე ფიქრობს...', style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor)),
           ],
         ),
       ),
@@ -680,4 +726,90 @@ String _failureMessageKa(ConsultationFailureType? type) => switch (type) {
   ConsultationFailureType.notFound => 'მოთხოვნილი რესურსი ვერ მოიძებნა.',
   ConsultationFailureType.serverError => 'სერვერის შეცდომა.\nგთხოვთ ცოტა მოგვიანებით სცადოთ.',
   ConsultationFailureType.unknown || null => 'უცნობი შეცდომა მოხდა.\nხელახლა სცადეთ.',
+};
+
+class _PendingConfirmationCard extends StatelessWidget {
+  const _PendingConfirmationCard({
+    required this.uiColors,
+    required this.uiTextStyles,
+    required this.data,
+    required this.onConfirm,
+    required this.onReject,
+  });
+
+  final UiColors uiColors;
+  final UiTextStyles uiTextStyles;
+  final ToolResultData data;
+  final VoidCallback onConfirm;
+  final VoidCallback onReject;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: uiColors.errorColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: uiColors.errorColor.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, size: 20, color: uiColors.errorColor),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'დასადასტურებელი მოქმედება: ${_toolNameKa(data.toolName)}',
+                  style: uiTextStyles.labelBold12.copyWith(color: uiColors.errorColor),
+                ),
+              ),
+            ],
+          ),
+          if (data.description != null && data.description!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(data.description!, style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor)),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: onReject,
+                child: Text('გაუქმება', style: uiTextStyles.bodyBold14.copyWith(color: uiColors.secondaryTextColor)),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: onConfirm,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: uiColors.errorColor,
+                  foregroundColor: uiColors.backgroundPrimaryColor,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('დადასტურება'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _toolNameKa(String name) => switch (name) {
+  'add_fact' => 'ფაქტის დამატება',
+  'edit_fact' => 'ფაქტის რედაქტირება',
+  'delete_fact' => 'ფაქტის წაშლა',
+  'add_argument' => 'არგუმენტის დამატება',
+  'delete_argument' => 'არგუმენტის წაშლა',
+  'link_article' => 'მუხლის მიბმა',
+  'unlink_article' => 'მუხლის მოხსნა',
+  'set_strategy' => 'სტრატეგიის დაყენება',
+  'add_action_item' => 'დავალების დამატება',
+  'add_risk' => 'რისკის დამატება',
+  'delete_risk' => 'რისკის წაშლა',
+  _ => name,
 };

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:themasteroflaw/src/core/core.dart';
 import 'package:themasteroflaw/src/features/cases/cases.dart';
 import 'package:themasteroflaw/src/features/consultation/consultation.dart';
 import 'package:themasteroflaw/src/features/laws/laws.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ConsultationPage extends StatefulWidget {
   const ConsultationPage({super.key});
@@ -25,12 +27,22 @@ class _ConsultationPageState extends State<ConsultationPage> {
     super.dispose();
   }
 
+  bool _isNearBottom() {
+    if (!_scrollController.hasClients) return true;
+    final pos = _scrollController.position;
+    // Consider "near bottom" if within 150px of the end (forward list scrolls to maxExtent)
+    // For reversed list, bottom is position 0 — but we keep this for the reversed case too.
+    return pos.pixels <= 150.0;
+  }
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
+      if (!_scrollController.hasClients) return;
+      // Reversed list: bottom = position 0. Only jump if user is already near bottom.
+      if (_isNearBottom()) {
         _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
+          0,
+          duration: const Duration(milliseconds: 250),
           curve: Curves.easeOut,
         );
       }
@@ -272,16 +284,26 @@ class _ConsultationPageState extends State<ConsultationPage> {
 
     return ListView.builder(
       controller: _scrollController,
+      reverse: true,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      // Item order (reversed list): index 0 = visually at bottom
+      //   [0]           typing indicator (if active)
+      //   [1..N]        messages newest-first
+      //   [N+1]         action chips (if visible)
       itemCount: displayMessages.length + (showTypingIndicator ? 1 : 0) + (showChips ? 1 : 0),
       itemBuilder: (context, index) {
-        if (index < displayMessages.length) {
-          return _buildMessageBubble(context, displayMessages[index]);
-        }
-        if (showTypingIndicator && index == displayMessages.length) {
+        // Typing indicator at the very bottom (index 0 in reversed list)
+        if (showTypingIndicator && index == 0) {
           return _buildTypingIndicator(context, state);
         }
-        // Action chips
+        // Offset index by 1 when the typing indicator occupies slot 0
+        final offset = showTypingIndicator ? 1 : 0;
+        final msgSlot = index - offset;
+        if (msgSlot < displayMessages.length) {
+          // Reverse: show newest message first (at bottom)
+          final reversedIndex = displayMessages.length - 1 - msgSlot;
+          return _buildMessageBubble(context, displayMessages[reversedIndex]);
+        }
         if (showChips) {
           return _buildActionChips(context);
         }
@@ -371,29 +393,41 @@ class _ConsultationPageState extends State<ConsultationPage> {
 
     return Align(
       alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: message.isUser ? uiColors.accentColor.withValues(alpha: 0.15) : uiColors.backgroundSecondaryColor,
-          borderRadius: BorderRadius.circular(14),
-          border: message.isUser ? Border.all(color: uiColors.accentColor.withValues(alpha: 0.2)) : null,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SelectableText(
-              message.text,
-              style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor, height: 1.5),
+      child: GestureDetector(
+        onLongPress: () {
+          Clipboard.setData(ClipboardData(text: message.text));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('გადაკოპირებულია'),
+              duration: Duration(seconds: 1),
+              behavior: SnackBarBehavior.floating,
             ),
-            if (message.citations != null && message.citations!.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Divider(color: uiColors.secondaryTextColor.withValues(alpha: 0.15), height: 1),
-              const SizedBox(height: 8),
-              ...message.citations!.map((c) => _buildCitationChip(context, c)),
+          );
+        },
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: message.isUser ? uiColors.accentColor.withValues(alpha: 0.15) : uiColors.backgroundSecondaryColor,
+            borderRadius: BorderRadius.circular(14),
+            border: message.isUser ? Border.all(color: uiColors.accentColor.withValues(alpha: 0.2)) : null,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SelectableText(
+                message.text,
+                style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor, height: 1.5),
+              ),
+              if (message.citations != null && message.citations!.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Divider(color: uiColors.secondaryTextColor.withValues(alpha: 0.15), height: 1),
+                const SizedBox(height: 8),
+                ...message.citations!.map((c) => _buildCitationChip(context, c)),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -434,6 +468,13 @@ class _ConsultationPageState extends State<ConsultationPage> {
   }
 
   void _navigateToArticle(BuildContext context, CitationData citation) {
+    final url = citation.url;
+    // If we have a real matsne.gov.ge URL, open it externally
+    if (url != null && url.isNotEmpty && url.contains('matsne.gov.ge')) {
+      launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      return;
+    }
+    // Fallback: internal article page
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => BlocProvider(

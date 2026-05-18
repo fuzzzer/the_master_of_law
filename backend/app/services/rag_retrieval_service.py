@@ -281,9 +281,10 @@ class RAGRetrievalService:
         compact = [
             {
                 "chunk_id": c["chunk_id"],
-                "preview": c.get("content", "")[:300],
+                "preview": c.get("content", "")[:500],
                 "code": c.get("metadata", {}).get("code_name", ""),
                 "article": c.get("metadata", {}).get("article_number", ""),
+                "title": c.get("metadata", {}).get("article_title", ""),
             }
             for c in candidates[:100]
         ]
@@ -311,6 +312,82 @@ class RAGRetrievalService:
             return candidates[:top_k]
         except Exception:
             return candidates[:top_k]
+
+
+    async def search_law(
+        self,
+        query: str,
+        article_number: str | None = None,
+        code_name: str | None = None,
+    ) -> list[dict]:
+        """Targeted law lookup for AI tool use.
+
+        Strategy:
+        1. If both code_name and article_number are given → exact metadata match (fast, precise).
+        2. If only article_number → metadata match across all codes.
+        3. Always supplement with a semantic search on the query for broader coverage.
+
+        Parameters
+        ----------
+        query : str
+            Natural-language description of what law to find (always required for semantic pass).
+        article_number : str | None
+            e.g. "მუხლი 77" — if provided, attempts direct metadata lookup first.
+        code_name : str | None
+            e.g. "საქართველოს სისხლის სამართლის საპროცესო კოდექსი"
+        """
+        results: list[dict] = []
+        seen_ids: set[str] = set()
+
+        # ── Pass 1: Exact metadata match ─────────────────────
+        if article_number:
+            # Normalise: ensure "მუხლი " prefix
+            if not article_number.startswith("მუხლი"):
+                article_number = f"მუხლი {article_number.strip()}"
+
+            where: dict = {"article_number": {"$eq": article_number}}
+            if code_name:
+                # Try full name first; if empty, also try normalised (strip prefix)
+                full_name = code_name if code_name.startswith("საქართველოს") else f"საქართველოს {code_name}"
+                # ChromaDB $and requires a list
+                where = {"$and": [
+                    {"article_number": {"$eq": article_number}},
+                    {"$or": [
+                        {"code_name": {"$eq": full_name}},
+                        {"code_name": {"$eq": code_name}},
+                    ]},
+                ]}
+
+            exact = self.chroma.search_by_metadata(
+                where=where,
+                collections=["georgian_laws"],
+                limit=10,
+            )
+            for hit in exact:
+                cid = hit["chunk_id"]
+                if cid not in seen_ids:
+                    seen_ids.add(cid)
+                    results.append(hit)
+
+        # ── Pass 2: Semantic search on query ──────────────────
+        # Always run to catch cases where exact match failed or query adds context
+        try:
+            embedding = self.embedding_client.embed_query(query)
+            semantic_hits = self.chroma.vector_search(
+                query_embedding=embedding,
+                top_k=10,
+                collections=["georgian_laws"],
+            )
+            for hit in semantic_hits:
+                cid = hit["chunk_id"]
+                if cid not in seen_ids:
+                    seen_ids.add(cid)
+                    results.append(hit)
+        except Exception as e:
+            logger.warning("search_law_semantic_failed", error=str(e))
+
+        logger.info("search_law_done", exact=len(results), query=query[:60])
+        return results[:15]
 
 
 _rag_service: RAGRetrievalService | None = None

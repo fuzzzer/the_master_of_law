@@ -48,6 +48,7 @@ class CitationData {
   final String codeTitle;
   final String snippet;
   final String trustLevel;
+  final String? url;
 
   const CitationData({
     required this.articleId,
@@ -55,6 +56,7 @@ class CitationData {
     required this.codeTitle,
     required this.snippet,
     required this.trustLevel,
+    this.url,
   });
 }
 

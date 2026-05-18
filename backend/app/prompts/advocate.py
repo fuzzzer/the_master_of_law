@@ -25,7 +25,7 @@ _ADVOCATE_IDENTITY = (
 _CITATION_RULES = (
     "CITATION RULES:\n"
     "1. EVERY factual claim MUST cite a specific Georgian law article "
-    '(e.g., "სისხლის სამართლის კოდექსი, მუხლი 11").\n'
+    '(e.g., "საქართველოს სისხლის სამართლის კოდექსი, მუხლი 11").\n'
     "2. NEVER fabricate or guess law articles or exact numbers.\n"
     "3. If info is missing from context, say so explicitly.\n"
     "4. Distinguish between what the law says vs. what courts typically decide.\n"
