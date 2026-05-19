@@ -2,7 +2,7 @@ name: themasteroflaw
 description: "Your guide in law"
 publish_to: none
 
-version: 0.1.53+59
+version: 0.1.54+60
 
 environment:
   sdk: ^3.8.0
