@@ -18,6 +18,7 @@ from app.prompts.explanation import SIMPLIFY_TEXT, EXPLAIN_ARTICLE
 from app.prompts.questionnaire import QUESTIONNAIRE_GENERATOR, NARRATIVE_EXTRACTOR
 from app.prompts.guardrail import GUARDRAIL_CLASSIFIER
 from app.prompts.chat import CHAT_SYSTEM, CASE_INTAKE_SYSTEM, CASE_AGENT_SYSTEM
+from app.prompts.document_generator import DOCUMENT_DRAFTER
 
 # Build the global registry
 prompts = PromptRegistry()
@@ -35,6 +36,7 @@ prompts.register(GUARDRAIL_CLASSIFIER)
 prompts.register(CHAT_SYSTEM)
 prompts.register(CASE_INTAKE_SYSTEM)
 prompts.register(CASE_AGENT_SYSTEM)
+prompts.register(DOCUMENT_DRAFTER)
 
 # Validate on import — fails fast if any template is malformed
 _issues = prompts.validate_all()

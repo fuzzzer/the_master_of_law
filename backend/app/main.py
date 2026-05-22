@@ -39,6 +39,7 @@ from app.routes import (
     rag_router,
     ws_chat_router,
     api_key_router,
+    contacts_router,
 )
 from app.utils.logger import get_logger, setup_logging
 
@@ -132,6 +133,7 @@ def create_app() -> FastAPI:
     app.include_router(ws_chat_router.router)
     app.include_router(case_agent_router.router)
     app.include_router(api_key_router.router)
+    app.include_router(contacts_router.router)
 
     return app
 

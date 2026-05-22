@@ -39,6 +39,7 @@ class CreditAction(str, enum.Enum):
     ANALYSIS = "analysis"
     CASE_FILE = "case_file"
     CASE_UPDATE = "case_update"
+    DOCUMENT_GENERATION = "document_generation"
     BROWSE = "browse"  # always free
 
     @property
@@ -52,6 +53,7 @@ _ACTION_COSTS: dict[CreditAction, int] = {
     CreditAction.ANALYSIS: 2,
     CreditAction.CASE_FILE: 3,
     CreditAction.CASE_UPDATE: 1,
+    CreditAction.DOCUMENT_GENERATION: 5,
     CreditAction.BROWSE: 0,
 }
 

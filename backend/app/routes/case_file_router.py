@@ -21,8 +21,11 @@ from app.schemas.case_file_schema import (
     CaseFileListResponse,
     CaseFileSummary,
     CaseFileUpdateRequest,
+    DocumentGenerationRequest,
+    DocumentGenerationResponse,
 )
 from app.services.case_builder_service import get_case_builder_service
+from app.services.document_generator_service import get_document_generator_service
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -261,3 +264,85 @@ async def delete_case_file(
     await repo.delete(cf_uuid)
     await db.commit()
     return None
+
+
+@router.post("/{case_file_id}/generate-document", response_model=DocumentGenerationResponse, status_code=201)
+async def generate_document(
+    case_file_id: str,
+    body: DocumentGenerationRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Generate a legal DOCX document and dispatch info (costs 5 credits)."""
+    import base64
+    import uuid as _uuid
+
+    user_info = getattr(request.state, "user", None)
+    if not user_info:
+        return JSONResponse(status_code=401, content={"error": "Not authenticated"})
+
+    uid = user_info.get("uid", "")
+
+    try:
+        cf_uuid = _uuid.UUID(case_file_id)
+    except ValueError:
+        return JSONResponse(status_code=400, content={"error": "Invalid case file ID"})
+
+    # Check ownership
+    repo = CaseFileRepository(db)
+    cf = await repo.get_by_id(cf_uuid)
+    if not cf:
+        return JSONResponse(status_code=404, content={"error": "Case file not found"})
+
+    from app.config.settings import settings
+    if cf.user_id != uid and settings.app_env != "development":
+        return JSONResponse(status_code=403, content={"error": "Unauthorized access to case file"})
+
+    # Credit check
+    cost = CreditAction.DOCUMENT_GENERATION.cost
+    user_repo = UserRepository(db)
+    user = await user_repo.get_by_firebase_uid(uid)
+
+    credit_repo = CreditRepository(db)
+    if user:
+        credits = await credit_repo.get_balance(user.id)
+        if not credit_repo.has_sufficient_credits(credits, cost):
+            return JSONResponse(
+                status_code=402,
+                content={
+                    "error": "insufficient_credits",
+                    "message": f"Not enough credits to generate document (requires {cost} credits)",
+                    "credits_remaining": credit_repo.get_remaining_credits(credits),
+                },
+            )
+
+    try:
+        svc = get_document_generator_service()
+        result = await svc.generate_document(
+            db=db,
+            case_file_id=cf_uuid,
+            document_type=body.document_type or "ოფიციალური დოკუმენტი / სარჩელი / საჩივარი",
+            notes_for_drafting=body.notes_for_drafting,
+        )
+    except Exception as e:
+        logger.error("document_generation_failed", error=str(e))
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+    # Deduct credits
+    if user:
+        await credit_repo.deduct(
+            user_id=user.id,
+            cost=cost,
+            action=CreditAction.DOCUMENT_GENERATION.value,
+            description=f"Generated document for case file {case_file_id}",
+        )
+        await db.commit()
+
+    docx_base64 = base64.b64encode(result["docx_bytes"]).decode("utf-8")
+
+    return DocumentGenerationResponse(
+        docx_base64=docx_base64,
+        markdown_text=result["markdown_text"],
+        dispatch_info=result["dispatch_info"],
+    )
+

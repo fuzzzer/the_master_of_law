@@ -20,6 +20,7 @@ dependencies = [
     "python-multipart>=0.0.9",
     "tenacity>=9.0",
     "orjson>=3.10",
+    "python-docx>=1.1.0",
 ]
 
 [project.optional-dependencies]

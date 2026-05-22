@@ -48,9 +48,9 @@ decisions are BINDING and override all lower court interpretations").
 |--------|-------|
 | Python files | 90 |
 | Lines of code | ~10,261 |
-| Router files | 13 |
-| Endpoints | 36 |
-| Services | 14 |
+| Router files | 14 |
+| Endpoints | 38 |
+| Services | 15 |
 | Repositories | 7 |
 | Models | 8 |
 | Schemas | 9 |
@@ -97,7 +97,7 @@ decisions are BINDING and override all lower court interpretations").
 |--------|------|---------|-------------|
 | WS | `/api/v1/chat/{id}/ws` | 1 | WebSocket streaming (accepts `rag_config`) |
 
-### case_file_router (5)
+### case_file_router (6)
 | Method | Path | Credits | Description |
 |--------|------|---------|-------------|
 | POST | `/api/v1/case-files/build` | **3** | Build defense case (accepts `rag_config`) |
@@ -105,6 +105,7 @@ decisions are BINDING and override all lower court interpretations").
 | GET | `/api/v1/case-files/{id}` | 0 | Get case file |
 | PATCH | `/api/v1/case-files/{id}` | 0 | Update notes/status |
 | DELETE | `/api/v1/case-files/{id}` | 0 | Delete case file |
+| POST | `/api/v1/case-files/{id}/generate-document` | **5** | Generate official DOCX document |
 
 ### case_agent_router (2)
 | Method | Path | Credits | Description |
@@ -149,9 +150,14 @@ decisions are BINDING and override all lower court interpretations").
 | GET | `/api/v1/api-keys/check` | 0 | Check API key validity |
 | POST | `/api/v1/api-keys` | 0 | Create API key (ADMIN) |
 
+### contacts_router (1)
+| Method | Path | Credits | Description |
+|--------|------|---------|-------------|
+| GET | `/api/v1/contacts` | 0 | List beneficial official contacts |
+
 ---
 
-## Services (14)
+## Services (15)
 
 | Service | Purpose |
 |---------|---------|
@@ -169,6 +175,7 @@ decisions are BINDING and override all lower court interpretations").
 | law_browser_service | Search/browse corpus (free) |
 | guardrail_service | Input/output safety checks |
 | threshold_service | Credit threshold management |
+| document_generator_service | AI drafts official documents to DOCX |
 
 ---
 
