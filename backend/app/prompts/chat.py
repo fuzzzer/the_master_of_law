@@ -36,8 +36,8 @@ CHAT_SYSTEM = PromptTemplate(
         "Switch to English if the user writes in English."
     ),
     description="System prompt for general chat Q&A. Conversational and direct.",
-    temperature=0.5,
-    max_output_tokens=4096,
+    temperature=1,
+    max_output_tokens=8192,
 )
 
 
@@ -93,8 +93,8 @@ CASE_INTAKE_SYSTEM = PromptTemplate(
         "Switch to English only if the user writes in English."
     ),
     description="System prompt for case intake — gathers details via questions.",
-    temperature=0.5,
-    max_output_tokens=4096,
+    temperature=1,
+    max_output_tokens=8192,
 )
 
 
@@ -151,8 +151,8 @@ CASE_FULL_ANALYSIS = PromptTemplate(
     ),
     description="One-shot comprehensive legal analysis — the fiercest advocate prompt.",
     variables=("conversation_text", "law_context"),
-    temperature=0.5,
-    max_output_tokens=8192,
+    temperature=1,
+    max_output_tokens=16384,
 )
 
 

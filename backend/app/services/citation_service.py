@@ -171,6 +171,112 @@ class CitationService:
         )
         return verified
 
+    def verify_against_corpus(
+        self,
+        citations: list[dict[str, str]],
+        already_retrieved: list[dict[str, Any]],
+    ) -> dict[str, list[dict[str, Any]]]:
+        """Actively search the corpus for unverified citations.
+
+        Unlike verify_citations() which only checks already-retrieved chunks,
+        this method performs exact metadata searches in ChromaDB for any
+        citations not found in the initial retrieval.
+
+        Returns
+        -------
+        dict with keys:
+            verified: Citations confirmed in already_retrieved chunks.
+            corpus_found: Citations NOT in chunks but found via metadata search.
+            not_found: Citations not in corpus at all (likely hallucinated).
+        """
+        chunk_lookup: dict[tuple[str, str], dict] = {}
+        for chunk in already_retrieved:
+            meta = chunk.get("metadata", {})
+            full_code = meta.get("code_name", "")
+            article = meta.get("article_number", "")
+            normalized_code = _normalize_code_name(full_code)
+            entry = {"content": chunk.get("content", ""), "metadata": meta}
+            for key in [(full_code, article), (normalized_code, article)]:
+                if key not in chunk_lookup:
+                    chunk_lookup[key] = entry
+
+        verified: list[dict[str, Any]] = []
+        corpus_found: list[dict[str, Any]] = []
+        not_found: list[dict[str, Any]] = []
+
+        for citation in citations:
+            code = citation["code_name"]
+            article = citation["article_number"]
+            normalized = _normalize_code_name(code)
+
+            info = chunk_lookup.get((code, article)) or chunk_lookup.get((normalized, article))
+            if info:
+                verified.append({
+                    **citation,
+                    "verified": True,
+                    "article_url": info["metadata"].get("article_url", ""),
+                    "citation_text": info["metadata"].get("citation_text", ""),
+                    "content": info["content"][:500],
+                })
+                continue
+
+            corpus_hit = self._search_corpus_exact(article, code)
+            if corpus_hit:
+                corpus_found.append({
+                    **citation,
+                    "verified": True,
+                    "article_url": corpus_hit["metadata"].get("article_url", ""),
+                    "citation_text": corpus_hit["metadata"].get("citation_text", ""),
+                    "content": corpus_hit.get("content", "")[:500],
+                    "corpus_code_name": corpus_hit["metadata"].get("code_name", ""),
+                })
+            else:
+                not_found.append({
+                    **citation,
+                    "verified": False,
+                })
+
+        logger.info(
+            "citations_corpus_verified",
+            verified=len(verified),
+            corpus_found=len(corpus_found),
+            not_found=len(not_found),
+        )
+        return {
+            "verified": verified,
+            "corpus_found": corpus_found,
+            "not_found": not_found,
+        }
+
+    def _search_corpus_exact(
+        self, article_number: str, code_name: str
+    ) -> dict[str, Any] | None:
+        """Search ChromaDB by exact article metadata."""
+        if not article_number.startswith("მუხლი"):
+            article_number = f"მუხლი {article_number.strip()}"
+
+        where: dict[str, Any] = {"article_number": {"$eq": article_number}}
+        if code_name and code_name != "Unknown":
+            full_name = code_name if code_name.startswith("საქართველოს") else f"საქართველოს {code_name}"
+            where = {"$and": [
+                {"article_number": {"$eq": article_number}},
+                {"$or": [
+                    {"code_name": {"$eq": full_name}},
+                    {"code_name": {"$eq": code_name}},
+                ]},
+            ]}
+
+        try:
+            hits = self.chroma.search_by_metadata(
+                where=where,
+                collections=["georgian_laws"],
+                limit=3,
+            )
+            return hits[0] if hits else None
+        except Exception as e:
+            logger.warning("corpus_exact_search_failed", error=str(e))
+            return None
+
 
 _citation_service = None
 

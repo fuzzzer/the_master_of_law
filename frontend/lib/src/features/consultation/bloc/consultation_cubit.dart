@@ -135,14 +135,25 @@ class ConsultationCubit extends Cubit<ConsultationState> {
             emit(state.copyWith(messages: msgs, clearStreamingStatus: true, isSending: false));
           }
         } else if (type == 'tool_executed') {
+          final toolName = event['tool']?.toString() ?? '';
+          final toolResult = (event['result'] as Map<String, dynamic>?) ?? {};
+
           toolResultsCollected.add(ToolResultData(
-            toolName: event['tool']?.toString() ?? '',
+            toolName: toolName,
             status: event['status']?.toString() ?? 'executed',
-            result: (event['result'] as Map<String, dynamic>?) ?? {},
+            result: toolResult,
           ));
-          emit(state.copyWith(
-            streamingStatus: '🔧 ${_toolNameKa(event['tool']?.toString() ?? '')}',
-          ));
+
+          if (toolName == 'create_case' && toolResult.containsKey('case_file_id')) {
+            emit(state.copyWith(
+              caseFileId: toolResult['case_file_id']?.toString(),
+              streamingStatus: '📁 ${_toolNameKa(toolName)}',
+            ));
+          } else {
+            emit(state.copyWith(
+              streamingStatus: '🔧 ${_toolNameKa(toolName)}',
+            ));
+          }
         } else if (type == 'confirmation_required') {
           final pending = ToolResultData(
             toolName: event['tool_name']?.toString() ?? '',
@@ -181,12 +192,24 @@ class ConsultationCubit extends Cubit<ConsultationState> {
             );
             msgs.add(aiMsg);
           }
+          // Check done-event tool_results for case creation
+          final doneToolResults = event['tool_results'] as List<dynamic>? ?? [];
+          String? createdCaseId;
+          for (final t in doneToolResults) {
+            final map = t as Map<String, dynamic>;
+            if (map['tool_name'] == 'create_case') {
+              final result = map['result'] as Map<String, dynamic>? ?? {};
+              createdCaseId = result['case_file_id']?.toString();
+            }
+          }
+
           emit(state.copyWith(
             messages: msgs,
             isSending: false,
             clearStreamingStatus: true,
             clearStreamingMessageId: true,
             caseAnalysisReady: event['case_analysis_ready'] == true,
+            caseFileId: createdCaseId ?? state.caseFileId,
           ));
           break;
         } else if (type == 'error') {
@@ -232,12 +255,16 @@ class ConsultationCubit extends Cubit<ConsultationState> {
   String _toolNameKa(String name) => switch (name) {
     'add_fact' => 'ფაქტი დამატებულია',
     'edit_fact' => 'ფაქტი განახლდა',
+    'delete_fact' => 'ფაქტი წაშლილია',
     'add_argument' => 'არგუმენტი დამატებულია',
+    'delete_argument' => 'არგუმენტი წაშლილია',
     'link_article' => 'მუხლი მიბმულია',
     'set_strategy' => 'სტრატეგია დაყენებულია',
     'add_action_item' => 'დავალება დამატებულია',
     'add_risk' => 'რისკი დამატებულია',
     'get_case_summary' => 'საქმის მიმოხილვა',
+    'create_case' => 'საქმე შეიქმნა',
+    'build_case_analysis' => 'სრული ანალიზი მზადდება',
     _ => name,
   };
 

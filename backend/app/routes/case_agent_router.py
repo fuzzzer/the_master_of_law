@@ -31,13 +31,9 @@ from app.schemas.chat_schema import (
     ToolConfirmResponse,
     ToolResultInfo,
 )
-from app.services.case_tool_executor import CaseToolExecutor, MAX_TOOL_CALLS_PER_MESSAGE
-from app.services.citation_service import get_citation_service
+from app.services.agent_pipeline_service import get_agent_pipeline_service
+from app.services.case_tool_executor import CaseToolExecutor
 from app.services.conversation_service import ConversationService
-from app.services.legal_analysis_service import LawContextFormatter
-from app.services.rag_retrieval_service import get_rag_service
-from app.integrations.vertex_ai_client import get_vertex_ai_client
-from app.tools.case_tools import CASE_TOOLS
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -90,8 +86,10 @@ async def send_agent_message(
 
     case_context = _build_case_context(case_file)
 
-    # RAG retrieval — agent has full access to the law corpus
-    rag = get_rag_service()
+    # Build system prompt from case context
+    system_prompt = CASE_AGENT_SYSTEM.render(case_context=case_context)
+
+    # Determine RAG collections
     collections = None
     if body.rag_config:
         from app.schemas.rag_schema import RAGCollectionConfig
@@ -101,137 +99,44 @@ async def send_agent_message(
         except Exception:
             pass
 
-    chunks = await rag.retrieve(body.message, collections=collections)
-    law_context = LawContextFormatter.format(chunks)
+    # Run the unified agent pipeline
+    pipeline = get_agent_pipeline_service()
+    result = await pipeline.run(
+        user_message=body.message,
+        conversation_history=history,
+        system_prompt=system_prompt,
+        rag_collections=collections,
+        case_file_id=body.case_file_id,
+        user_id=uid,
+        conversation_id=conversation_id,
+        db=db,
+        is_case_chat=True,
+    )
 
-    full_context = f"{case_context}\n\n{law_context}"
-    contents = _build_gemini_contents(history, body.message)
-    gemini = get_vertex_ai_client()
-
-    is_case_empty = not case_file.facts and not case_file.applicable_laws and not case_file.defense_strategies
-    tool_results: list[ToolResultInfo] = []
-    response_text = ""
-    case_analysis_ready = False
-
-    if is_case_empty:
-        # Phase 1: Intake Questions
-        from app.prompts.chat import CASE_INTAKE_SYSTEM
-        system_prompt = CASE_INTAKE_SYSTEM.render()
-        
-        # In intake phase, we don't use tools. We use standard generation
-        # We use generate_with_tools with tools=None to pass the full conversation history.
-        response = await gemini.generate_with_tools(
-            contents=contents,
-            tools=None,
-            system_instruction=system_prompt,
-            temperature=CASE_INTAKE_SYSTEM.temperature,
-            max_output_tokens=CASE_INTAKE_SYSTEM.max_output_tokens,
-            model_name=settings.gemini_chat_model,
+    response_text = result.response_text
+    chunks = result.chunks
+    verified_citations = result.verified_citations
+    tool_results_info = [
+        ToolResultInfo(
+            tool_name=t.tool_name,
+            status=t.status,
+            result=t.result,
+            requires_confirmation=t.requires_confirmation,
+            confirmation_id=t.confirmation_id,
+            description=t.description,
         )
-        response_text = _extract_text(response)
-        
-        import re
-        tag_ready = bool(re.search(r'\[CASE_READY\]', response_text))
-        if tag_ready:
-            response_text = re.sub(r'\s*\[CASE_READY\]\s*', '', response_text).rstrip()
-            
-            # Phase 2: Full Analysis and Case Building
-            from app.services.case_builder_service import get_case_builder_service
-            case_builder = get_case_builder_service()
-            try:
-                result = await case_builder.update_case_file(
-                    db=db,
-                    case_file_id=cf_uuid,
-                    conversation_id=conversation_id,
-                    retrieved_chunks=chunks,
-                )
-                
-                if "full_analysis_text" in result:
-                    response_text += "\n\n" + result["full_analysis_text"]
-                
-                case_analysis_ready = True
-            except Exception as e:
-                logger.error("case_agent_auto_build_failed", error=str(e))
+        for t in result.tool_results
+    ]
 
-    else:
-        # Phase 3: Case Agent with Tools
-        system_prompt = CASE_AGENT_SYSTEM.render(case_context=full_context)
-        tool_executor = CaseToolExecutor(db)
-        tool_call_count = 0
+    # Check if any tool created a case or ran analysis
+    case_analysis_ready = any(
+        t.tool_name in ("build_case_analysis", "create_case")
+        and t.status == "executed"
+        for t in result.tool_results
+    )
 
-        response = await gemini.generate_with_tools(
-            contents=contents,
-            tools=CASE_TOOLS,
-            system_instruction=system_prompt,
-            temperature=CASE_AGENT_SYSTEM.temperature,
-            max_output_tokens=CASE_AGENT_SYSTEM.max_output_tokens,
-            model_name=settings.gemini_chat_model,
-        )
-
-        while tool_call_count < MAX_TOOL_CALLS_PER_MESSAGE:
-            function_calls = _extract_function_calls(response)
-            text_parts = _extract_text(response)
-
-            if text_parts:
-                response_text += text_parts
-
-            if not function_calls:
-                break
-
-            tool_call_count += len(function_calls)
-            if tool_call_count > MAX_TOOL_CALLS_PER_MESSAGE:
-                response_text += "\n\n⚠️ Maximum tool calls per message reached."
-                break
-
-            function_response_parts = []
-            for fc in function_calls:
-                tool_name = fc.name
-                tool_args = dict(fc.args) if fc.args else {}
-
-                result = await tool_executor.execute(
-                    tool_name=tool_name,
-                    args=tool_args,
-                    case_file_id=body.case_file_id,
-                    user_id=uid,
-                )
-                tool_results.append(ToolResultInfo(**result.to_dict()))
-
-                function_response_parts.append(
-                    types.Part.from_function_response(
-                        name=tool_name,
-                        response=result.to_dict(),
-                    )
-                )
-
-            contents.append(response.candidates[0].content)
-            contents.append(types.Content(
-                role="user",
-                parts=function_response_parts,
-            ))
-
-            response = await gemini.generate_with_tools(
-                contents=contents,
-                tools=CASE_TOOLS,
-                system_instruction=system_prompt,
-                temperature=CASE_AGENT_SYSTEM.temperature,
-                max_output_tokens=CASE_AGENT_SYSTEM.max_output_tokens,
-                model_name=settings.gemini_chat_model,
-            )
-
-        final_text = _extract_text(response)
-        if final_text:
-            response_text += final_text
-
-        if not response_text.strip():
-            response_text = "Tool operations completed."
-
-    # Citation verification
-    citation_svc = get_citation_service()
-    raw_citations = citation_svc.extract_citations(response_text)
-    verified_citations = citation_svc.verify_citations(raw_citations, chunks)
-
+    # Persist
     chunk_ids = [c.get("chunk_id", "") for c in chunks[:20] if "chunk_id" in c]
-
     await conv_svc.save_assistant_message(
         conversation_id=conversation_id,
         content=response_text,
@@ -259,7 +164,9 @@ async def send_agent_message(
     logger.info(
         "case_agent_done",
         conversation_id=conversation_id,
-        tool_results=len(tool_results),
+        tool_results=len(tool_results_info),
+        plan_intent=result.plan.intent,
+        verify_iterations=result.iterations,
     )
 
     return ChatSendResponse(
@@ -287,7 +194,7 @@ async def send_agent_message(
             for c in chunks[:10]
         ],
         credits_remaining=credits_remaining,
-        tool_results=tool_results,
+        tool_results=tool_results_info,
         case_analysis_ready=case_analysis_ready,
     )
 

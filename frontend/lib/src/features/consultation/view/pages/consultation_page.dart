@@ -152,7 +152,8 @@ class _ConsultationPageState extends State<ConsultationPage> {
               Column(
                 children: [
                   Expanded(child: _buildMessageList(context, state)),
-                  if (state.caseAnalysisReady && !state.hasCaseAttached) _buildCaseReadyBanner(context, state),
+                  if (state.isAgentMode) _buildAgentModeBanner(context, state),
+                  if (state.caseAnalysisReady && !state.hasCaseAttached && !state.isAgentMode) _buildCaseReadyBanner(context, state),
                   if (state.hasCaseAttached) _buildAttachedCaseBanner(context, state),
                   _buildInputBar(context, state),
                 ],
@@ -420,6 +421,10 @@ class _ConsultationPageState extends State<ConsultationPage> {
                 message.text,
                 style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor, height: 1.5),
               ),
+              if (message.toolResults != null && message.toolResults!.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                ...message.toolResults!.map((t) => _buildToolResultChip(context, t)),
+              ],
               if (message.citations != null && message.citations!.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 Divider(color: uiColors.secondaryTextColor.withValues(alpha: 0.15), height: 1),
@@ -466,6 +471,69 @@ class _ConsultationPageState extends State<ConsultationPage> {
       ),
     );
   }
+
+  Widget _buildToolResultChip(BuildContext context, ToolResultData tool) {
+    final uiTextStyles = context.uiTextStyles;
+
+    final (IconData icon, Color color, String label) = switch (tool.toolName) {
+      'create_case' => (
+        Icons.create_new_folder_outlined,
+        const Color(0xFF2ECC71),
+        '📁 ${_toolNameKaStatic(tool.toolName)}: ${tool.result['title'] ?? ''}',
+      ),
+      'build_case_analysis' => (
+        Icons.auto_awesome,
+        const Color(0xFF9B59B6),
+        '✨ ${_toolNameKaStatic(tool.toolName)}',
+      ),
+      _ => (
+        Icons.build_circle_outlined,
+        const Color(0xFF7F8C8D),
+        '✅ ${_toolNameKaStatic(tool.toolName)}',
+      ),
+    };
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              style: uiTextStyles.caption11.copyWith(color: color, fontWeight: FontWeight.w600),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _toolNameKaStatic(String name) => switch (name) {
+    'add_fact' => 'ფაქტი დამატებულია',
+    'edit_fact' => 'ფაქტი განახლდა',
+    'delete_fact' => 'ფაქტი წაშლილია',
+    'add_argument' => 'არგუმენტი დამატებულია',
+    'delete_argument' => 'არგუმენტი წაშლილია',
+    'link_article' => 'მუხლი მიბმულია',
+    'set_strategy' => 'სტრატეგია დაყენებულია',
+    'add_action_item' => 'დავალება დამატებულია',
+    'add_risk' => 'რისკი დამატებულია',
+    'get_case_summary' => 'საქმის მიმოხილვა',
+    'create_case' => 'საქმე შეიქმნა',
+    'build_case_analysis' => 'სრული ანალიზი',
+    _ => name,
+  };
 
   void _navigateToArticle(BuildContext context, CitationData citation) {
     final url = citation.url;
@@ -579,6 +647,37 @@ class _ConsultationPageState extends State<ConsultationPage> {
               color: state.isSending ? uiColors.secondaryTextColor.withValues(alpha: 0.3) : uiColors.accentColor,
             ),
             onPressed: state.isSending ? null : () => _sendMessage(context, state),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAgentModeBanner(BuildContext context, ConsultationState state) {
+    final uiColors = context.uiColors;
+    final uiTextStyles = context.uiTextStyles;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2ECC71).withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF2ECC71).withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.folder_special, size: 16, color: Color(0xFF2ECC71)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '📂 საქმე დაკავშირებულია — AI ინსტრუმენტები აქტიურია',
+              style: uiTextStyles.labelBold12.copyWith(color: const Color(0xFF2ECC71)),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          GestureDetector(
+            onTap: () => context.read<ConsultationCubit>().exitAgentMode(),
+            child: Icon(Icons.close, size: 16, color: uiColors.secondaryTextColor),
           ),
         ],
       ),

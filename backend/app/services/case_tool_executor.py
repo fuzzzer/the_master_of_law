@@ -59,10 +59,18 @@ class ToolResult:
 class CaseToolExecutor:
     """Executes case modification tools called by Gemini."""
 
-    def __init__(self, db: AsyncSession, redis_client: Any = None):
+    def __init__(
+        self,
+        db: AsyncSession,
+        redis_client: Any = None,
+        user_id: str | None = None,
+        conversation_id: str | None = None,
+    ):
         self._db = db
         self._repo = CaseFileRepository(db)
         self._redis = redis_client
+        self._user_id = user_id
+        self._conversation_id = conversation_id
 
     async def execute(
         self,
@@ -169,6 +177,8 @@ class CaseToolExecutor:
             "complete_action_item": self._handle_complete_action_item,
             "delete_action_item": self._handle_delete_action_item,
             "add_risk": self._handle_add_risk,
+            "create_case": self._handle_create_case,
+            "build_case_analysis": self._handle_build_case_analysis,
         }
         return handlers.get(tool_name)
 
@@ -380,6 +390,52 @@ class CaseToolExecutor:
             "description": args["description"],
             "severity": args.get("severity", "medium"),
         }
+
+    async def _handle_create_case(self, _case_file_id: str, args: dict) -> dict:
+        """Create a new case file. _case_file_id is ignored (we create a new one)."""
+        if not self._user_id or not self._conversation_id:
+            return {"error": "Cannot create case: missing user_id or conversation_id"}
+        title = args.get("title", "ახალი საქმე")
+        initial_facts = args.get("initial_facts", [])
+        facts = {"items": []}
+        for f in initial_facts:
+            if isinstance(f, dict) and "text" in f:
+                facts["items"].append({
+                    "id": f"ai_fact_{uuid.uuid4().hex[:8]}",
+                    "text": f["text"],
+                    "classification": f.get("classification", "neutral"),
+                })
+        cf = await self._repo.create(
+            user_id=self._user_id,
+            conversation_id=uuid.UUID(self._conversation_id),
+            title=title,
+            facts=facts,
+            status="draft",
+        )
+        logger.info("case_created_by_agent", case_file_id=str(cf.id), title=title)
+        return {"case_file_id": str(cf.id), "title": cf.title, "status": "draft"}
+
+    async def _handle_build_case_analysis(self, case_file_id: str, _args: dict) -> dict:
+        """Trigger full case analysis via CaseBuilderService."""
+        if not self._conversation_id:
+            return {"error": "Cannot build case: missing conversation_id"}
+        from app.services.case_builder_service import get_case_builder_service
+        builder = get_case_builder_service()
+        try:
+            result = await builder.update_case_file(
+                db=self._db,
+                case_file_id=uuid.UUID(case_file_id),
+                conversation_id=self._conversation_id,
+            )
+            logger.info("case_analysis_built_by_agent", case_file_id=case_file_id)
+            return {
+                "status": "analysis_complete",
+                "case_file_id": case_file_id,
+                "title": result.get("title", ""),
+            }
+        except Exception as e:
+            logger.error("case_analysis_build_failed", error=str(e))
+            return {"error": f"Case analysis failed: {str(e)}"}
 
     # ── Confirmation tracking ────────────────────────────────
 

@@ -73,6 +73,7 @@ class RAGRetrievalService:
         user_message: str,
         top_k: int = RAG_RERANK_TOP_K,
         collections: list[str] | None = None,
+        pre_expanded_queries: list[str] | None = None,
     ) -> list[dict]:
         """Run the full 5-stage RAG pipeline.
 
@@ -84,6 +85,9 @@ class RAGRetrievalService:
             Max results after reranking.
         collections : list[str] | None
             Which ChromaDB collections to search. None = all available.
+        pre_expanded_queries : list[str] | None
+            Pre-planned search queries from the agent pipeline. When provided,
+            Stage 0 (query expansion) is skipped to avoid double-expansion.
         """
         logger.info(
             "rag_pipeline_start",
@@ -91,8 +95,12 @@ class RAGRetrievalService:
             collections=collections,
         )
 
-        expanded = await self._stage_0_expand_queries(user_message)
-        logger.info("rag_stage_0_done", query_count=len(expanded))
+        if pre_expanded_queries:
+            expanded = pre_expanded_queries
+            logger.info("rag_stage_0_skipped", query_count=len(expanded), reason="pre_expanded")
+        else:
+            expanded = await self._stage_0_expand_queries(user_message)
+            logger.info("rag_stage_0_done", query_count=len(expanded))
 
         if not expanded:
             logger.info("rag_pipeline_skipped", reason="no_search_needed")

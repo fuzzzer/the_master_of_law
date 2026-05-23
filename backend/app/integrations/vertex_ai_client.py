@@ -103,6 +103,55 @@ class VertexAIClient:
             if chunk.text:
                 yield chunk.text
 
+    def create_chat(
+        self,
+        history: list[Any] | None = None,
+        system_instruction: str | None = None,
+        tools: list[Any] | None = None,
+        temperature: float = GEMINI_TEMPERATURE,
+        max_output_tokens: int = GEMINI_MAX_OUTPUT_TOKENS,
+        model_name: str | None = None,
+        response_mime_type: str | None = None,
+    ) -> Any:
+        """Create a native multi-turn chat session.
+
+        The returned chat object manages conversation history automatically.
+        Use ``await chat.send_message(...)`` for each turn — no need to
+        manually build a contents array.
+
+        Args:
+            history: Pre-existing conversation as list[types.Content].
+            system_instruction: System prompt for the session.
+            tools: Tool declarations available in this chat.
+            temperature: Sampling temperature.
+            max_output_tokens: Max output tokens per turn.
+            model_name: Override the default model.
+            response_mime_type: e.g. "application/json" for JSON output.
+
+        Returns:
+            An AsyncChat object (``client.aio.chats.create(...)``).
+        """
+        client = self._get_client()
+
+        config = GenerateContentConfig(
+            temperature=temperature,
+            max_output_tokens=max_output_tokens,
+            top_p=GEMINI_TOP_P,
+        )
+
+        if tools:
+            config.tools = tools
+        if system_instruction:
+            config.system_instruction = system_instruction
+        if response_mime_type:
+            config.response_mime_type = response_mime_type
+
+        return client.aio.chats.create(
+            model=model_name or self._model,
+            config=config,
+            history=history or [],
+        )
+
     async def generate_with_tools(
         self,
         contents: list[Any],

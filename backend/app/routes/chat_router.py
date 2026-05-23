@@ -25,11 +25,9 @@ from app.schemas.chat_schema import (
     RetrievedChunk,
 )
 from app.prompts.chat import CASE_INTAKE_SYSTEM, CHAT_SYSTEM
-from app.services.citation_service import get_citation_service
+from app.services.agent_pipeline_service import get_agent_pipeline_service
 from app.services.conversation_service import ConversationService
 from app.services.guardrail_service import get_guardrail_service
-from app.services.legal_analysis_service import get_legal_analysis_service
-from app.services.rag_retrieval_service import get_rag_service
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -125,27 +123,21 @@ async def send_message(
             f"USER MESSAGE: {body.message}"
         )
 
-    # Step 1: RAG Retrieval
-    rag = get_rag_service()
+    # Step 1-3: Agent Pipeline (Plan → RAG → Analyze → Verify)
     collections = body.rag_config.to_collection_names() if body.rag_config else None
-    chunks = await rag.retrieve(body.message, collections=collections)
-
-    # Step 2: Legal Analysis
-    analysis = get_legal_analysis_service()
-    response_text = await analysis.analyze(
+    pipeline = get_agent_pipeline_service()
+    result = await pipeline.run(
         user_message=enriched_message,
-        retrieved_chunks=chunks,
-        conversation_history=history if history else None,
-        system_prompt=system_prompt,
-        model_name=settings.gemini_chat_model,
+        conversation_history=history,
+        system_prompt=system_prompt.template if hasattr(system_prompt, 'template') else str(system_prompt),
+        rag_collections=collections,
+        is_case_chat=body.mode == "case_intake",
+        db=db,
     )
+    response_text = result.response_text
+    chunks = result.chunks
+    verified_citations = result.verified_citations
 
-    # Step 3: Citation Verification
-    citation_svc = get_citation_service()
-    raw_citations = citation_svc.extract_citations(response_text)
-    verified_citations = citation_svc.verify_citations(raw_citations, chunks)
-
-    # Build response models
     citation_models = [CitationInfo(**c) for c in verified_citations]
 
     chunk_models = []
@@ -156,7 +148,7 @@ async def send_message(
         chunk_ids.append(chunk_id)
         chunk_models.append(RetrievedChunk(
             chunk_id=chunk_id,
-            content=c.get("content", "")[:500],  # Truncate for response size
+            content=c.get("content", "")[:500],
             code_name=meta.get("code_name", ""),
             article_number=meta.get("article_number", ""),
             article_title=meta.get("article_title", ""),

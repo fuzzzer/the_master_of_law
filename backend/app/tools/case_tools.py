@@ -339,3 +339,73 @@ SEARCH_LAW_DECLARATION = types.FunctionDeclaration(
 )
 
 SEARCH_LAW_TOOL = types.Tool(function_declarations=[SEARCH_LAW_DECLARATION])
+
+CREATE_CASE_DECLARATION = types.FunctionDeclaration(
+    name="create_case",
+    description=(
+        "Create a new legal case file from the current conversation. "
+        "Use when the user has described a legal situation and you have enough "
+        "context to start building a case. The case will be created with a title "
+        "and initial facts extracted from the conversation. "
+        "ახალი საქმის შექმნა მიმდინარე საუბრის კონტექსტიდან."
+    ),
+    parameters=types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "title": types.Schema(
+                type=types.Type.STRING,
+                description="Case title summarizing the legal situation. საქმის სათაური.",
+            ),
+            "initial_facts": types.Schema(
+                type=types.Type.ARRAY,
+                items=types.Schema(
+                    type=types.Type.OBJECT,
+                    properties={
+                        "text": types.Schema(
+                            type=types.Type.STRING,
+                            description="Fact description. ფაქტის აღწერა.",
+                        ),
+                        "classification": types.Schema(
+                            type=types.Type.STRING,
+                            enum=["favorable", "unfavorable", "neutral"],
+                            description="How this fact affects the case.",
+                        ),
+                    },
+                    required=["text", "classification"],
+                ),
+                description="Initial facts extracted from the conversation.",
+            ),
+        },
+        required=["title"],
+    ),
+)
+
+BUILD_CASE_ANALYSIS_DECLARATION = types.FunctionDeclaration(
+    name="build_case_analysis",
+    description=(
+        "Trigger a comprehensive legal analysis and populate the case file with all "
+        "8 sections: facts, evidence, applicable laws, defense strategies, prosecution "
+        "arguments, action checklist, unclear items, and lawyer brief. "
+        "Use when you have gathered enough information during intake to generate "
+        "the full case file. "
+        "სრული სამართლებრივი ანალიზის გენერაცია და საქმის ფაილის შევსება."
+    ),
+    parameters=types.Schema(
+        type=types.Type.OBJECT,
+        properties={},
+    ),
+)
+
+ALWAYS_TOOLS = [types.Tool(function_declarations=[SEARCH_LAW_DECLARATION])]
+
+CASE_CREATION_TOOLS = [types.Tool(function_declarations=[
+    SEARCH_LAW_DECLARATION,
+    CREATE_CASE_DECLARATION,
+])]
+
+FULL_CASE_TOOLS = [types.Tool(function_declarations=[
+    SEARCH_LAW_DECLARATION,
+    BUILD_CASE_ANALYSIS_DECLARATION,
+    *CASE_TOOL_DECLARATIONS,
+])]
+
