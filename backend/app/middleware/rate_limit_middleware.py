@@ -49,6 +49,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         user_id = user.get("uid", "anonymous")
         tier_str = user.get("tier", "FREE")
+        if tier_str == "SUPERADMIN":
+            tier_str = "ADMIN"
         try:
             tier = UserTier(tier_str)
         except ValueError:

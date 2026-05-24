@@ -60,9 +60,10 @@ async def build_case_file(
         await db.commit()
 
     cost = CreditAction.CASE_FILE.cost
-    credit_repo = CreditRepository(db)
+    is_admin = user_info.get("tier") in ("ADMIN", "SUPERADMIN")
 
-    if user:
+    if user and not is_admin:
+        credit_repo = CreditRepository(db)
         credits = await credit_repo.get_balance(user.id)
         if not credit_repo.has_sufficient_credits(credits, cost):
             return JSONResponse(
@@ -86,7 +87,8 @@ async def build_case_file(
         return JSONResponse(status_code=400, content={"error": str(e)})
 
     # Deduct credits after success
-    if user:
+    if user and not is_admin:
+        credit_repo = CreditRepository(db)
         await credit_repo.deduct(
             user_id=user.id,
             cost=cost,
@@ -303,8 +305,10 @@ async def generate_document(
     user_repo = UserRepository(db)
     user = await user_repo.get_by_firebase_uid(uid)
 
+    is_admin = user_info.get("tier") in ("ADMIN", "SUPERADMIN")
+
     credit_repo = CreditRepository(db)
-    if user:
+    if user and not is_admin:
         credits = await credit_repo.get_balance(user.id)
         if not credit_repo.has_sufficient_credits(credits, cost):
             return JSONResponse(

@@ -12,7 +12,16 @@ class CaseFactsSection extends StatefulWidget {
 }
 
 class _CaseFactsSectionState extends State<CaseFactsSection> {
-  FactClassification _selectedFilter = FactClassification.favorable;
+  late FactClassification _selectedFilter = _initialFilter();
+
+  FactClassification _initialFilter() {
+    for (final fc in FactClassification.values) {
+      if (widget.caseData.facts.any((f) => f.classificationIndex == fc.index)) {
+        return fc;
+      }
+    }
+    return FactClassification.favorable;
+  }
 
   List<FactData> get _filteredFacts =>
       widget.caseData.facts.where((f) => f.classificationIndex == _selectedFilter.index).toList();

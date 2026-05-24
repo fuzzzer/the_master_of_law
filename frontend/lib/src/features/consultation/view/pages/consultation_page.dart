@@ -15,16 +15,37 @@ class ConsultationPage extends StatefulWidget {
   State<ConsultationPage> createState() => _ConsultationPageState();
 }
 
-class _ConsultationPageState extends State<ConsultationPage> {
+class _ConsultationPageState extends State<ConsultationPage> with TickerProviderStateMixin {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
   bool _actionChipsDismissed = false;
+  bool _showScrollToBottom = false;
+  late final AnimationController _dotAnimController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+    _dotAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+  }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
     _messageController.dispose();
     _scrollController.dispose();
+    _dotAnimController.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    final shouldShow = !_isNearBottom();
+    if (shouldShow != _showScrollToBottom) {
+      setState(() => _showScrollToBottom = shouldShow);
+    }
   }
 
   bool _isNearBottom() {
@@ -35,15 +56,14 @@ class _ConsultationPageState extends State<ConsultationPage> {
     return pos.pixels <= 150.0;
   }
 
-  void _scrollToBottom() {
+  void _scrollToBottom({bool force = false}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
-      // Reversed list: bottom = position 0. Only jump if user is already near bottom.
-      if (_isNearBottom()) {
+      if (force || _isNearBottom()) {
         _scrollController.animateTo(
           0,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
         );
       }
     });
@@ -158,6 +178,42 @@ class _ConsultationPageState extends State<ConsultationPage> {
                   _buildInputBar(context, state),
                 ],
               ),
+              // Scroll-to-bottom floating button
+              if (_showScrollToBottom)
+                Positioned(
+                  bottom: 90 + MediaQuery.of(context).padding.bottom,
+                  right: 16,
+                  child: AnimatedOpacity(
+                    opacity: _showScrollToBottom ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 200),
+                    child: GestureDetector(
+                      onTap: () => _scrollToBottom(force: true),
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: uiColors.backgroundSecondaryColor,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.15),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                          border: Border.all(
+                            color: uiColors.secondaryTextColor.withValues(alpha: 0.15),
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.keyboard_arrow_down,
+                          color: uiColors.primaryTextColor,
+                          size: 22,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               if (state.isBuildingCase)
                 ColoredBox(
                   color: Colors.black.withValues(alpha: 0.3),
@@ -286,7 +342,8 @@ class _ConsultationPageState extends State<ConsultationPage> {
     return ListView.builder(
       controller: _scrollController,
       reverse: true,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
       // Item order (reversed list): index 0 = visually at bottom
       //   [0]           typing indicator (if active)
       //   [1..N]        messages newest-first
@@ -392,6 +449,9 @@ class _ConsultationPageState extends State<ConsultationPage> {
       );
     }
 
+    final screenWidth = MediaQuery.of(context).size.width;
+    final maxBubbleWidth = message.isUser ? screenWidth * 0.82 : screenWidth * 0.92;
+
     return Align(
       alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: GestureDetector(
@@ -406,29 +466,34 @@ class _ConsultationPageState extends State<ConsultationPage> {
           );
         },
         child: Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
-          padding: const EdgeInsets.all(14),
+          margin: const EdgeInsets.only(bottom: 10),
+          constraints: BoxConstraints(maxWidth: maxBubbleWidth),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: message.isUser ? uiColors.accentColor.withValues(alpha: 0.15) : uiColors.backgroundSecondaryColor,
-            borderRadius: BorderRadius.circular(14),
-            border: message.isUser ? Border.all(color: uiColors.accentColor.withValues(alpha: 0.2)) : null,
+            color: message.isUser ? uiColors.accentColor.withValues(alpha: 0.12) : uiColors.backgroundSecondaryColor,
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(18),
+              topRight: const Radius.circular(18),
+              bottomLeft: Radius.circular(message.isUser ? 18 : 4),
+              bottomRight: Radius.circular(message.isUser ? 4 : 18),
+            ),
+            border: message.isUser ? Border.all(color: uiColors.accentColor.withValues(alpha: 0.18)) : null,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SelectableText(
                 message.text.replaceAll(RegExp(r'\s*\[CASE_READY\]\s*'), '').trimRight(),
-                style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor, height: 1.5),
+                style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor, height: 1.6),
               ),
               if (message.toolResults != null && message.toolResults!.isNotEmpty) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 ...message.toolResults!.map((t) => _buildToolResultChip(context, t)),
               ],
               if (message.citations != null && message.citations!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Divider(color: uiColors.secondaryTextColor.withValues(alpha: 0.12), height: 1),
                 const SizedBox(height: 10),
-                Divider(color: uiColors.secondaryTextColor.withValues(alpha: 0.15), height: 1),
-                const SizedBox(height: 8),
                 ...message.citations!.map((c) => _buildCitationChip(context, c)),
               ],
             ],
@@ -565,9 +630,17 @@ class _ConsultationPageState extends State<ConsultationPage> {
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: uiColors.backgroundSecondaryColor, borderRadius: BorderRadius.circular(14)),
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: uiColors.backgroundSecondaryColor,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(18),
+            topRight: Radius.circular(18),
+            bottomLeft: Radius.circular(4),
+            bottomRight: Radius.circular(18),
+          ),
+        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -575,13 +648,25 @@ class _ConsultationPageState extends State<ConsultationPage> {
               mainAxisSize: MainAxisSize.min,
               children: List.generate(
                 3,
-                (i) => Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 2),
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: uiColors.secondaryTextColor.withValues(alpha: 0.4),
-                    shape: BoxShape.circle,
+                (i) => AnimatedBuilder(
+                  animation: _dotAnimController,
+                  builder: (_, child) {
+                    final delay = i * 0.2;
+                    final t = (_dotAnimController.value - delay).clamp(0.0, 1.0);
+                    final bounce = (t < 0.5) ? (t * 2) : (2 - t * 2);
+                    return Transform.translate(
+                      offset: Offset(0, -3 * bounce),
+                      child: child,
+                    );
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: uiColors.accentColor.withValues(alpha: 0.5),
+                      shape: BoxShape.circle,
+                    ),
                   ),
                 ),
               ),
@@ -607,46 +692,78 @@ class _ConsultationPageState extends State<ConsultationPage> {
   Widget _buildInputBar(BuildContext context, ConsultationState state) {
     final uiColors = context.uiColors;
     final uiTextStyles = context.uiTextStyles;
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
     return Container(
-      padding: EdgeInsets.fromLTRB(16, 8, 8, MediaQuery.of(context).padding.bottom + 8),
+      padding: EdgeInsets.fromLTRB(8, 10, 8, bottomPadding + 10),
       decoration: BoxDecoration(
         color: uiColors.backgroundSecondaryColor,
-        border: Border(top: BorderSide(color: uiColors.secondaryTextColor.withValues(alpha: 0.1))),
+        border: Border(top: BorderSide(color: uiColors.secondaryTextColor.withValues(alpha: 0.08))),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           // Case attachment button
-          IconButton(
-            icon: Icon(
-              state.hasCaseAttached ? Icons.folder : Icons.folder_open_outlined,
-              color: state.hasCaseAttached ? uiColors.accentColor : uiColors.secondaryTextColor,
-              size: 22,
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: IconButton(
+              icon: Icon(
+                state.hasCaseAttached ? Icons.folder : Icons.folder_open_outlined,
+                color: state.hasCaseAttached ? uiColors.accentColor : uiColors.secondaryTextColor,
+                size: 22,
+              ),
+              onPressed: () => _showCaseSelector(context),
+              tooltip: 'საქმის მიმაგრება',
+              visualDensity: VisualDensity.compact,
             ),
-            onPressed: () => _showCaseSelector(context),
-            tooltip: 'საქმის მიმაგრება',
           ),
           Expanded(
-            child: TextField(
-              controller: _messageController,
-              style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor),
-              decoration: InputDecoration(
-                hintText: 'დაწერეთ კითხვა...',
-                border: InputBorder.none,
-                hintStyle: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+            child: Container(
+              constraints: const BoxConstraints(maxHeight: 120),
+              decoration: BoxDecoration(
+                color: uiColors.primaryTextColor.withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(22),
               ),
-              maxLines: 4,
-              minLines: 1,
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => _sendMessage(context, state),
+              child: TextField(
+                controller: _messageController,
+                style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor),
+                decoration: InputDecoration(
+                  hintText: 'დაწერეთ კითხვა...',
+                  border: InputBorder.none,
+                  hintStyle: uiTextStyles.body14.copyWith(
+                    color: uiColors.secondaryTextColor.withValues(alpha: 0.6),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                ),
+                maxLines: 5,
+                minLines: 1,
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => _sendMessage(context, state),
+              ),
             ),
           ),
-          IconButton(
-            icon: Icon(
-              Icons.send,
-              color: state.isSending ? uiColors.secondaryTextColor.withValues(alpha: 0.3) : uiColors.accentColor,
+          const SizedBox(width: 6),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: GestureDetector(
+              onTap: state.isSending ? null : () => _sendMessage(context, state),
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: state.isSending
+                      ? uiColors.secondaryTextColor.withValues(alpha: 0.1)
+                      : uiColors.accentColor,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.arrow_upward_rounded,
+                  color: state.isSending
+                      ? uiColors.secondaryTextColor.withValues(alpha: 0.4)
+                      : Colors.white,
+                  size: 20,
+                ),
+              ),
             ),
-            onPressed: state.isSending ? null : () => _sendMessage(context, state),
           ),
         ],
       ),

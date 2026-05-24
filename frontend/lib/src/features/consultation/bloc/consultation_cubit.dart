@@ -203,12 +203,22 @@ class ConsultationCubit extends Cubit<ConsultationState> {
             }
           }
 
+          final caseReady = event['case_analysis_ready'] == true;
+          if (caseReady) {
+            msgs.add(ChatMessage(
+              id: 'case_ready_${DateTime.now().millisecondsSinceEpoch}',
+              text: '✅ საქმის სრული ანალიზი მომზადდა. დააჭირეთ "გენერაცია" ღილაკს საქმის შესაქმნელად.',
+              isUser: false,
+              timestamp: DateTime.now(),
+            ));
+          }
+
           emit(state.copyWith(
             messages: msgs,
             isSending: false,
             clearStreamingStatus: true,
             clearStreamingMessageId: true,
-            caseAnalysisReady: event['case_analysis_ready'] == true,
+            caseAnalysisReady: caseReady,
             caseFileId: createdCaseId ?? state.caseFileId,
           ));
           break;
