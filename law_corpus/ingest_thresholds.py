@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 
 import chromadb
+from chromadb.api.types import Embedding, Metadata
 
 
 CATALOG_PATH = Path(__file__).parent / "data" / "thresholds" / "threshold_catalog.json"
@@ -24,7 +25,7 @@ def build_threshold_document(entry: dict) -> str:
     """Build a searchable text document from a threshold entry."""
     parts = [
         f"[იურიდიული ზღვარი / Legal Threshold]",
-        f"კოდექსი: {entry['code_name']}",
+        f"კოდექსი: {_canonicalize_code_name(entry['code_name'])}",
         f"მუხლი: {entry['article_number']}",
         f"აღწერა: {entry['description_ka']}",
     ]
@@ -40,11 +41,32 @@ def build_threshold_document(entry: dict) -> str:
     return "\n".join(parts)
 
 
-def build_threshold_metadata(entry: dict) -> dict:
+# Short-form → full canonical code name mapping.
+# Narcotics law and personal data law don't have the საქართველოს prefix.
+_CODE_NAME_CANONICAL: dict[str, str] = {
+    "სისხლის სამართლის კოდექსი": "საქართველოს სისხლის სამართლის კოდექსი",
+    "სამოქალაქო კოდექსი": "საქართველოს სამოქალაქო კოდექსი",
+    "სისხლის სამართლის საპროცესო კოდექსი": "საქართველოს სისხლის სამართლის საპროცესო კოდექსი",
+    "ადმინისტრაციულ სამართალდარღვევათა კოდექსი": "საქართველოს ადმინისტრაციულ სამართალდარღვევათა კოდექსი",
+    "შრომის კოდექსი": "საქართველოს შრომის კოდექსი",
+    "საგადასახადო კოდექსი": "საქართველოს საგადასახადო კოდექსი",
+    "სამოქალაქო საპროცესო კოდექსი": "საქართველოს სამოქალაქო საპროცესო კოდექსი",
+    "საარჩევნო კოდექსი": "საქართველოს საარჩევნო კოდექსი",
+    "ზოგადი ადმინისტრაციული კოდექსი": "საქართველოს ზოგადი ადმინისტრაციული კოდექსი",
+    "ადმინისტრაციული საპროცესო კოდექსი": "საქართველოს ადმინისტრაციული საპროცესო კოდექსი",
+}
+
+
+def _canonicalize_code_name(raw: str) -> str:
+    """Ensure code_name uses the full canonical form with საქართველოს prefix."""
+    return _CODE_NAME_CANONICAL.get(raw, raw)
+
+
+def build_threshold_metadata(entry: dict) -> Metadata:
     """Build ChromaDB metadata for a threshold chunk."""
     return {
         "chunk_type": "threshold",
-        "code_name": entry["code_name"],
+        "code_name": _canonicalize_code_name(entry["code_name"]),
         "article_number": entry["article_number"],
         "threshold_type": entry["threshold_type"],
         "description_ka": entry["description_ka"],
@@ -53,7 +75,7 @@ def build_threshold_metadata(entry: dict) -> dict:
     }
 
 
-def load_catalog() -> list[dict]:
+def load_catalog() -> list[dict[str, str]]:
     with open(CATALOG_PATH, "r", encoding="utf-8") as f:
         data = json.load(f)
     return data["thresholds"]
@@ -66,8 +88,8 @@ MAX_RETRIES = 5
 
 def _embed_with_resume(
     embedder, documents: list[str], cache_path: Path
-) -> list[list[float]]:
-    cached: list[list[float]] = []
+) -> list[Embedding]:
+    cached: list[Embedding] = []
     if cache_path.exists():
         cached = json.loads(cache_path.read_text("utf-8"))
         print(f"  Resuming from cache: {len(cached)}/{len(documents)} already embedded")

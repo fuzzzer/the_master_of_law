@@ -41,3 +41,7 @@ select = ["E", "F", "I", "W"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+addopts = "--ignore=tests/scripts --ignore=tests/test_scratch.py"
+markers = [
+    "integration: tests requiring real ChromaDB data (slow, requires corpus)",
+]

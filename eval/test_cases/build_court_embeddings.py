@@ -185,7 +185,7 @@ def extract_norm_interpretation(text: str) -> dict[str, str]:
     # Look for norm references (e.g., "სსკ 19", "სპკ 259")
     norm_match = re.search(
         r'(სსკ|სამოქალაქო\s+კოდექსის?|სპკ|ადმინისტრაციული)\s+(\d+)',
-        text[:1000],
+        text[:3000],
     )
     if norm_match:
         result["norm_interpreted"] = norm_match.group(0)

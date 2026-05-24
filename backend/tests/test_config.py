@@ -39,8 +39,8 @@ class TestRateLimits:
 
 class TestRAGConstants:
     def test_values(self):
-        assert RAG_VECTOR_SEARCH_TOP_K == 50
-        assert RAG_RERANK_TOP_K == 20
+        assert RAG_VECTOR_SEARCH_TOP_K == 75
+        assert RAG_RERANK_TOP_K == 35
         assert GEMINI_TEMPERATURE == 1
 
 class TestDisclaimers:

@@ -22,29 +22,53 @@ ARTICLE_PATTERN = re.compile(r"მუხლი\s+(\d+)", re.UNICODE)
 
 # Code names as they appear in the corpus (full "საქართველოს" prefix form).
 # The model may output shorter forms — verify_citations handles both via normalization.
+# IMPORTANT: Ordered longest first so _find_code_name picks the most specific match.
 CODE_NAMES = [
-    "საქართველოს სისხლის სამართლის კოდექსი",
-    "საქართველოს სამოქალაქო კოდექსი",
+    # Full canonical forms (longest — checked first)
     "საქართველოს ადმინისტრაციულ სამართალდარღვევათა კოდექსი",
     "საქართველოს სისხლის სამართლის საპროცესო კოდექსი",
-    "საქართველოს სამოქალაქო საპროცესო კოდექსი",
-    "საქართველოს შრომის კოდექსი",
-    "საქართველოს საგადასახადო კოდექსი",
-    "საქართველოს კონსტიტუცია",
-    "საქართველოს ზოგადი ადმინისტრაციული კოდექსი",
     "საქართველოს ადმინისტრაციული საპროცესო კოდექსი",
+    "საქართველოს ზოგადი ადმინისტრაციული კოდექსი",
+    "საქართველოს სამოქალაქო საპროცესო კოდექსი",
+    "საქართველოს სისხლის სამართლის კოდექსი",
     "ნარკოტიკული საშუალებების შესახებ კანონი",
     "პერსონალურ მონაცემთა დაცვის შესახებ",
+    "საქართველოს საგადასახადო კოდექსი",
+    "საქართველოს საარჩევნო კოდექსი",
+    "საქართველოს სამოქალაქო კოდექსი",
+    "საქართველოს შრომის კოდექსი",
+    "საქართველოს კონსტიტუცია",
     # Short forms the model commonly outputs (without "საქართველოს" prefix)
-    "სისხლის სამართლის კოდექსი",
-    "სამოქალაქო კოდექსი",
-    "სამოქალაქო საპროცესო კოდექსი",
-    "შრომის კოდექსი",
-    "საგადასახადო კოდექსი",
-    "კონსტიტუცია",
-    "ზოგადი ადმინისტრაციული კოდექსი",
     "ადმინისტრაციულ სამართალდარღვევათა კოდექსი",
+    "სისხლის სამართლის საპროცესო კოდექსი",
+    "ადმინისტრაციული საპროცესო კოდექსი",
+    "ზოგადი ადმინისტრაციული კოდექსი",
+    "სამოქალაქო საპროცესო კოდექსი",
+    "სისხლის სამართლის კოდექსი",
+    "საგადასახადო კოდექსი",
+    "საარჩევნო კოდექსი",
+    "სამოქალაქო კოდექსი",
+    "შრომის კოდექსი",
+    "კონსტიტუცია",
 ]
+
+# Common abbreviations the model uses → canonical full name
+_ABBREVIATION_MAP: dict[str, str] = {
+    "სსკ": "საქართველოს სისხლის სამართლის კოდექსი",
+    "სკ": "საქართველოს სამოქალაქო კოდექსი",
+    "სსსკ": "საქართველოს სისხლის სამართლის საპროცესო კოდექსი",
+    "სსპკ": "საქართველოს სისხლის სამართლის საპროცესო კოდექსი",
+    "სპკ": "საქართველოს სამოქალაქო საპროცესო კოდექსი",
+    "ზაკ": "საქართველოს ზოგადი ადმინისტრაციული კოდექსი",
+    "ასდკ": "საქართველოს ადმინისტრაციულ სამართალდარღვევათა კოდექსი",
+}
+
+# Pattern for abbreviation references like "სსკ-ის 177-ე მუხლი"
+_ABBREV_PATTERN = re.compile(
+    r"\b(" + "|".join(re.escape(k) for k in sorted(_ABBREVIATION_MAP, key=len, reverse=True))
+    + r")(?:-ი[სს]?)?\b",
+    re.UNICODE,
+)
 
 _GEO_PREFIX = "საქართველოს "
 
@@ -103,6 +127,14 @@ class CitationService:
         best_name = None
         best_pos = -1
 
+        # Check abbreviations first (e.g. "სსკ-ის 177-ე მუხლი")
+        for abbrev_m in _ABBREV_PATTERN.finditer(preceding):
+            if abbrev_m.end() > best_pos:
+                best_pos = abbrev_m.end()
+                best_name = _ABBREVIATION_MAP[abbrev_m.group(1)]
+
+        # Check full/short code names. CODE_NAMES is ordered longest-first,
+        # so the first match at a given position is the most specific.
         for name in CODE_NAMES:
             pos = preceding.rfind(name)
             if pos > best_pos:

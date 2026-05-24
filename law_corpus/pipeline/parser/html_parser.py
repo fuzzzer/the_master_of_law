@@ -133,7 +133,7 @@ class HtmlLegalParser(BaseParser):
 
         # Walk ALL <p> tags in document order
         for p in soup.find_all("p"):
-            classes = p.get("class", [])
+            classes = p.get("class") or []
             text = normalise_georgian(p.get_text(strip=True))
             if not text:
                 continue
@@ -191,8 +191,20 @@ class HtmlLegalParser(BaseParser):
                     current_article_num = normalise_superscripts(m.group(1))
                     current_article_title = m.group(2).strip() or None
                 else:
-                    current_article_num = text
-                    current_article_title = None
+                    # Fallback: try to extract article number from malformed text.
+                    # Common case: "მუხლი7.სრულისათაური" (no space after მუხლი)
+                    # or "მუხლის 1692. სათაური"
+                    fallback_m = re.search(r"მუხლი\s*(\d+)", text)
+                    if fallback_m:
+                        current_article_num = normalise_superscripts(fallback_m.group(1))
+                        # Extract title: everything after "number." or "number "
+                        title_m = re.search(r"\d+\s*[.\-–—]\s*(.*)", text)
+                        current_article_title = title_m.group(1).strip() if title_m else None
+                    else:
+                        # Last resort: log warning and use sanitised text
+                        logger.warning("Unparseable article header: %s", text[:80])
+                        current_article_num = text
+                        current_article_title = None
                 current_paragraphs = []
 
             elif "abzacixml" in classes:
