@@ -100,6 +100,7 @@ class _CaseChatSectionState extends State<CaseChatSection> {
   }
 
   Future<void> _buildCase() async {
+    final messenger = ScaffoldMessenger.of(context);
     final caseFileData = await _cubit.buildCaseFile();
     if (caseFileData != null && mounted) {
       context.read<CaseDetailCubit>().populateFromAiAnalysis(caseFileData);
@@ -121,7 +122,7 @@ class _CaseChatSectionState extends State<CaseChatSection> {
         setState(() {});
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           const SnackBar(content: Text('✅ საქმის სექციები შეივსო დამხმარის ანალიზით')),
         );
         _scrollToBottom();

@@ -418,7 +418,7 @@ class _ConsultationPageState extends State<ConsultationPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SelectableText(
-                message.text,
+                message.text.replaceAll(RegExp(r'\s*\[CASE_READY\]\s*'), '').trimRight(),
                 style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor, height: 1.5),
               ),
               if (message.toolResults != null && message.toolResults!.isNotEmpty) ...[
@@ -765,20 +765,21 @@ class _ConsultationPageState extends State<ConsultationPage> {
     final uiColors = context.uiColors;
     final cubit = context.read<ConsultationCubit>();
     final casesCubit = context.read<CasesCubit>();
+    final router = GoRouter.of(context);
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: const Text('საქმის გენერაცია'),
         content: const Text('საქმის სრული ანალიზის გენერაციას სჭირდება 3 კრედიტი. გსურთ გაგრძელება?'),
         backgroundColor: uiColors.backgroundSecondaryColor,
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(dialogCtx, false),
             child: Text('გაუქმება', style: TextStyle(color: uiColors.secondaryTextColor)),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dialogCtx, true),
             style: ElevatedButton.styleFrom(backgroundColor: uiColors.accentColor),
             child: const Text('გენერაცია'),
           ),
@@ -795,7 +796,7 @@ class _ConsultationPageState extends State<ConsultationPage> {
     if (caseFileData != null) {
       final newCase = await casesCubit.importCaseData(caseFileData);
       if (newCase != null && mounted) {
-        context.go('/cases/${newCase.id}');
+        router.go('/cases/${newCase.id}');
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('საქმის ლოკალურად შენახვა ვერ მოხერხდა')),
@@ -807,7 +808,9 @@ class _ConsultationPageState extends State<ConsultationPage> {
       if (failureType == ConsultationFailureType.noCredits) {
         errMsg = 'კრედიტები ამოიწურა';
       }
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errMsg)));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errMsg)));
+      }
     }
   }
 

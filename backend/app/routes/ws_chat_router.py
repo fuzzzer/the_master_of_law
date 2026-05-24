@@ -31,6 +31,15 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/chat", tags=["chat-ws"])
 
 
+async def _safe_send(websocket: WebSocket, data: dict) -> bool:
+    """Send JSON to WebSocket, returning False if the connection is closed."""
+    try:
+        await websocket.send_json(data)
+        return True
+    except (RuntimeError, WebSocketDisconnect):
+        return False
+
+
 @router.websocket("/{conversation_id}/ws")
 async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str | None = None):
     """
@@ -167,37 +176,40 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                     chunks = result.chunks
                     verified_citations = result.verified_citations
 
+                    # Detect and strip [CASE_READY] BEFORE sending chunk to client
+                    tag_ready = bool(re.search(r'\[CASE_READY\]', response_text))
+                    if tag_ready:
+                        response_text = re.sub(r'\s*\[CASE_READY\]\s*', '', response_text).rstrip()
+
                     # Stream the response to client
                     if response_text:
-                        await websocket.send_json({"type": "chunk", "content": response_text})
+                        await _safe_send(websocket, {"type": "chunk", "content": response_text})
 
                     # Send tool results to client
                     for tr in result.tool_results:
                         if tr.requires_confirmation:
-                            await websocket.send_json({
+                            await _safe_send(websocket, {
                                 "type": "confirmation_required",
                                 "confirmation_id": tr.confirmation_id,
                                 "tool_name": tr.tool_name,
                                 "description": tr.description,
                             })
                         else:
-                            await websocket.send_json({
+                            await _safe_send(websocket, {
                                 "type": "tool_executed",
                                 "tool": tr.tool_name,
                                 "status": tr.status,
                                 "result": tr.result,
                             })
 
-                    # Handle [CASE_READY] tag
-                    tag_ready = bool(re.search(r'\[CASE_READY\]', response_text))
+                    # Handle [CASE_READY] — tag already stripped above
                     if tag_ready:
-                        response_text = re.sub(r'\s*\[CASE_READY\]\s*', '', response_text).rstrip()
                         await conv_svc.mark_case_ready(conversation_id)
 
                         from app.services.case_builder_service import get_case_builder_service
                         case_builder = get_case_builder_service()
                         try:
-                            await websocket.send_json({"type": "status", "message": "საქმის სრული ანალიზი მიმდინარეობს..."})
+                            await _safe_send(websocket, {"type": "status", "message": "საქმის სრული ანალიზი მიმდინარეობს..."})
                             if case_file_id:
                                 build_result = await case_builder.update_case_file(
                                     db=db,
@@ -215,7 +227,7 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                             if "full_analysis_text" in build_result:
                                 extra = "\n\n" + build_result["full_analysis_text"]
                                 response_text += extra
-                                await websocket.send_json({"type": "chunk", "content": extra})
+                                await _safe_send(websocket, {"type": "chunk", "content": extra})
                         except Exception as e:
                             logger.error("case_agent_auto_build_failed", error=str(e))
 
@@ -236,7 +248,7 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
 
                     await db.commit()
 
-                    await websocket.send_json({
+                    await _safe_send(websocket, {
                         "type": "done",
                         "full_response": response_text,
                         "citations": verified_citations,
@@ -251,7 +263,7 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
 
                 except Exception as e:
                     logger.error("ws_processing_error", error=str(e), exc_info=True)
-                    await websocket.send_json({
+                    await _safe_send(websocket, {
                         "type": "error",
                         "message": "An error occurred during analysis. Please try again.",
                     })
