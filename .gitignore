@@ -39,3 +39,6 @@ eval/test_cases/generations/
 
 
 
+
+# Eval run archives (raw traces) — regenerable via eval/run_*.py; summarized in .tasks/audits/
+eval/results/

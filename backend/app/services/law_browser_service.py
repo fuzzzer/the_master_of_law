@@ -93,20 +93,47 @@ class LawBrowserService:
         return {"code_id": code_id, "chunks": []}
 
     def get_article(self, article_id: str) -> list[dict[str, Any]]:
-        """Get all chunks for a specific article."""
+        """Get all chunks for a specific article.
+
+        ``article_id`` is the chunk-id identity surfaced by :meth:`get_code`,
+        e.g. ``"admin_offences_code.article_1.chunk_0"`` (a full chunk id) or
+        ``"admin_offences_code.article_1"`` (the article prefix). The chunk
+        metadata's ``article_number`` is the human label (e.g. ``"მუხლი 1"``)
+        and never equals this id, so we resolve the article *prefix* and fetch
+        every chunk that belongs to it by id.
+        """
         try:
+            # Normalize to the article prefix (drop any ".chunk_N" suffix).
+            article_prefix = article_id.split(".chunk_")[0]
+
+            # Enumerate every chunk id for this article from the code index.
+            index = self._load_code_index()
+            chunk_ids: list[str] = []
+            for data in index.values():
+                if isinstance(data, list):
+                    for cid in data:
+                        if isinstance(cid, str) and cid.split(".chunk_")[0] == article_prefix:
+                            chunk_ids.append(cid)
+
+            # Fallback: treat the input as a literal chunk id if the index
+            # could not resolve it (e.g. dict-shaped index entries).
+            if not chunk_ids:
+                chunk_ids = [article_id]
+
             results = self.chroma.collection.get(
-                where={"article_number": article_id},
+                ids=chunk_ids,
                 include=["documents", "metadatas"],
             )
             items = []
-            if results["ids"]:
+            if results.get("ids"):
                 for i, cid in enumerate(results["ids"]):
                     items.append({
                         "chunk_id": cid,
-                        "content": results["documents"][i] if results["documents"] else "",
-                        "metadata": results["metadatas"][i] if results["metadatas"] else {},
+                        "content": results["documents"][i] if results.get("documents") else "",
+                        "metadata": results["metadatas"][i] if results.get("metadatas") else {},
                     })
+                # Order multi-chunk articles by their chunk index for readability.
+                items.sort(key=lambda x: (x.get("metadata") or {}).get("chunk_index", 0))
             return items
         except Exception as e:
             logger.error("get_article_failed", article_id=article_id, error=str(e))

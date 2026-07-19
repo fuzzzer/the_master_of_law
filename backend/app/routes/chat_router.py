@@ -28,6 +28,7 @@ from app.prompts.chat import CASE_INTAKE_SYSTEM, CHAT_SYSTEM
 from app.services.agent_pipeline_service import get_agent_pipeline_service
 from app.services.conversation_service import ConversationService
 from app.services.guardrail_service import get_guardrail_service
+from app.services.trace_service import record_step, save_current_trace, start_trace
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -82,8 +83,31 @@ async def send_message(
     # Step 0: Guardrail — classify before RAG
     user_info = getattr(request.state, "user", None)
     user_tier = user_info.get("tier", "FREE") if user_info else "FREE"
+
+    start_trace(
+        entry_point="rest_chat",
+        user_message=body.message,
+        user_id=user_info.get("uid") if user_info else None,
+        conversation_id=conversation_id,
+    )
+    record_step(
+        "request_received",
+        message=body.message,
+        mode=body.mode,
+        case_context_attached=bool(body.case_context),
+        rag_config=body.rag_config.model_dump() if body.rag_config else None,
+        user_tier=user_tier,
+    )
+
     guardrail = get_guardrail_service()
     decision = await guardrail.classify(body.message, user_tier=user_tier)
+    record_step(
+        "guardrail_decision",
+        category=decision.category,
+        confidence=decision.confidence,
+        should_proceed=decision.should_proceed,
+        canned_response=decision.response_text,
+    )
 
     if not decision.should_proceed:
         response_text = decision.response_text or ""
@@ -100,6 +124,7 @@ async def send_message(
             conversation_id=conversation_id,
             category=decision.category,
         )
+        await save_current_trace(status="blocked", response_text=response_text)
         return ChatSendResponse(
             response=response_text,
             citations=[],
@@ -126,14 +151,18 @@ async def send_message(
     # Step 1-3: Agent Pipeline (Plan → RAG → Analyze → Verify)
     collections = body.rag_config.to_collection_names() if body.rag_config else None
     pipeline = get_agent_pipeline_service()
-    result = await pipeline.run(
-        user_message=enriched_message,
-        conversation_history=history,
-        system_prompt=system_prompt.template if hasattr(system_prompt, 'template') else str(system_prompt),
-        rag_collections=collections,
-        is_case_chat=body.mode == "case_intake",
-        db=db,
-    )
+    try:
+        result = await pipeline.run(
+            user_message=enriched_message,
+            conversation_history=history,
+            system_prompt=system_prompt.template if hasattr(system_prompt, 'template') else str(system_prompt),
+            rag_collections=collections,
+            is_case_chat=body.mode == "case_intake",
+            db=db,
+        )
+    except Exception as e:
+        await save_current_trace(status="failed", error=str(e))
+        raise
     response_text = result.response_text
     chunks = result.chunks
     verified_citations = result.verified_citations
@@ -223,6 +252,8 @@ async def send_message(
         chunks=len(chunk_models),
         credits_remaining=credits_remaining,
     )
+
+    await save_current_trace(status="completed", response_text=response_text)
 
     return ChatSendResponse(
         response=response_text,

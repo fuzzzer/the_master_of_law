@@ -36,6 +36,7 @@ class ChatSendRequest(BaseModel):
 class CitationInfo(BaseModel):
     """A verified law citation."""
     article_number: str
+    paragraph: str = ""
     code_name: str
     raw_text: str
     verified: bool

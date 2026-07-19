@@ -12,6 +12,7 @@ Pipeline:
 
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 from typing import Any
@@ -19,8 +20,10 @@ from typing import Any
 from app.config.constants import (
     RAG_FULLTEXT_SEARCH_TOP_K,
     RAG_QUERY_EXPANSION_COUNT,
+    RAG_RERANK_POOL_PER_COLLECTION,
     RAG_RERANK_TOP_K,
     RAG_VECTOR_SEARCH_TOP_K,
+    RAG_VECTOR_TOP_K_PER_COLLECTION,
 )
 from app.config.settings import settings
 from app.integrations.chroma_client import ChromaClient, get_chroma_client
@@ -30,10 +33,76 @@ from app.integrations.vertex_embedding_client import (
     get_embedding_client,
 )
 from app.prompts.rag_pipeline import QUERY_EXPANSION, RERANK
+from app.services.legal_classifier_service import ClassificationResult, KeywordClassifier
 from app.services.threshold_service import get_threshold_service
+from app.services.trace_service import record_step
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
+def _balance_rerank_pool(merged: list[dict], capacity: int = 100) -> list[dict]:
+    """Select the rerank candidate pool with per-collection caps.
+
+    ``merged`` is distance-sorted; each collection keeps its closest chunks up
+    to its cap, then any remaining capacity is filled with the closest
+    leftovers regardless of collection.
+    """
+    pools: dict[str, list[dict]] = {}
+    for item in merged:
+        col = (item.get("metadata") or {}).get("_collection", "")
+        pools.setdefault(col, []).append(item)
+
+    selected: list[dict] = []
+    leftovers: list[dict] = []
+    for col, items in pools.items():
+        cap = RAG_RERANK_POOL_PER_COLLECTION.get(col, 10)
+        selected.extend(items[:cap])
+        leftovers.extend(items[cap:])
+
+    remaining = capacity - len(selected)
+    if remaining > 0 and leftovers:
+        leftovers.sort(key=lambda x: x.get("distance", 1))
+        selected.extend(leftovers[:remaining])
+
+    selected.sort(key=lambda x: x.get("distance", 1))
+    return selected[:capacity]
+
+
+def _threshold_domains(classification: ClassificationResult) -> list[str]:
+    """Domains allowed for threshold injection.
+
+    A confidence at or below 0.1 is the classifier's blind fallback
+    ("civil" by default) — the domain is effectively unknown. Returning an
+    empty list (NOT None) keeps the gate ACTIVE and excludes every
+    domain-specific threshold: when we can't tell the domain, injecting a
+    domain-scoped numeric threshold can only pollute the prompt (verified: no
+    golden question that lands at ≤0.1 has any legitimate threshold hit, and
+    the noisy matcher otherwise leaks e.g. criminal monetary thresholds into an
+    election-code question). Legitimate threshold questions (speeding fine, drug
+    quantities) classify with confidence > 0.1 and keep their thresholds.
+    """
+    if classification.confidence <= 0.1:
+        return []
+    return [classification.primary, *classification.secondary]
+
+
+def _hit_summary(hits: list[dict], limit: int = 200) -> list[dict]:
+    """Compact per-hit view for trace steps (full content is traced only for final chunks)."""
+    summary = []
+    for h in hits[:limit]:
+        meta = h.get("metadata") or {}
+        distance = h.get("distance")
+        summary.append({
+            "chunk_id": h.get("chunk_id"),
+            "distance": round(float(distance), 4) if distance is not None else None,
+            "collection": meta.get("_collection", ""),
+            "code_name": meta.get("code_name", ""),
+            "article_number": meta.get("article_number", ""),
+            "source": h.get("source", ""),
+            "query_index": h.get("query_index"),
+        })
+    return summary
 
 
 class RAGRetrievalService:
@@ -49,6 +118,10 @@ class RAGRetrievalService:
         self._embedding_client = embedding_client
         self._gemini = gemini_client
         self._article_index: dict[str, Any] | None = None
+        # Cache of pre-stringified, lowercased article text keyed by article id.
+        # Built once so the full-text search loop does not run json.dumps on
+        # every query (15k entries × up to 8 queries = 120k dumps per request).
+        self._article_text_cache: dict[str, str] | None = None
 
     @property
     def chroma(self) -> ChromaClient:
@@ -102,24 +175,69 @@ class RAGRetrievalService:
             expanded = await self._stage_0_expand_queries(user_message)
             logger.info("rag_stage_0_done", query_count=len(expanded))
 
+        record_step(
+            "rag_query_expansion",
+            input_message=user_message,
+            expanded_by="agent_planner" if pre_expanded_queries else "gemini_flash",
+            queries=expanded,
+        )
+
         if not expanded:
             logger.info("rag_pipeline_skipped", reason="no_search_needed")
+            record_step("rag_skipped", reason="no_search_needed")
             return []
 
         vector_hits = await self._stage_1_vector_search(expanded, collections=collections)
         logger.info("rag_stage_1_done", hit_count=len(vector_hits))
+        per_collection_counts: dict[str, int] = {}
+        for h in vector_hits:
+            col = (h.get("metadata") or {}).get("_collection", "")
+            per_collection_counts[col] = per_collection_counts.get(col, 0) + 1
+        record_step(
+            "rag_vector_search",
+            collections=collections or "all",
+            embedding_model=settings.embedding_model,
+            hit_count=len(vector_hits),
+            per_collection_counts=per_collection_counts,
+            hits=_hit_summary(vector_hits),
+        )
 
-        fulltext_hits = self._stage_2_fulltext_search(expanded)
+        fulltext_hits = await self._stage_2_fulltext_search(expanded)
         logger.info("rag_stage_2_done", hit_count=len(fulltext_hits))
+        record_step(
+            "rag_fulltext_search",
+            hit_count=len(fulltext_hits),
+            hits=_hit_summary(fulltext_hits),
+        )
 
-        merged = self._stage_3_merge_and_dedup(vector_hits, fulltext_hits)
+        merged = await self._stage_3_merge_and_dedup(vector_hits, fulltext_hits)
         logger.info("rag_stage_3_done", merged_count=len(merged))
+        record_step(
+            "rag_merge_dedup",
+            merged_count=len(merged),
+            top_chunk_ids=[m.get("chunk_id") for m in merged[:100]],
+        )
 
         if len(merged) > top_k:
-            # We send top_k (which is now larger, e.g. 35) to Gemini for reranking
-            reranked = await self._stage_4_rerank(user_message, merged, top_k)
+            # We send top_k (which is now larger, e.g. 35) to Gemini for reranking.
+            # The candidate pool is balanced per collection first — otherwise the
+            # global distance sort fills it with court practice before statutes.
+            rerank_pool = _balance_rerank_pool(merged)
+            pool_counts: dict[str, int] = {}
+            for item in rerank_pool:
+                col = (item.get("metadata") or {}).get("_collection", "")
+                pool_counts[col] = pool_counts.get(col, 0) + 1
+            reranked = await self._stage_4_rerank(user_message, rerank_pool, top_k)
+            record_step(
+                "rag_rerank",
+                rerank_model=settings.gemini_chat_model,
+                candidate_count=len(merged),
+                pool_per_collection=pool_counts,
+                selected_order=[r.get("chunk_id") for r in reranked],
+            )
         else:
             reranked = merged
+            record_step("rag_rerank", skipped=True, reason=f"only {len(merged)} candidates (<= top_k {top_k})")
 
         # Step 4.5: Enforce strict quotas for Laws vs Cases
         from app.config.constants import RAG_LAWS_QUOTA, RAG_CASES_QUOTA
@@ -142,13 +260,36 @@ class RAGRetrievalService:
                 
         reranked = final_laws + final_cases + final_others
 
-        # Step 5: Direct lookup for exact tables (bypassing RAG fuzziness)
-        threshold_hits = get_threshold_service().search(user_message)
+        # Step 5: Direct lookup for exact tables (bypassing RAG fuzziness),
+        # gated by the keyword-classified legal domain so e.g. criminal
+        # thresholds are never injected into a labor-law prompt.
+        domain_result = KeywordClassifier().classify(user_message)
+        threshold_hits = get_threshold_service().search(
+            user_message, query_domains=_threshold_domains(domain_result)
+        )
         if threshold_hits:
             # Add them to the front of the results
             reranked = threshold_hits + [r for r in reranked if r["chunk_id"] not in {t["chunk_id"] for t in threshold_hits}]
 
         logger.info("rag_pipeline_done", result_count=len(reranked))
+        record_step(
+            "rag_final_selection",
+            result_count=len(reranked),
+            threshold_hits=len(threshold_hits) if threshold_hits else 0,
+            chunks=[
+                {
+                    "chunk_id": c.get("chunk_id"),
+                    "collection": (c.get("metadata") or {}).get("_collection", ""),
+                    "code_name": (c.get("metadata") or {}).get("code_name", ""),
+                    "article_number": (c.get("metadata") or {}).get("article_number", ""),
+                    "article_title": (c.get("metadata") or {}).get("article_title", ""),
+                    "article_url": (c.get("metadata") or {}).get("article_url", ""),
+                    "distance": c.get("distance"),
+                    "content": c.get("content", ""),
+                }
+                for c in reranked
+            ],
+        )
         return reranked
 
     async def _stage_0_expand_queries(self, user_message: str) -> list[str]:
@@ -178,40 +319,58 @@ class RAGRetrievalService:
         queries: list[str],
         collections: list[str] | None = None,
     ) -> list[dict]:
-        """Stage 1: Embed queries and search ChromaDB by vector similarity."""
+        """Stage 1: Embed queries and search ChromaDB by vector similarity.
+
+        Each collection is queried separately with its own top-k quota
+        (RAG_VECTOR_TOP_K_PER_COLLECTION) so that the large court_practice
+        collection cannot crowd statutes out of a shared distance-sorted pool.
+        """
         all_hits: list[dict] = []
         try:
-            embeddings = self.embedding_client.embed_queries(queries)
+            embeddings = await self.embedding_client.embed_queries_async(queries)
         except Exception:
             embeddings = []
             for q in queries:
                 try:
-                    embeddings.append(self.embedding_client.embed_query(q))
+                    embeddings.append(await self.embedding_client.embed_query_async(q))
                 except Exception:
                     pass
+        target_collections = collections or self.chroma.available_collections
         for i, emb in enumerate(embeddings):
-            hits = self.chroma.vector_search(
-                query_embedding=emb,
-                top_k=RAG_VECTOR_SEARCH_TOP_K,
-                collections=collections,
-            )
-            for h in hits:
-                h["source"] = "vector"
-                h["query_index"] = i
-            all_hits.extend(hits)
+            for col_name in target_collections:
+                per_k = RAG_VECTOR_TOP_K_PER_COLLECTION.get(
+                    col_name, RAG_VECTOR_SEARCH_TOP_K
+                )
+                hits = await self.chroma.vector_search_async(
+                    query_embedding=emb,
+                    top_k=per_k,
+                    collections=[col_name],
+                )
+                for h in hits:
+                    h["source"] = "vector"
+                    h["query_index"] = i
+                all_hits.extend(hits)
         return all_hits
 
-    def _stage_2_fulltext_search(self, queries: list[str]) -> list[dict]:
-        """Stage 2: Keyword-based full-text search against article index."""
-        index = self._load_article_index()
-        if not index:
+    async def _stage_2_fulltext_search(self, queries: list[str]) -> list[dict]:
+        """Stage 2: Keyword-based full-text search against article index.
+
+        Offloaded to a worker thread because scoring tokenises every cached
+        article string per query; running it inline would block the event loop.
+        """
+        return await asyncio.to_thread(self._sync_fulltext_search, queries)
+
+    def _sync_fulltext_search(self, queries: list[str]) -> list[dict]:
+        """Synchronous full-text scoring over the cached article text."""
+        text_cache = self._load_article_text_cache()
+        if not text_cache:
             return []
-            
+
         all_hits: list[dict] = []
         for qi, query in enumerate(queries):
             tokens = query.lower().split()
             scored: list[tuple[str, float]] = []
-            
+
             # Helper to calculate score with basic Georgian stemming
             def get_score(text: str) -> float:
                 s = 0.0
@@ -220,14 +379,13 @@ class RAGRetrievalService:
                     if t in text: s += 1.0
                     elif len(t) >= 5 and t[:4] in text: s += 0.8
                 return s
-                
-            # Search articles
-            for aid, data in index.items():
-                text = json.dumps(data, ensure_ascii=False).lower() if isinstance(data, dict) else str(data).lower()
+
+            # Search articles against the pre-stringified, lowercased cache
+            for aid, text in text_cache.items():
                 score = get_score(text)
                 if score > 0:
                     scored.append((aid, score))
-            
+
             scored.sort(key=lambda x: x[1], reverse=True)
             for aid, score in scored[:RAG_FULLTEXT_SEARCH_TOP_K]:
                 all_hits.append({
@@ -236,6 +394,25 @@ class RAGRetrievalService:
                     "source": "fulltext", "query_index": qi,
                 })
         return all_hits
+
+    def _load_article_text_cache(self) -> dict[str, str]:
+        """Build (once) and return the stringified, lowercased article index.
+
+        json.dumps is run a single time per article at first use instead of on
+        every query, eliminating the repeated serialisation in the hot path.
+        """
+        if self._article_text_cache is not None:
+            return self._article_text_cache
+        index = self._load_article_index()
+        self._article_text_cache = {
+            aid: (
+                json.dumps(data, ensure_ascii=False).lower()
+                if isinstance(data, dict)
+                else str(data).lower()
+            )
+            for aid, data in index.items()
+        }
+        return self._article_text_cache
 
     def _load_article_index(self) -> dict[str, Any]:
         """Load the pre-built article index from disk."""
@@ -251,7 +428,7 @@ class RAGRetrievalService:
         except Exception:
             return {}
 
-    def _stage_3_merge_and_dedup(
+    async def _stage_3_merge_and_dedup(
         self,
         vector_hits: list[dict],
         fulltext_hits: list[dict],
@@ -270,7 +447,7 @@ class RAGRetrievalService:
                 seen[cid] = h
         if ft_ids:
             try:
-                for item in self.chroma.get_by_ids(ft_ids):
+                for item in await self.chroma.get_by_ids_async(ft_ids):
                     cid = item["chunk_id"]
                     if cid in seen:
                         seen[cid]["content"] = item.get("content", "")
@@ -290,9 +467,9 @@ class RAGRetrievalService:
             {
                 "chunk_id": c["chunk_id"],
                 "preview": c.get("content", "")[:500],
-                "code": c.get("metadata", {}).get("code_name", ""),
-                "article": c.get("metadata", {}).get("article_number", ""),
-                "title": c.get("metadata", {}).get("article_title", ""),
+                "code": (c.get("metadata") or {}).get("code_name", ""),
+                "article": (c.get("metadata") or {}).get("article_number", ""),
+                "title": (c.get("metadata") or {}).get("article_title", ""),
             }
             for c in candidates[:100]
         ]

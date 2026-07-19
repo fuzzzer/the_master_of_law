@@ -12,13 +12,14 @@ from google import genai
 from google.genai.types import EmbedContentConfig
 
 from app.config.settings import settings
+from app.integrations.vertex_ai_client import create_genai_client
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 
 class VertexEmbeddingClient:
-    """Generates query embeddings via google-genai SDK + Vertex AI."""
+    """Generates query embeddings via google-genai SDK (Vertex AI or Gemini API)."""
 
     def __init__(self) -> None:
         self._model = settings.embedding_model
@@ -27,12 +28,8 @@ class VertexEmbeddingClient:
 
     def _get_client(self) -> genai.Client:
         if self._client is None:
-            self._client = genai.Client(
-                vertexai=True,
-                project=settings.google_cloud_project,
-                location=settings.google_cloud_location,
-            )
-            logger.info("vertex_embedding_client_init", model=self._model)
+            self._client = create_genai_client()
+            logger.info("vertex_embedding_client_init", model=self._model, provider=settings.gemini_provider)
         return self._client
 
     def embed_query(self, query: str) -> list[float]:
@@ -55,6 +52,35 @@ class VertexEmbeddingClient:
 
         client = self._get_client()
         result = client.models.embed_content(
+            model=self._model,
+            contents=queries,
+            config=EmbedContentConfig(
+                task_type="RETRIEVAL_QUERY",
+                output_dimensionality=self._dimensions,
+            ),
+        )
+        return [list(e.values) for e in result.embeddings]
+
+    async def embed_query_async(self, query: str) -> list[float]:
+        """Embed a single search query without blocking the event loop."""
+        client = self._get_client()
+        result = await client.aio.models.embed_content(
+            model=self._model,
+            contents=[query],
+            config=EmbedContentConfig(
+                task_type="RETRIEVAL_QUERY",
+                output_dimensionality=self._dimensions,
+            ),
+        )
+        return list(result.embeddings[0].values)
+
+    async def embed_queries_async(self, queries: list[str]) -> list[list[float]]:
+        """Embed multiple search queries in one async API call."""
+        if not queries:
+            return []
+
+        client = self._get_client()
+        result = await client.aio.models.embed_content(
             model=self._model,
             contents=queries,
             config=EmbedContentConfig(

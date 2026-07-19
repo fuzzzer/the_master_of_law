@@ -90,6 +90,31 @@ AGENT_PLANNER = PromptTemplate(
 )
 
 
+FAITHFULNESS_CHECKER = PromptTemplate(
+    name="faithfulness_checker",
+    role=PromptRole.SYSTEM,
+    template=(
+        "You are a faithfulness auditor for კანონის ოსტატი, a Georgian legal AI.\n\n"
+        "You receive LEGAL CONTEXT (law articles and court practice the AI had) and the "
+        "AI's RESPONSE. Classify every substantive legal statement in the response:\n"
+        "• supported — directly backed by the provided context\n"
+        "• general — generic legal/procedural knowledge, no specific claim (amounts, "
+        "deadlines, article contents) that needs a source\n"
+        "• unsupported — a SPECIFIC claim (amount, deadline, condition, article content, "
+        "court outcome) that the context does NOT back\n\n"
+        "Return ONLY valid JSON:\n"
+        '{"supported_count": N, "general_count": N, '
+        '"unsupported": [{"statement": "...", "reason": "..."}]}\n\n'
+        "Be strict about numbers, deadlines and article contents; do not flag stylistic "
+        "or advisory sentences."
+    ),
+    description="Batched sentence-level faithfulness check (plan 2.3).",
+    temperature=0.2,
+    max_output_tokens=4096,
+    response_format="json",
+)
+
+
 CITATION_VERIFIER = PromptTemplate(
     name="citation_verifier",
     role=PromptRole.SYSTEM,
@@ -105,10 +130,11 @@ CITATION_VERIFIER = PromptTemplate(
 
         "1. VERIFIED citations: Keep exactly as-is. Do not modify.\n\n"
 
-        "2. FOUND_DIFFERENT citations: The AI cited an article that exists but with "
-        "different content than expected. Replace the AI's description with the "
-        "ACTUAL content from our database. Keep the article reference but fix what "
-        "it says.\n\n"
+        "2. FOUND_NOT_IN_CONTEXT citations: The AI cited an article WITHOUT having its "
+        "text in context (the claim came from its memory). The ACTUAL article text from "
+        "our database is provided. Compare every claim the response makes about this "
+        "article against the ACTUAL text: keep claims the text confirms, and fix or "
+        "remove anything the text does not support (amounts, deadlines, conditions).\n\n"
 
         "3. NOT_FOUND citations: The referenced article does NOT exist in our database. "
         "You MUST either:\n"

@@ -24,8 +24,23 @@ from app.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
+def create_genai_client() -> genai.Client:
+    """Create a google-genai client for the configured provider.
+
+    GEMINI_API_KEY set → Gemini Developer API (free tier, local debugging).
+    Empty (default)    → Vertex AI with ADC, exactly as before.
+    """
+    if settings.gemini_api_key:
+        return genai.Client(api_key=settings.gemini_api_key)
+    return genai.Client(
+        vertexai=True,
+        project=settings.google_cloud_project,
+        location=settings.google_cloud_location,
+    )
+
+
 class VertexAIClient:
-    """Wrapper around google-genai SDK for Gemini via Vertex AI."""
+    """Wrapper around google-genai SDK for Gemini (Vertex AI or Gemini API)."""
 
     def __init__(self) -> None:
         self._model = settings.gemini_model
@@ -33,12 +48,8 @@ class VertexAIClient:
 
     def _get_client(self) -> genai.Client:
         if self._client is None:
-            self._client = genai.Client(
-                vertexai=True,
-                project=settings.google_cloud_project,
-                location=settings.google_cloud_location,
-            )
-            logger.info("vertex_ai_client_init", model=self._model)
+            self._client = create_genai_client()
+            logger.info("vertex_ai_client_init", model=self._model, provider=settings.gemini_provider)
         return self._client
 
     async def generate(

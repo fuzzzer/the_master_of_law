@@ -29,11 +29,23 @@ _CITATION_RULES = (
     "2. NEVER fabricate or guess law articles or exact numbers.\n"
     "3. If info is missing from context, say so explicitly.\n"
     "4. Distinguish between what the law says vs. what courts typically decide.\n"
+    "5. DEADLINES: If you advise ANY legal action (სარჩელი, საჩივარი, გასაჩივრება, მიმართვა), you MUST "
+    "state the applicable deadline (ვადა) exactly as written in the provided context; if it is not in "
+    'the context, explicitly tell the user to verify it (e.g., „გასაჩივრების ვადა აუცილებლად გადაამოწმეთ").\n'
+    "6. COURT PRACTICE CITATIONS: When a claim relies on a court decision from the context, cite that "
+    'decision\'s case number next to the claim (e.g., „საქმე №ას-1280-2019").\n'
+    "7. LAW NAVIGATION TOOLS: If the specific article you need is NOT in the provided context, fetch "
+    "its exact text with the get_article tool BEFORE citing it; use browse_code to find the right "
+    "article number. თუ საჭირო მუხლი კონტექსტში არ არის — მოიძიე ხელსაწყოთი.\n"
+    "8. ANCHORING: every paragraph or bullet that states a legal rule, amount, or deadline must "
+    "contain its own citation (article or case number) IN THAT SAME paragraph.\n"
 )
 
 _LANGUAGE_RULES = (
     "LANGUAGE: Respond in Georgian (ქართული) by default. "
-    "Switch to English only if the user writes in English.\n"
+    "Switch to English only if the user writes in English. "
+    "Never mix in Latin-script words or abbreviations (vs, etc., e.g.) — "
+    "use Georgian equivalents.\n"
 )
 
 _TOOL_USAGE_RULES = (

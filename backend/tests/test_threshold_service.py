@@ -19,6 +19,8 @@ from app.prompts.legal_analysis import LEGAL_ANALYSIS_SYSTEM
 
 
 CATALOG_PATH = Path(__file__).parent.parent.parent / "law_corpus" / "data" / "thresholds" / "threshold_catalog.json"
+if not CATALOG_PATH.exists():
+    CATALOG_PATH = Path(__file__).parent.parent / "law_corpus_data" / "thresholds" / "threshold_catalog.json"
 
 
 class TestThresholdCatalog:
@@ -55,6 +57,44 @@ class TestThresholdServiceSearch:
         svc = ThresholdService()
         assert len(svc.search("")) == 0
         assert len(svc.search("ადვოკატი მჭირდება")) == 0
+
+
+class TestThresholdDomainGate:
+    """Domain gate (audit fix 0.3): entries from a mismatched domain are not injected."""
+
+    def setup_method(self):
+        self.svc = ThresholdService()
+
+    def test_criminal_entries_gated_out_for_labor_query(self):
+        """A criminal-topic query with a labor gate must inject nothing criminal."""
+        query = "კანაფის ფისი ოდენობა"
+        ungated = self.svc.search(query, query_domains=["criminal"])
+        gated = self.svc.search(query, query_domains=["labor"])
+        assert len(ungated) > 0  # sanity: entries do match the topic
+        assert gated == [], f"Non-labor thresholds leaked through gate: {gated}"
+
+    def test_matching_domain_entries_kept(self):
+        """Criminal-domain query keeps criminal thresholds."""
+        results = self.svc.search("კანაფის ფისი ოდენობა", query_domains=["criminal"])
+        assert len(results) > 0
+
+    def test_no_domains_means_no_gating(self):
+        """query_domains=None must behave exactly like the pre-gate search."""
+        query = "კანაფის ფისი ოდენობა"
+        assert self.svc.search(query) == self.svc.search(query, query_domains=None)
+
+    def test_empty_domains_gates_out_everything(self):
+        """query_domains=[] (unknown domain) excludes every domained threshold —
+        the safe blind-fallback behavior (regression for agent-flow probe A3)."""
+        query = "კანაფის ფისი ოდენობა"
+        assert self.svc.search(query, query_domains=[]) == []
+
+    def test_secondary_domain_also_allows(self):
+        """An entry whose domain is in the allowed list is kept even if not first."""
+        results = self.svc.search(
+            "კანაფის ფისი ოდენობა", query_domains=["administrative", "criminal"]
+        )
+        assert len(results) > 0
 
 
 class TestThresholdSystemPrompt:

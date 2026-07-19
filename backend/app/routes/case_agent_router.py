@@ -34,6 +34,7 @@ from app.schemas.chat_schema import (
 from app.services.agent_pipeline_service import get_agent_pipeline_service
 from app.services.case_tool_executor import CaseToolExecutor
 from app.services.conversation_service import ConversationService
+from app.services.trace_service import record_step, save_current_trace, start_trace
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -99,19 +100,38 @@ async def send_agent_message(
         except Exception:
             pass
 
-    # Run the unified agent pipeline
-    pipeline = get_agent_pipeline_service()
-    result = await pipeline.run(
+    start_trace(
+        entry_point="case_agent",
         user_message=body.message,
-        conversation_history=history,
-        system_prompt=system_prompt,
-        rag_collections=collections,
-        case_file_id=body.case_file_id,
         user_id=uid,
         conversation_id=conversation_id,
-        db=db,
-        is_case_chat=True,
     )
+    record_step(
+        "request_received",
+        message=body.message,
+        case_file_id=body.case_file_id,
+        case_context=case_context,
+        rag_config=body.rag_config.model_dump() if body.rag_config else None,
+        user_tier=user_info.get("tier") if user_info else None,
+    )
+
+    # Run the unified agent pipeline
+    pipeline = get_agent_pipeline_service()
+    try:
+        result = await pipeline.run(
+            user_message=body.message,
+            conversation_history=history,
+            system_prompt=system_prompt,
+            rag_collections=collections,
+            case_file_id=body.case_file_id,
+            user_id=uid,
+            conversation_id=conversation_id,
+            db=db,
+            is_case_chat=True,
+        )
+    except Exception as e:
+        await save_current_trace(status="failed", error=str(e))
+        raise
 
     response_text = result.response_text
     chunks = result.chunks
@@ -147,17 +167,23 @@ async def send_agent_message(
 
     credits_remaining = None
     if user_info:
+        is_admin = user_info.get("tier") in ("ADMIN", "SUPERADMIN")
         user_repo = UserRepository(db)
         user = await user_repo.get_by_firebase_uid(uid)
         if user:
             credit_repo = CreditRepository(db)
-            credits = await credit_repo.deduct(
-                user_id=user.id,
-                cost=CreditAction.CHAT.cost,
-                action=CreditAction.CHAT.value,
-                description=f"Case agent in conversation {conversation_id}",
-            )
-            credits_remaining = credit_repo.get_remaining_credits(credits)
+            if not is_admin:
+                credits = await credit_repo.deduct(
+                    user_id=user.id,
+                    cost=CreditAction.CHAT.cost,
+                    action=CreditAction.CHAT.value,
+                    description=f"Case agent in conversation {conversation_id}",
+                )
+                credits_remaining = credit_repo.get_remaining_credits(credits)
+            else:
+                # For admin, get remaining credits from existing balance without deducting
+                credits = await credit_repo.get_balance(user.id)
+                credits_remaining = credit_repo.get_remaining_credits(credits)
 
     await db.commit()
 
@@ -168,6 +194,8 @@ async def send_agent_message(
         plan_intent=result.plan.intent,
         verify_iterations=result.iterations,
     )
+
+    await save_current_trace(status="completed", response_text=response_text)
 
     return ChatSendResponse(
         response=response_text,

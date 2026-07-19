@@ -17,8 +17,33 @@ from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Pattern to match Georgian law citations like "მუხლი 45" or "მუხლი 120"
-ARTICLE_PATTERN = re.compile(r"მუხლი\s+(\d+)", re.UNICODE)
+# Pattern to match Georgian law citations. Handles both word orders, the
+# common Georgian ordinal/superscript forms, and sub-article (paragraph)
+# references:
+#   "მუხლი 45", "მუხლი 177-ე", "მუხლი 115¹", "177-ე მუხლი", "177 მუხლი",
+#   "მუხლი 48.8", "48-ე მუხლის მე-8 ნაწილი", "48-ე მუხლის პირველი ნაწილი".
+# Group "num_after" captures the digits when the keyword precedes the number;
+# group "num_before" captures them when the number precedes the keyword.
+# Paragraph groups: "para_dot" (48.8), "para_me" (მე-8 ნაწილი),
+# "para_ord" (8-ე ნაწილი), "para_word" (პირველი/მეორე/მესამე ნაწილი).
+_ORDINAL_SUFFIX = r"(?:-[ა-ჰ]+)?"  # e.g. "-ე", "-ის"
+_SUPERSCRIPT = r"[¹²³⁴⁵⁶⁷⁸⁹⁰]*"
+_PARAGRAPH_WORDS = {
+    "პირველ": "1", "მეორე": "2", "მესამე": "3", "მეოთხე": "4", "მეხუთე": "5",
+    "მეექვსე": "6", "მეშვიდე": "7", "მერვე": "8", "მეცხრე": "9", "მეათე": "10",
+}
+_PARAGRAPH_SUFFIX = (
+    r"(?:\s+(?:მე-(?P<para_me>\d{1,2})|(?P<para_ord>\d{1,2})-ე"
+    r"|(?P<para_word>" + "|".join(_PARAGRAPH_WORDS) + r")[ა-ჰ]*)\s+ნაწილ[ა-ჰ]*)?"
+)
+ARTICLE_PATTERN = re.compile(
+    r"მუხლი\s+(?P<num_after>\d+" + _SUPERSCRIPT + r")"
+    + r"(?:\.(?P<para_dot>\d{1,2})(?!\d))?" + _ORDINAL_SUFFIX
+    + r"|(?P<num_before>\d+" + _SUPERSCRIPT + r")"
+    + r"(?:\.(?P<para_dot2>\d{1,2})(?!\d))?" + _ORDINAL_SUFFIX
+    + r"\s+მუხლ(?:ის|ი)" + _PARAGRAPH_SUFFIX,
+    re.UNICODE,
+)
 
 # Code names as they appear in the corpus (full "საქართველოს" prefix form).
 # The model may output shorter forms — verify_citations handles both via normalization.
@@ -63,6 +88,13 @@ _ABBREVIATION_MAP: dict[str, str] = {
     "ასდკ": "საქართველოს ადმინისტრაციულ სამართალდარღვევათა კოდექსი",
 }
 
+# Court case numbers as the model cites them: "ას-1280-2019", "ბს-922",
+# "ას-449-431-2016", "814აპ-23", "2აგ-22" (optionally prefixed with №/საქმე).
+CASE_NUMBER_PATTERN = re.compile(
+    r"\b(?:ას|ბს|გს)-\d+(?:-\d+)*\b|\b\d+(?:აპ|აგ|კოლ|კ)-\d+\b",
+    re.UNICODE,
+)
+
 # Pattern for abbreviation references like "სსკ-ის 177-ე მუხლი"
 _ABBREV_PATTERN = re.compile(
     r"\b(" + "|".join(re.escape(k) for k in sorted(_ABBREVIATION_MAP, key=len, reverse=True))
@@ -71,6 +103,73 @@ _ABBREV_PATTERN = re.compile(
 )
 
 _GEO_PREFIX = "საქართველოს "
+
+# ── Anchored-claims protocol (grounding plan 2.2) ────────────────────────
+# A paragraph making a normative legal assertion must carry an anchor —
+# an article reference, a matsne link, or a court case number.
+_LEGAL_CLAIM_PATTERN = re.compile(
+    r"ითვალისწინებ|ეკისრება|ისჯება|ვალდებულ|უფლება აქვ|უფლებამოსილ"
+    r"|აკრძალულ|ადგენს|განსაზღვრავს|ანაზღაურ|ჯარიმ|სასჯელ|პასუხისმგებლ"
+    r"|კომპენსაცი|ეკუთვნ|ვადაში|ვადა |მოითხოვ",
+    re.UNICODE,
+)
+_ANCHOR_PATTERN = re.compile(
+    r"მუხლ|matsne\.gov\.ge|[აბ]ს-\d+(?:-\d+)?|№\s*\d|კოდექსი|კონსტიტუცი"
+    r"|[„\"][^““\"]+[““\"]\s*(?:საქართველოს\s+)?კანონ",  # named law in quotes
+    re.UNICODE,
+)
+
+
+def check_anchoring(text: str) -> dict[str, Any]:
+    """Measure the unanchored legal-claim rate of a response.
+
+    Splits the response into paragraphs/bullets; a paragraph containing a
+    normative legal assertion counts as a claim. It is anchored when it — or
+    its enclosing section (since the last markdown heading) — carries an
+    article reference, matsne link, or case number, matching how the model
+    structures answers (one citation covering the bullets under it).
+    Flags only — no automatic stripping (mutilating legal advice is riskier
+    than surfacing the metric for correction).
+    """
+    claims = 0
+    unanchored = 0
+    samples: list[str] = []
+    section_anchored = False
+    pending_claims: list[str] = []  # claims in this section awaiting an anchor
+    for para in re.split(r"\n+", text):
+        para = para.strip()
+        if not para:
+            continue
+        if para.startswith("#"):
+            # new section — flush claims of the finished, never-anchored section
+            unanchored += len(pending_claims)
+            samples.extend(pending_claims[: 5 - len(samples)])
+            pending_claims = []
+            section_anchored = False
+            continue
+        if _ANCHOR_PATTERN.search(para):
+            section_anchored = True
+            pending_claims = []
+        if not _LEGAL_CLAIM_PATTERN.search(para):
+            continue
+        # advisory/meta paragraphs are not normative claims
+        if para.startswith(("გირჩევთ", "რეკომენდაცია", "გთხოვთ", "⚠️", "**გაფრთხილება")):
+            continue
+        # lead-in paragraphs ending with ":" introduce a list whose items
+        # carry the anchors — the claim lives in the (checked) items
+        if para.endswith(":"):
+            continue
+        claims += 1
+        if not section_anchored and not _ANCHOR_PATTERN.search(para):
+            pending_claims.append(para[:200])
+    unanchored += len(pending_claims)
+    samples.extend(pending_claims[: 5 - len(samples)])
+    return {
+        "claim_paragraphs": claims,
+        "unanchored": unanchored,
+        "unanchored_rate": round(unanchored / claims, 3) if claims else 0.0,
+        "unanchored_samples": samples,
+    }
 
 
 def _normalize_code_name(name: str) -> str:
@@ -93,13 +192,25 @@ class CitationService:
     def extract_citations(self, text: str) -> list[dict[str, str]]:
         """Extract law citations from text."""
         citations = []
-        articles = ARTICLE_PATTERN.findall(text)
 
-        for article_num in articles:
-            # Try to find the code name preceding this article reference
-            code_name = self._find_code_name(text, article_num)
+        # finditer gives the exact position of EACH reference, so the code name
+        # is resolved relative to that reference (not the first match in the
+        # text). This keeps two same-numbered articles from different codes
+        # (e.g. Civil 177 and Criminal 177) mapped to their correct codes.
+        for match in ARTICLE_PATTERN.finditer(text):
+            article_num = match.group("num_after") or match.group("num_before")
+            paragraph = (
+                match.group("para_dot")
+                or match.group("para_dot2")
+                or match.group("para_me")
+                or match.group("para_ord")
+                or _PARAGRAPH_WORDS.get(match.group("para_word") or "", "")
+                or ""
+            )
+            code_name = self._find_code_name_preceding(text, match.start())
             citations.append({
                 "article_number": f"მუხლი {article_num}",
+                "paragraph": paragraph,
                 "code_name": code_name or "Unknown",
                 "raw_text": f"{code_name}, მუხლი {article_num}" if code_name else f"მუხლი {article_num}",
             })
@@ -108,22 +219,17 @@ class CitationService:
         seen = set()
         unique = []
         for c in citations:
-            key = (c["code_name"], c["article_number"])
+            key = (c["code_name"], c["article_number"], c["paragraph"])
             if key not in seen:
                 seen.add(key)
                 unique.append(c)
 
         return unique
 
-    def _find_code_name(self, text: str, article_num: str) -> str | None:
-        """Find the code name closest to and preceding the article reference."""
-        pattern = f"მუხლი\\s+{article_num}"
-        match = re.search(pattern, text)
-        if not match:
-            return None
-
-        # Search backwards from the match for a known code name
-        preceding = text[:match.start()]
+    def _find_code_name_preceding(self, text: str, start_pos: int) -> str | None:
+        """Find the code name closest to and preceding the given position."""
+        # Search backwards from the reference position for a known code name
+        preceding = text[:start_pos]
         best_name = None
         best_pos = -1
 
@@ -279,6 +385,57 @@ class CitationService:
             "corpus_found": corpus_found,
             "not_found": not_found,
         }
+
+    def extract_case_citations(self, text: str) -> list[str]:
+        """Extract court case numbers cited in the response (plan 3.1)."""
+        seen: set[str] = set()
+        ordered: list[str] = []
+        for m in CASE_NUMBER_PATTERN.finditer(text):
+            num = m.group(0)
+            if num not in seen:
+                seen.add(num)
+                ordered.append(num)
+        return ordered
+
+    def verify_case_citations(
+        self, case_numbers: list[str]
+    ) -> dict[str, list[dict[str, Any]]]:
+        """Verify case numbers against court collections' metadata (plan 3.1).
+
+        Returns {"verified": [...], "not_found": [...]} where verified entries
+        carry the collection and case metadata.
+        """
+        verified: list[dict[str, Any]] = []
+        not_found: list[dict[str, Any]] = []
+        for num in case_numbers:
+            try:
+                hits = self.chroma.search_by_metadata(
+                    where={"case_id": {"$eq": num}},
+                    collections=["court_practice", "grand_chamber"],
+                    limit=1,
+                )
+            except Exception as e:
+                logger.warning("case_citation_lookup_failed", error=str(e))
+                hits = []
+            if hits:
+                meta = hits[0].get("metadata", {})
+                verified.append({
+                    "case_number": num,
+                    "collection": meta.get("_collection", ""),
+                    "court": meta.get("court", ""),
+                    "year": meta.get("year"),
+                    "category": meta.get("category", ""),
+                })
+            else:
+                not_found.append({"case_number": num})
+        if case_numbers:
+            logger.info(
+                "case_citations_verified",
+                total=len(case_numbers),
+                verified=len(verified),
+                not_found=len(not_found),
+            )
+        return {"verified": verified, "not_found": not_found}
 
     def _search_corpus_exact(
         self, article_number: str, code_name: str

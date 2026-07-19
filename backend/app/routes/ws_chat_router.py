@@ -19,11 +19,15 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from google.genai import types
 
 from app.config.settings import settings
+from app.config.constants import CreditAction, UserTier
+from app.middleware.rate_limit_middleware import check_redis_rate_limit
+from app.repositories.credit_repository import CreditRepository
 from app.prompts.advocate import compose_advocate_prompt
 from app.prompts.chat import CHAT_SYSTEM, CASE_INTAKE_SYSTEM
 from app.services.agent_pipeline_service import get_agent_pipeline_service
 from app.services.case_tool_executor import CaseToolExecutor
 from app.services.conversation_service import ConversationService
+from app.services.trace_service import record_step, save_current_trace, start_trace
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -58,9 +62,13 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
     await websocket.accept()
     logger.info("ws_connected", conversation_id=conversation_id)
 
-    uid = await _authenticate(websocket, token)
-    if uid is None:
+    auth_info = await _authenticate(websocket, token)
+    if auth_info is None:
         return
+
+    uid = auth_info["uid"]
+    user_tier = auth_info["tier"]
+    user_db_id = auth_info["user_id"]
 
     try:
         while True:
@@ -83,10 +91,27 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
 
             case_file_id = payload.get("case_file_id")
             rag_config_data = payload.get("rag_config")
-            # Legacy support: accept 'mode' for backward compat but ignore it
             is_case_chat = payload.get("mode") == "case_intake" or case_file_id is not None
 
             collections = _parse_rag_config(rag_config_data)
+
+            # Rate Limit check
+            from app.config.constants import TIER_RATE_LIMITS, UserTier
+            rate_limit_key = f"rate_limit:ws:{uid}"
+            try:
+                tier_val = UserTier(user_tier if user_tier != "SUPERADMIN" else "ADMIN")
+            except ValueError:
+                tier_val = UserTier.FREE
+
+            limit = TIER_RATE_LIMITS.get(tier_val, 5)
+            allowed, retry_after = await check_redis_rate_limit(rate_limit_key, limit)
+            if not allowed:
+                await websocket.send_json({
+                    "type": "error",
+                    "message": f"მოთხოვნების ლიმიტი ამოიწურა. გთხოვთ დაელოდოთ {retry_after} წამი.",
+                    "code": "rate_limited"
+                })
+                continue
 
             from app.models.database import get_session_factory
             async with get_session_factory()() as db:
@@ -100,15 +125,52 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                     await websocket.send_json({"type": "error", "message": "Unauthorized access to conversation"})
                     continue
 
+                # Credit check (non-admin only)
+                is_admin = user_tier in ("ADMIN", "SUPERADMIN")
+                cost = CreditAction.CHAT.cost
+                credit_repo = CreditRepository(db)
+
+                if not is_admin:
+                    credits_bal = await credit_repo.get_balance(user_db_id)
+                    if not credit_repo.has_sufficient_credits(credits_bal, cost):
+                        await websocket.send_json({
+                            "type": "error",
+                            "message": "საკმარისი კრედიტები არ გაქვთ. გთხოვთ ხვალ სცადოთ.",
+                            "code": "insufficient_credits"
+                        })
+                        continue
+
                 history = await conv_svc.get_conversation_history(conversation_id)
                 await conv_svc.save_user_message(conversation_id, user_message)
 
                 await websocket.send_json({"type": "status", "message": "Checking query..."})
 
+                start_trace(
+                    entry_point="ws_chat",
+                    user_message=user_message,
+                    user_id=uid,
+                    conversation_id=conversation_id,
+                )
+                record_step(
+                    "request_received",
+                    message=user_message,
+                    case_file_id=case_file_id,
+                    case_context_attached=bool(payload.get("case_context")),
+                    rag_config=rag_config_data,
+                    user_tier=user_tier,
+                )
+
                 try:
                     from app.services.guardrail_service import get_guardrail_service
                     guardrail = get_guardrail_service()
                     decision = await guardrail.classify(user_message)
+                    record_step(
+                        "guardrail_decision",
+                        category=decision.category,
+                        confidence=decision.confidence,
+                        should_proceed=decision.should_proceed,
+                        canned_response=decision.response_text,
+                    )
 
                     if not decision.should_proceed:
                         response_text = decision.response_text or ""
@@ -120,6 +182,7 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                             credit_cost=0,
                         )
                         await db.commit()
+                        await save_current_trace(status="blocked", response_text=response_text)
                         await websocket.send_json({
                             "type": "done",
                             "full_response": response_text,
@@ -160,17 +223,48 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                         )
 
                     pipeline = get_agent_pipeline_service()
-                    result = await pipeline.run(
-                        user_message=enriched_message,
-                        conversation_history=history,
-                        system_prompt=system_prompt_text,
-                        rag_collections=collections,
-                        case_file_id=case_file_id,
-                        user_id=uid,
-                        conversation_id=conversation_id,
-                        db=db,
-                        is_case_chat=is_case_chat,
+
+                    # Concurrently run pipeline and watch for disconnect
+                    import asyncio
+                    pipeline_task = asyncio.create_task(
+                        pipeline.run(
+                            user_message=enriched_message,
+                            conversation_history=history,
+                            system_prompt=system_prompt_text,
+                            rag_collections=collections,
+                            case_file_id=case_file_id,
+                            user_id=uid,
+                            conversation_id=conversation_id,
+                            db=db,
+                            is_case_chat=is_case_chat,
+                        )
                     )
+
+                    async def watch_disconnect():
+                        try:
+                            # Await next message or disconnect.
+                            await websocket.receive_text()
+                        except WebSocketDisconnect:
+                            pass
+
+                    disconnect_task = asyncio.create_task(watch_disconnect())
+
+                    done, pending = await asyncio.wait(
+                        [pipeline_task, disconnect_task],
+                        return_when=asyncio.FIRST_COMPLETED
+                    )
+
+                    for task in pending:
+                        task.cancel()
+
+                    if pipeline_task not in done:
+                        # Client disconnected during pipeline run!
+                        logger.warning("ws_client_disconnected_during_pipeline", conversation_id=conversation_id)
+                        await db.rollback()
+                        await save_current_trace(status="failed", error="client disconnected during pipeline")
+                        raise WebSocketDisconnect()
+
+                    result = pipeline_task.result()
 
                     response_text = result.response_text
                     chunks = result.chunks
@@ -193,7 +287,7 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                                 "confirmation_id": tr.confirmation_id,
                                 "tool_name": tr.tool_name,
                                 "description": tr.description,
-                            })
+                             })
                         else:
                             await _safe_send(websocket, {
                                 "type": "tool_executed",
@@ -202,7 +296,7 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                                 "result": tr.result,
                             })
 
-                    # Handle [CASE_READY] — tag already stripped above
+                    # Handle [CASE_READY]
                     if tag_ready:
                         await conv_svc.mark_case_ready(conversation_id)
 
@@ -238,7 +332,7 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                         content=response_text,
                         citations=verified_citations,
                         retrieved_chunk_ids=chunk_ids,
-                        credit_cost=1,
+                        credit_cost=cost,
                     )
 
                     # Update conversation phase
@@ -246,7 +340,18 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                     next_phase = await conv_svc.determine_next_phase(conversation_id, msg_count)
                     await conv_svc.transition_phase(conversation_id, next_phase)
 
+                    # Deduct credits
+                    if not is_admin:
+                        await credit_repo.deduct(
+                            user_id=user_db_id,
+                            cost=cost,
+                            action=CreditAction.CHAT.value,
+                            description=f"WS Chat in conversation {conversation_id}"
+                        )
+
                     await db.commit()
+
+                    await save_current_trace(status="completed", response_text=response_text)
 
                     await _safe_send(websocket, {
                         "type": "done",
@@ -261,8 +366,11 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                         } for t in result.tool_results],
                     })
 
+                except WebSocketDisconnect:
+                    raise
                 except Exception as e:
                     logger.error("ws_processing_error", error=str(e), exc_info=True)
+                    await save_current_trace(status="failed", error=str(e))
                     await _safe_send(websocket, {
                         "type": "error",
                         "message": "An error occurred during analysis. Please try again.",
@@ -272,9 +380,6 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
         logger.info("ws_disconnected", conversation_id=conversation_id)
     except Exception as e:
         logger.error("ws_error", error=str(e), exc_info=True)
-
-# ── Removed: _handle_advocate_with_tools and _handle_standard_chat ──
-# Both replaced by AgentPipelineService.run() in the main WS handler.
 
 
 def _build_gemini_contents(
@@ -311,33 +416,68 @@ def _build_gemini_contents(
     return contents
 
 
-async def _authenticate(websocket: WebSocket, token: str | None) -> str | None:
-    """Authenticate WebSocket connection. Returns uid or None if failed."""
+async def _authenticate(websocket: WebSocket, token: str | None) -> dict[str, Any] | None:
+    """Authenticate WebSocket connection. Returns dict with user details or None if failed."""
     api_key = websocket.query_params.get("api_key")
+    uid = None
+    tier = "FREE"
+
     if api_key:
-        if api_key == settings.admin_api_key:
-            return "admin-api-key"
-        from app.utils.api_keys import is_valid_api_key
-        if is_valid_api_key(api_key):
-            return f"api-user-{api_key[:8]}"
-        await websocket.send_json({"type": "error", "message": "Invalid API key"})
-        await websocket.close(code=1008)
-        return None
+        if settings.app_env == "development" and api_key == settings.admin_api_key:
+            uid = "admin-api-key"
+            tier = "SUPERADMIN"
+        else:
+            from app.utils.api_keys import is_valid_api_key
+            if is_valid_api_key(api_key):
+                uid = f"api-user-{api_key[:8]}"
+                tier = "FREE"
+            else:
+                await websocket.send_json({"type": "error", "message": "Invalid API key"})
+                await websocket.close(code=1008)
+                return None
     elif token:
         try:
             from app.integrations.firebase_client import verify_id_token
             decoded = verify_id_token(token)
-            return decoded.get("uid", "anonymous")
+            uid = decoded.get("uid", "anonymous")
         except Exception as e:
             await websocket.send_json({"type": "error", "message": f"Invalid token: {str(e)}"})
             await websocket.close(code=1008)
             return None
     elif settings.app_env == "development":
-        return "dev-user-001"
+        uid = "dev-user-001"
+        tier = "ADMIN"
     else:
         await websocket.send_json({"type": "error", "message": "Authentication required"})
         await websocket.close(code=1008)
         return None
+
+    # Fetch DB user and resolve tier
+    from app.models.database import get_session_factory
+    from app.repositories.user_repository import UserRepository
+
+    db_factory = get_session_factory()
+    async with db_factory() as db:
+        user_repo = UserRepository(db)
+        user = await user_repo.get_by_firebase_uid(uid)
+
+        if not user:
+            if settings.app_env == "development":
+                user = await user_repo.create_or_update(
+                    firebase_uid=uid,
+                    email="mock@masteroflaw.ge",
+                    display_name="Mock User"
+                )
+                await db.commit()
+            else:
+                await websocket.send_json({"type": "error", "message": "User account not initialized. Please verify token first."})
+                await websocket.close(code=1008)
+                return None
+
+        if user:
+            tier = user.tier
+
+    return {"uid": uid, "tier": tier, "user_id": user.id if user else None}
 
 
 async def _handle_confirmation(websocket: WebSocket, payload: dict, uid: str) -> None:

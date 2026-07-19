@@ -199,6 +199,8 @@ class TestPhase3Verify:
     async def test_all_verified(self, mock_gemini):
         """When all citations are verified, 0 iterations, unchanged text."""
         mock_citation_svc = MagicMock()
+        mock_citation_svc.extract_case_citations = MagicMock(return_value=[])
+        mock_citation_svc.verify_case_citations = MagicMock(return_value={"verified": [], "not_found": []})
         mock_citation_svc.extract_citations = MagicMock(return_value=[
             {"code_name": "test", "article_number": "მუხლი 1"}
         ])
@@ -217,6 +219,8 @@ class TestPhase3Verify:
     async def test_no_text(self, mock_gemini):
         """Empty text should return immediately."""
         mock_citation_svc = MagicMock()
+        mock_citation_svc.extract_case_citations = MagicMock(return_value=[])
+        mock_citation_svc.verify_case_citations = MagicMock(return_value={"verified": [], "not_found": []})
         mock_citation_svc.extract_citations = MagicMock(return_value=[])
         mock_citation_svc.verify_citations = MagicMock(return_value=[])
 
@@ -228,6 +232,8 @@ class TestPhase3Verify:
     async def test_hallucination_triggers_correction(self, mock_gemini):
         """Hallucinated citation should trigger Flash correction."""
         mock_citation_svc = MagicMock()
+        mock_citation_svc.extract_case_citations = MagicMock(return_value=[])
+        mock_citation_svc.verify_case_citations = MagicMock(return_value={"verified": [], "not_found": []})
         mock_citation_svc.extract_citations = MagicMock(return_value=[
             {"code_name": "test", "article_number": "მუხლი 999"}
         ])
@@ -248,6 +254,8 @@ class TestPhase3Verify:
     async def test_no_citations(self, mock_gemini):
         """No citations in text → return immediately."""
         mock_citation_svc = MagicMock()
+        mock_citation_svc.extract_case_citations = MagicMock(return_value=[])
+        mock_citation_svc.verify_case_citations = MagicMock(return_value={"verified": [], "not_found": []})
         mock_citation_svc.extract_citations = MagicMock(return_value=[])
 
         svc = AgentPipelineService(gemini=mock_gemini, citation_svc=mock_citation_svc)
@@ -314,12 +322,15 @@ class TestFullRun:
 
         # Citation service
         mock_citation_svc = MagicMock()
+        mock_citation_svc.extract_case_citations = MagicMock(return_value=[])
+        mock_citation_svc.verify_case_citations = MagicMock(return_value={"verified": [], "not_found": []})
         mock_citation_svc.extract_citations = MagicMock(return_value=[])
 
         # RAG service
         mock_rag = AsyncMock()
         mock_rag.retrieve = AsyncMock(return_value=[
-            {"chunk_id": "c1", "content": "law text", "metadata": {}}
+            {"chunk_id": "c1", "content": "law text",
+             "metadata": {"_collection": "georgian_laws"}}
         ])
 
         svc = AgentPipelineService(
@@ -365,4 +376,4 @@ class TestFormatVerificationResults:
             "corpus_found": [{"code_name": "test", "article_number": "მუხლი 1", "corpus_code_name": "real"}],
         }
         result = AgentPipelineService._format_verification_results(verification)
-        assert "FOUND_DIFFERENT" in result
+        assert "FOUND_NOT_IN_CONTEXT" in result

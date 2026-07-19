@@ -1,0 +1,23 @@
+# Tool-confirmation probe: an exact-text request for an article in a code that is
+# NOT full-code-injected (only labour_code + constitution are), so the agent must
+# call the get_article store tool to answer faithfully. Mirrors the proven probe
+# in evidence_log task 1.2 (Election Code art 79, trace 34105c17).
+name: agent_tool_confirmation_probe
+
+intake_messages: []
+
+agent_turns:
+  - id: A3
+    domain: administrative
+    question: >-
+      მაინტერესებს საქართველოს საარჩევნო კოდექსის 79-ე მუხლის ზუსტი,
+      სიტყვასიტყვითი ტექსტი — წინასაარჩევნო აგიტაციაში კანონის დარღვევით
+      მონაწილეობის შესახებ. მომაწოდე ზუსტად ის, რაც კოდექსშია ჩაწერილი.
+    must_ground_in:
+      - code: election_code
+        code_name: "საქართველოს საარჩევნო კოდექსი"
+        article: '79'
+        article_number: "მუხლი 79"
+        article_title: "წინასაარჩევნო აგიტაციაში ამ კანონის მოთხოვნთა დარღვევით მონაწილეობა"
+        matsne_url: https://matsne.gov.ge/ka/document/view/1557168#article_79
+        validation_keyword: "წინასაარჩევნო"

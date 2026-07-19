@@ -340,6 +340,65 @@ SEARCH_LAW_DECLARATION = types.FunctionDeclaration(
 
 SEARCH_LAW_TOOL = types.Tool(function_declarations=[SEARCH_LAW_DECLARATION])
 
+# ── Deterministic navigation tools (grounding mechanism B) ────────────────
+
+GET_ARTICLE_DECLARATION = types.FunctionDeclaration(
+    name="get_article",
+    description=(
+        "Fetch the FULL, exact, consolidated text of a specific Georgian law article "
+        "by code and article number — deterministic lookup, not similarity search. "
+        "ALWAYS use this before citing an article whose full text is not in your context, "
+        "or to verify exact wording, deadlines, or amounts. "
+        "კონკრეტული მუხლის სრული, ზუსტი ტექსტის მიღება კოდექსიდან. "
+        "თუ საჭირო მუხლი კონტექსტში არ არის — მოიძიე ამ ხელსაწყოთი."
+    ),
+    parameters=types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "code": types.Schema(
+                type=types.Type.STRING,
+                description=(
+                    "Legal code name in Georgian, e.g. 'შრომის კოდექსი', "
+                    "'სისხლის სამართლის კოდექსი' (with or without 'საქართველოს')."
+                ),
+            ),
+            "article": types.Schema(
+                type=types.Type.STRING,
+                description="Article number, e.g. '48' or 'მუხლი 48'.",
+            ),
+            "paragraph": types.Schema(
+                type=types.Type.STRING,
+                description="Optional paragraph (ნაწილი/პუნქტი) number, e.g. '8'.",
+            ),
+        },
+        required=["code", "article"],
+    ),
+)
+
+BROWSE_CODE_DECLARATION = types.FunctionDeclaration(
+    name="browse_code",
+    description=(
+        "List the articles (number + title) of a Georgian legal code, optionally a single "
+        "chapter — navigate the code like a lawyer flipping through it to find the right "
+        "article when you don't know its number. "
+        "კოდექსის მუხლების სია (ნომერი + სათაური) ნავიგაციისთვის."
+    ),
+    parameters=types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "code": types.Schema(
+                type=types.Type.STRING,
+                description="Legal code name in Georgian, e.g. 'შრომის კოდექსი'.",
+            ),
+            "chapter": types.Schema(
+                type=types.Type.STRING,
+                description="Optional chapter filter, e.g. 'X' or its title fragment.",
+            ),
+        },
+        required=["code"],
+    ),
+)
+
 CREATE_CASE_DECLARATION = types.FunctionDeclaration(
     name="create_case",
     description=(
@@ -396,15 +455,22 @@ BUILD_CASE_ANALYSIS_DECLARATION = types.FunctionDeclaration(
     ),
 )
 
-ALWAYS_TOOLS = [types.Tool(function_declarations=[SEARCH_LAW_DECLARATION])]
+NAVIGATION_DECLARATIONS = [GET_ARTICLE_DECLARATION, BROWSE_CODE_DECLARATION]
+
+ALWAYS_TOOLS = [types.Tool(function_declarations=[
+    SEARCH_LAW_DECLARATION,
+    *NAVIGATION_DECLARATIONS,
+])]
 
 CASE_CREATION_TOOLS = [types.Tool(function_declarations=[
     SEARCH_LAW_DECLARATION,
+    *NAVIGATION_DECLARATIONS,
     CREATE_CASE_DECLARATION,
 ])]
 
 FULL_CASE_TOOLS = [types.Tool(function_declarations=[
     SEARCH_LAW_DECLARATION,
+    *NAVIGATION_DECLARATIONS,
     BUILD_CASE_ANALYSIS_DECLARATION,
     *CASE_TOOL_DECLARATIONS,
 ])]

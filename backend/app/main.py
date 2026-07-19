@@ -37,6 +37,7 @@ from app.routes import (
     law_browser_router,
     questionnaire_router,
     rag_router,
+    trace_router,
     ws_chat_router,
     api_key_router,
     contacts_router,
@@ -101,15 +102,15 @@ def create_app() -> FastAPI:
         redoc_url="/redoc" if not settings.is_production else None,
     )
 
-    # ── Middleware (order matters — outermost executed first) ──
-    # 1. Error handler catches all unhandled exceptions
-    app.add_middleware(ErrorHandlerMiddleware)
-    # 2. Rate limiting (before processing)
+    # ── Middleware (order matters — reverse order of addition runs first) ──
+    # 1. Rate limiting (innermost request phase)
     app.add_middleware(RateLimitMiddleware)
-    # 3. Credit gate (checks credits before AI calls)
+    # 2. Credit gate (checks credits before AI calls)
     app.add_middleware(CreditGateMiddleware)
-    # 4. Firebase auth (authenticates user)
+    # 3. Firebase auth (authenticates user, populates request.state.user)
     app.add_middleware(FirebaseAuthMiddleware)
+    # 4. Error handler (outermost app layer, catches all unhandled exceptions)
+    app.add_middleware(ErrorHandlerMiddleware)
     # 5. CORS (always outermost for browser requests)
     app.add_middleware(
         CORSMiddleware,
@@ -134,6 +135,7 @@ def create_app() -> FastAPI:
     app.include_router(case_agent_router.router)
     app.include_router(api_key_router.router)
     app.include_router(contacts_router.router)
+    app.include_router(trace_router.router)
 
     return app
 

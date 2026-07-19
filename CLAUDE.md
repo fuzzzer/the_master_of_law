@@ -41,12 +41,14 @@ Flutter App (master_of_law, ge.fuzzycore.masteroflaw)
   │ HTTPS / WebSocket + RAGCollectionConfig (feature flags)
   ▼
 FastAPI Backend (~10K lines, 90 files)
-  │ 13 routers → 36 endpoints
-  │ 14 services, 7 repositories, 8 models, 9 schemas
+  │ 15 routers → 45 endpoints
+  │ 19 services, 8 repositories, 9 models, 9 schemas
   │ Firebase Auth → Credit Gate → Rate Limit → Error Handler
-  │ 5-stage RAG: Expand → Vector (multi-collection) → FullText → Merge → Rerank
+  │ 5-stage RAG: Expand → Vector (per-collection quotas) → FullText → Merge → Rerank
+  │ Grounding: article store (SQLite+FTS5) + get_article/browse_code tools + retrieval repair
   │ Gemini 3.1 Pro legal analysis + source-specific prompt injection
-  │ 204 tests across 24 test files
+  │ Pipeline transparency traces (per-request step log + admin dashboard)
+  │ 562 tests across 37 test files (560 passing; 2 pre-existing infra failures)
   ▼
 Data: PostgreSQL + ChromaDB (3 collections, 20,712 chunks) + Redis
   │ georgian_laws: 15,338 (12 legal codes)

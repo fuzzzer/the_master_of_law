@@ -80,8 +80,8 @@ class TestQuotaEnforcement:
         # Mock pipeline stages to return our test data
         svc._stage_0_expand_queries = AsyncMock(return_value=["test query"])
         svc._stage_1_vector_search = AsyncMock(return_value=laws)
-        svc._stage_2_fulltext_search = MagicMock(return_value=[])
-        svc._stage_3_merge_and_dedup = MagicMock(return_value=laws)
+        svc._stage_2_fulltext_search = AsyncMock(return_value=[])
+        svc._stage_3_merge_and_dedup = AsyncMock(return_value=laws)
         # Skip rerank (len <= top_k)
         with patch("app.services.rag_retrieval_service.get_threshold_service") as mock_ts:
             mock_ts.return_value.search.return_value = []
@@ -98,8 +98,8 @@ class TestQuotaEnforcement:
 
         svc._stage_0_expand_queries = AsyncMock(return_value=["test"])
         svc._stage_1_vector_search = AsyncMock(return_value=laws)
-        svc._stage_2_fulltext_search = MagicMock(return_value=[])
-        svc._stage_3_merge_and_dedup = MagicMock(return_value=laws)
+        svc._stage_2_fulltext_search = AsyncMock(return_value=[])
+        svc._stage_3_merge_and_dedup = AsyncMock(return_value=laws)
         with patch("app.services.rag_retrieval_service.get_threshold_service") as mock_ts:
             mock_ts.return_value.search.return_value = []
             result = await svc.retrieve("ქურდობა", top_k=50)
@@ -115,8 +115,8 @@ class TestQuotaEnforcement:
 
         svc._stage_0_expand_queries = AsyncMock(return_value=["test"])
         svc._stage_1_vector_search = AsyncMock(return_value=cases)
-        svc._stage_2_fulltext_search = MagicMock(return_value=[])
-        svc._stage_3_merge_and_dedup = MagicMock(return_value=cases)
+        svc._stage_2_fulltext_search = AsyncMock(return_value=[])
+        svc._stage_3_merge_and_dedup = AsyncMock(return_value=cases)
         with patch("app.services.rag_retrieval_service.get_threshold_service") as mock_ts:
             mock_ts.return_value.search.return_value = []
             result = await svc.retrieve("test", top_k=50)
@@ -132,8 +132,8 @@ class TestQuotaEnforcement:
 
         svc._stage_0_expand_queries = AsyncMock(return_value=["test"])
         svc._stage_1_vector_search = AsyncMock(return_value=cases)
-        svc._stage_2_fulltext_search = MagicMock(return_value=[])
-        svc._stage_3_merge_and_dedup = MagicMock(return_value=cases)
+        svc._stage_2_fulltext_search = AsyncMock(return_value=[])
+        svc._stage_3_merge_and_dedup = AsyncMock(return_value=cases)
         with patch("app.services.rag_retrieval_service.get_threshold_service") as mock_ts:
             mock_ts.return_value.search.return_value = []
             result = await svc.retrieve("test", top_k=50)
@@ -150,8 +150,8 @@ class TestQuotaEnforcement:
 
         svc._stage_0_expand_queries = AsyncMock(return_value=["test"])
         svc._stage_1_vector_search = AsyncMock(return_value=mixed)
-        svc._stage_2_fulltext_search = MagicMock(return_value=[])
-        svc._stage_3_merge_and_dedup = MagicMock(return_value=mixed)
+        svc._stage_2_fulltext_search = AsyncMock(return_value=[])
+        svc._stage_3_merge_and_dedup = AsyncMock(return_value=mixed)
         with patch("app.services.rag_retrieval_service.get_threshold_service") as mock_ts:
             mock_ts.return_value.search.return_value = []
             result = await svc.retrieve("test", top_k=50)
@@ -168,8 +168,8 @@ class TestQuotaEnforcement:
 
         svc._stage_0_expand_queries = AsyncMock(return_value=["test"])
         svc._stage_1_vector_search = AsyncMock(return_value=mixed)
-        svc._stage_2_fulltext_search = MagicMock(return_value=[])
-        svc._stage_3_merge_and_dedup = MagicMock(return_value=mixed)
+        svc._stage_2_fulltext_search = AsyncMock(return_value=[])
+        svc._stage_3_merge_and_dedup = AsyncMock(return_value=mixed)
         with patch("app.services.rag_retrieval_service.get_threshold_service") as mock_ts:
             mock_ts.return_value.search.return_value = []
             result = await svc.retrieve("test", top_k=50)
@@ -187,44 +187,48 @@ class TestMergeAndDedup:
 
     def _make_service(self):
         chroma = MagicMock()
-        chroma.get_by_ids = MagicMock(return_value=[])
+        chroma.get_by_ids_async = AsyncMock(return_value=[])
         return RAGRetrievalService(chroma=chroma, embedding_client=MagicMock(), gemini_client=MagicMock())
 
-    def test_duplicate_keeps_lower_distance(self):
+    @pytest.mark.asyncio
+    async def test_duplicate_keeps_lower_distance(self):
         """Same chunk_id in vector (0.5) and vector (0.1) → keeps 0.1."""
         svc = self._make_service()
         vector_hits = [
             {"chunk_id": "A", "content": "first", "metadata": {}, "distance": 0.5, "source": "vector"},
             {"chunk_id": "A", "content": "second", "metadata": {}, "distance": 0.1, "source": "vector"},
         ]
-        result = svc._stage_3_merge_and_dedup(vector_hits, [])
+        result = await svc._stage_3_merge_and_dedup(vector_hits, [])
         assert len(result) == 1
         assert result[0]["distance"] == 0.1, f"Expected 0.1, got {result[0]['distance']}"
 
-    def test_vector_preferred_over_fulltext_same_id(self):
+    @pytest.mark.asyncio
+    async def test_vector_preferred_over_fulltext_same_id(self):
         """Vector hit and fulltext hit with same ID → vector kept (it has content)."""
         svc = self._make_service()
         vector = [{"chunk_id": "A", "content": "real content", "metadata": {"code_name": "test"}, "distance": 0.3, "source": "vector"}]
         fulltext = [{"chunk_id": "A", "content": "", "metadata": {}, "distance": 0.7, "source": "fulltext"}]
-        result = svc._stage_3_merge_and_dedup(vector, fulltext)
+        result = await svc._stage_3_merge_and_dedup(vector, fulltext)
         assert len(result) == 1
         assert result[0]["content"] == "real content"
 
-    def test_fulltext_only_gets_enriched(self):
+    @pytest.mark.asyncio
+    async def test_fulltext_only_gets_enriched(self):
         """Fulltext hit with empty content → ChromaDB get_by_ids fills it."""
         svc = self._make_service()
-        svc._chroma.get_by_ids = MagicMock(return_value=[{
+        svc._chroma.get_by_ids_async = AsyncMock(return_value=[{
             "chunk_id": "FT1",
             "content": "enriched content from chroma",
             "metadata": {"code_name": "test", "article_number": "მუხლი 1"},
         }])
         fulltext = [{"chunk_id": "FT1", "content": "", "metadata": {}, "distance": 0.5, "source": "fulltext"}]
-        result = svc._stage_3_merge_and_dedup([], fulltext)
+        result = await svc._stage_3_merge_and_dedup([], fulltext)
         assert len(result) == 1
         assert result[0]["content"] == "enriched content from chroma"
         assert result[0]["metadata"]["code_name"] == "test"
 
-    def test_sorted_by_distance(self):
+    @pytest.mark.asyncio
+    async def test_sorted_by_distance(self):
         """Results are sorted by distance (best first)."""
         svc = self._make_service()
         hits = [
@@ -232,15 +236,36 @@ class TestMergeAndDedup:
             {"chunk_id": "A", "content": "", "metadata": {}, "distance": 0.1, "source": "vector"},
             {"chunk_id": "B", "content": "", "metadata": {}, "distance": 0.5, "source": "vector"},
         ]
-        result = svc._stage_3_merge_and_dedup(hits, [])
+        result = await svc._stage_3_merge_and_dedup(hits, [])
         distances = [r["distance"] for r in result]
         assert distances == sorted(distances), f"Not sorted: {distances}"
 
-    def test_no_hits_returns_empty(self):
+    @pytest.mark.asyncio
+    async def test_no_hits_returns_empty(self):
         """Empty input → empty output."""
         svc = self._make_service()
-        result = svc._stage_3_merge_and_dedup([], [])
+        result = await svc._stage_3_merge_and_dedup([], [])
         assert result == []
+
+
+# ── Rerank Null Metadata ─────────────────────────────────────
+
+class TestRerankNullMetadata:
+    """Stage 4 must not crash when a candidate has null metadata (finding #17)."""
+
+    @pytest.mark.asyncio
+    async def test_rerank_survives_null_metadata(self):
+        """A candidate with metadata=None must not raise AttributeError."""
+        svc = RAGRetrievalService(chroma=MagicMock(), embedding_client=MagicMock(), gemini_client=MagicMock())
+        candidates = [
+            {"chunk_id": "good", "content": "x", "metadata": {"code_name": "C", "article_number": "მუხლი 1"}, "distance": 0.1},
+            {"chunk_id": "nullmeta", "content": "y", "metadata": None, "distance": 0.2},
+        ]
+        svc._gemini.generate_json = AsyncMock(return_value=["good", "nullmeta"])
+
+        # Must complete without raising and return both chunks
+        result = await svc._stage_4_rerank("test", candidates, top_k=2)
+        assert {r["chunk_id"] for r in result} == {"good", "nullmeta"}
 
 
 # ── Threshold Prepend ────────────────────────────────────────
@@ -257,8 +282,8 @@ class TestThresholdPrepend:
 
         svc._stage_0_expand_queries = AsyncMock(return_value=["test"])
         svc._stage_1_vector_search = AsyncMock(return_value=rag_chunks)
-        svc._stage_2_fulltext_search = MagicMock(return_value=[])
-        svc._stage_3_merge_and_dedup = MagicMock(return_value=rag_chunks)
+        svc._stage_2_fulltext_search = AsyncMock(return_value=[])
+        svc._stage_3_merge_and_dedup = AsyncMock(return_value=rag_chunks)
         with patch("app.services.rag_retrieval_service.get_threshold_service") as mock_ts:
             mock_ts.return_value.search.return_value = [threshold_hit]
             result = await svc.retrieve("მარიხუანა ოდენობა", top_k=50)
@@ -278,8 +303,8 @@ class TestThresholdPrepend:
 
         svc._stage_0_expand_queries = AsyncMock(return_value=["test"])
         svc._stage_1_vector_search = AsyncMock(return_value=rag_chunks)
-        svc._stage_2_fulltext_search = MagicMock(return_value=[])
-        svc._stage_3_merge_and_dedup = MagicMock(return_value=rag_chunks)
+        svc._stage_2_fulltext_search = AsyncMock(return_value=[])
+        svc._stage_3_merge_and_dedup = AsyncMock(return_value=rag_chunks)
         with patch("app.services.rag_retrieval_service.get_threshold_service") as mock_ts:
             mock_ts.return_value.search.return_value = [threshold_hit]
             result = await svc.retrieve("test", top_k=50)
@@ -365,7 +390,7 @@ class TestPipelineDegradation:
         """Vector search returns nothing but fulltext finds articles → still works."""
         svc = RAGRetrievalService(chroma=MagicMock(), embedding_client=MagicMock(), gemini_client=MagicMock())
         ft_hit = {"chunk_id": "ft_1", "content": "", "metadata": {}, "distance": 0.3, "source": "fulltext"}
-        svc._chroma.get_by_ids = MagicMock(return_value=[{
+        svc._chroma.get_by_ids_async = AsyncMock(return_value=[{
             "chunk_id": "ft_1",
             "content": "found via fulltext",
             "metadata": {"_collection": "georgian_laws", "code_name": "test"},
@@ -373,7 +398,7 @@ class TestPipelineDegradation:
 
         svc._stage_0_expand_queries = AsyncMock(return_value=["test"])
         svc._stage_1_vector_search = AsyncMock(return_value=[])
-        svc._stage_2_fulltext_search = MagicMock(return_value=[ft_hit])
+        svc._stage_2_fulltext_search = AsyncMock(return_value=[ft_hit])
         with patch("app.services.rag_retrieval_service.get_threshold_service") as mock_ts:
             mock_ts.return_value.search.return_value = []
             result = await svc.retrieve("test", top_k=50)
@@ -389,8 +414,8 @@ class TestPipelineDegradation:
 
         svc._stage_0_expand_queries = AsyncMock(return_value=["test"])
         svc._stage_1_vector_search = AsyncMock(return_value=candidates)
-        svc._stage_2_fulltext_search = MagicMock(return_value=[])
-        svc._stage_3_merge_and_dedup = MagicMock(return_value=candidates)
+        svc._stage_2_fulltext_search = AsyncMock(return_value=[])
+        svc._stage_3_merge_and_dedup = AsyncMock(return_value=candidates)
         # Make rerank fail
         svc._gemini.generate_json = AsyncMock(side_effect=Exception("API error"))
         with patch("app.services.rag_retrieval_service.get_threshold_service") as mock_ts:
@@ -408,8 +433,8 @@ class TestPipelineDegradation:
         svc = RAGRetrievalService(chroma=MagicMock(), embedding_client=MagicMock(), gemini_client=MagicMock())
         svc._gemini.generate_json = AsyncMock(side_effect=Exception("API timeout"))
         svc._stage_1_vector_search = AsyncMock(return_value=[_law_chunk("law_1")])
-        svc._stage_2_fulltext_search = MagicMock(return_value=[])
-        svc._stage_3_merge_and_dedup = MagicMock(return_value=[_law_chunk("law_1")])
+        svc._stage_2_fulltext_search = AsyncMock(return_value=[])
+        svc._stage_3_merge_and_dedup = AsyncMock(return_value=[_law_chunk("law_1")])
         with patch("app.services.rag_retrieval_service.get_threshold_service") as mock_ts:
             mock_ts.return_value.search.return_value = []
             result = await svc.retrieve("ქურდობის სასჯელი", top_k=50)

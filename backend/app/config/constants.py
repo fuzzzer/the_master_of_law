@@ -69,12 +69,31 @@ TIER_RATE_LIMITS: dict[UserTier, int] = {
 
 # ── RAG Pipeline ─────────────────────────────────────────────
 
-RAG_VECTOR_SEARCH_TOP_K = 75          # Per expanded query
+RAG_VECTOR_SEARCH_TOP_K = 75          # Per expanded query (fallback for unknown collections)
+RAG_VECTOR_TOP_K_PER_COLLECTION = {   # Per expanded query, per collection —
+    "georgian_laws": 40,              # separate quotas so court practice cannot
+    "court_practice": 25,             # crowd statutes out of the candidate pool
+    "grand_chamber": 10,
+}
 RAG_FULLTEXT_SEARCH_TOP_K = 50        # Per expanded query
+RAG_RERANK_POOL_PER_COLLECTION = {    # Rerank candidate caps — court practice
+    "georgian_laws": 50,              # embeds systematically closer than statutes,
+    "court_practice": 40,             # so the pre-rerank pool must also be balanced
+    "grand_chamber": 10,
+}
 RAG_RERANK_TOP_K = 35                 # Send more to Gemini to have a large pool
 RAG_LAWS_QUOTA = 15                   # Max laws to keep after rerank
 RAG_CASES_QUOTA = 8                   # Max cases to keep after rerank
 RAG_QUERY_EXPANSION_COUNT = 8         # Target number of expanded queries
+
+# ── Full-code injection (grounding mechanism C) ──────────────
+# Domains whose statute questions are answered from ONE unambiguous, small
+# enough code. Big codes (civil 545k, criminal 442k, tax 719k, admin
+# offences 763k chars) stay on RAG + navigation tools.
+FULL_CODE_INJECTION_DOMAIN_CODES: dict[str, list[str]] = {
+    "labor": ["labour_code"],
+    "constitutional": ["constitution"],
+}
 
 # ── Gemini ───────────────────────────────────────────────────
 
@@ -89,6 +108,23 @@ GUARDRAIL_CONFIDENCE_THRESHOLD: float = 0.7
 GUARDRAIL_MODEL: str = "gemini-2.0-flash"
 
 # ── Disclaimer ───────────────────────────────────────────────
+
+# Prepended when a statute-type question got ZERO statute grounding
+# (no chunks, no successful tool lookup, no full-code injection) — plan 2.4.
+UNGROUNDED_STATUTE_DISCLAIMER_KA = (
+    "⚠️ **გაფრთხილება:** ამ პასუხისთვის შესაბამისი საკანონმდებლო ნორმები "
+    "ბაზაში ვერ მოიძებნა. პასუხი ეყრდნობა ზოგად სამართლებრივ ცოდნას და "
+    "შესაძლოა უზუსტო იყოს — აუცილებლად გადაამოწმეთ ინფორმაცია ადვოკატთან "
+    "ან matsne.gov.ge-ზე.\n\n"
+)
+
+# Appended when the response advises legal action but states no deadline —
+# the deadline duty (plan 0.2) enforced structurally, not just by prompt.
+DEADLINE_GUARD_KA = (
+    "\n\n⚠️ სამართლებრივ ქმედებებს კანონით დადგენილი ვადები აქვს — "
+    "მოქმედების დაწყებამდე აუცილებლად გადაამოწმეთ შესაბამისი ვადა "
+    "კანონში ან იურისტთან."
+)
 
 LEGAL_DISCLAIMER_KA = (
     "ეს არის AI-ის მიერ გენერირებული იურიდიული ინფორმაცია, "

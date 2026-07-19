@@ -1,0 +1,1514 @@
+{
+ "G1": {
+  "id": "G1",
+  "domain": "labor",
+  "conversation_id": "0d63773b-9229-4117-af77-bfac314c8794",
+  "trace_id": "5d2f4ec2-841b-4908-bddc-587720be34ee",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "labour_code:47": true,
+    "labour_code:48": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 4,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [],
+    "court_in_context": true,
+    "removed_by_correction": []
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": true,
+    "mentions_deadline": true
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 4,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 2 (9 re-runs)",
+  "_run": "eval/results/golden/20260719_124206_certfix"
+ },
+ "G2": {
+  "id": "G2",
+  "domain": "administrative",
+  "conversation_id": "fe67025d-46a3-427e-b60e-92e553dbcd12",
+  "trace_id": "ff891966-350c-4e70-a08b-77d164c505a0",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "admin_offences_code:125": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 1
+   },
+   "C4": {
+    "pass": true,
+    "urls": 1,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [],
+    "court_in_context": true,
+    "removed_by_correction": []
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": false,
+    "mentions_deadline": true
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 4,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 1 (full 30)",
+  "_run": "eval/results/golden/20260719_121825_certfinal"
+ },
+ "G3": {
+  "id": "G3",
+  "domain": "labor",
+  "conversation_id": "a792b475-19af-43bf-9754-74b93274c195",
+  "trace_id": "6a9f759e-ba85-4a89-9a4b-5422f20fa0ce",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "labour_code:27": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 5,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [],
+    "court_in_context": true,
+    "removed_by_correction": []
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": true,
+    "mentions_deadline": true
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 5,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 1 (full 30)",
+  "_run": "eval/results/golden/20260719_121825_certfinal"
+ },
+ "G4": {
+  "id": "G4",
+  "domain": "labor",
+  "conversation_id": "822c9eb4-9a8b-4780-bc5f-e7762589f04d",
+  "trace_id": "6ac47996-8ba1-431a-a747-0604c877405e",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "labour_code:31": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 4,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [],
+    "court_in_context": true,
+    "removed_by_correction": []
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": false,
+    "mentions_deadline": true
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 5,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 1 (full 30)",
+  "_run": "eval/results/golden/20260719_121825_certfinal"
+ },
+ "G5": {
+  "id": "G5",
+  "domain": "labor",
+  "conversation_id": "d02e62f5-8470-41c7-8939-521842fac938",
+  "trace_id": "011ec203-71be-439f-8163-744ce202b272",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "labour_code:24": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 2,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [],
+    "court_in_context": true,
+    "removed_by_correction": []
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": false,
+    "mentions_deadline": false
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 2,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 1 (full 30)",
+  "_run": "eval/results/golden/20260719_121825_certfinal"
+ },
+ "G6": {
+  "id": "G6",
+  "domain": "criminal",
+  "conversation_id": "5f92cb5b-0435-44b2-ad92-7d588a838d90",
+  "trace_id": "0da8d764-86db-4d31-85c6-1e97ccaaaacb",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "criminal_code:177": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 1,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [],
+    "court_in_context": true,
+    "removed_by_correction": []
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": true,
+    "mentions_deadline": true
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 4,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 1 (full 30)",
+  "_run": "eval/results/golden/20260719_121825_certfinal"
+ },
+ "G7": {
+  "id": "G7",
+  "domain": "criminal",
+  "conversation_id": "41e2c9e1-3e6e-451d-a5fb-1c9fa48232ff",
+  "trace_id": "045205f3-bb8e-41c4-8906-3aabedeb8d80",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "admin_offences_code:451": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 1,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [],
+    "court_in_context": true,
+    "removed_by_correction": []
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": true,
+    "mentions_deadline": true
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 2,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 3 (3 re-runs)",
+  "_run": "eval/results/golden/20260719_125017_certfix2"
+ },
+ "G8": {
+  "id": "G8",
+  "domain": "criminal",
+  "conversation_id": "1fb69756-82ed-41d1-bb3b-d61e77e8ac32",
+  "trace_id": "7ae0d30d-44b5-48fe-807b-fc175cb50f3c",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "criminal_code:28": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 3,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [],
+    "court_in_context": true,
+    "removed_by_correction": []
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": true,
+    "mentions_deadline": true
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 2,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 1 (full 30)",
+  "_run": "eval/results/golden/20260719_121825_certfinal"
+ },
+ "G9": {
+  "id": "G9",
+  "domain": "criminal",
+  "conversation_id": "52d9fb4f-cb80-4a07-a635-0352743c248b",
+  "trace_id": "5b87963e-ca44-40de-8c98-a3b0b3002dc3",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "criminal_code:120": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 2,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [],
+    "court_in_context": true,
+    "removed_by_correction": []
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": true,
+    "mentions_deadline": true
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 4,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 2 (9 re-runs)",
+  "_run": "eval/results/golden/20260719_124206_certfix"
+ },
+ "G10": {
+  "id": "G10",
+  "domain": "administrative",
+  "conversation_id": "0f95d2b5-4272-4984-b325-9c414458a324",
+  "trace_id": "d54d133d-6124-48ea-af7c-c454abb0b68b",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "admin_offences_code:116": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 1,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [],
+    "court_in_context": true,
+    "removed_by_correction": []
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": true,
+    "mentions_deadline": true
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 1,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 2 (9 re-runs)",
+  "_run": "eval/results/golden/20260719_124206_certfix"
+ },
+ "G11": {
+  "id": "G11",
+  "domain": "administrative",
+  "conversation_id": "7af7e293-72d2-4f4a-955e-e8de501aa43e",
+  "trace_id": "1c1113af-1f26-42d0-8c4f-65f287b497c9",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "admin_offences_code:166": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 2,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [],
+    "court_in_context": true,
+    "removed_by_correction": []
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": true,
+    "mentions_deadline": true
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 4,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 1 (full 30)",
+  "_run": "eval/results/golden/20260719_121825_certfinal"
+ },
+ "G12": {
+  "id": "G12",
+  "domain": "civil",
+  "conversation_id": "a95ed32d-6e5d-4230-a7bf-bb19e9730130",
+  "trace_id": "7c5d0641-c9f3-4b12-ac21-f106673aa26a",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "civil_code:992": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 5,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [],
+    "court_in_context": true,
+    "removed_by_correction": [
+     "ას-203-2020"
+    ]
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": true,
+    "mentions_deadline": true
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 8,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 1 (full 30)",
+  "_run": "eval/results/golden/20260719_121825_certfinal"
+ },
+ "G13": {
+  "id": "G13",
+  "domain": "civil",
+  "conversation_id": "0bda8177-2880-4524-9da6-0e3f699f3809",
+  "trace_id": "5d9302b5-beac-44ca-b8c1-9c8b49e50696",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "civil_code:531": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 12,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [],
+    "court_in_context": false,
+    "removed_by_correction": []
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": false,
+    "mentions_deadline": true
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 8,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 1 (full 30)",
+  "_run": "eval/results/golden/20260719_121825_certfinal"
+ },
+ "G14": {
+  "id": "G14",
+  "domain": "civil",
+  "conversation_id": "7854242f-8fa2-42fe-a6e1-61b7a1365e5c",
+  "trace_id": "73fb2e02-68c1-42ae-bc5d-334f451bfc2a",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "civil_code:623": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 5,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [],
+    "court_in_context": true,
+    "removed_by_correction": []
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": true,
+    "mentions_deadline": true
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 4,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 2 (9 re-runs)",
+  "_run": "eval/results/golden/20260719_124206_certfix"
+ },
+ "G15": {
+  "id": "G15",
+  "domain": "family",
+  "conversation_id": "9fca0830-a7f1-4990-9397-166549281673",
+  "trace_id": "fd44fc4e-624a-41e8-932c-236fe69a6675",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "civil_code:1122": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 0,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [],
+    "court_in_context": true,
+    "removed_by_correction": []
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": true,
+    "mentions_deadline": true
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 3,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 1 (full 30)",
+  "_run": "eval/results/golden/20260719_121825_certfinal"
+ },
+ "G16": {
+  "id": "G16",
+  "domain": "family",
+  "conversation_id": "39a0d9ab-30cd-4ce1-9bf4-df8a257540d0",
+  "trace_id": "ed2b1b65-51a4-4de8-97e1-e3a4c51ab933",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "civil_code:1214": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 4,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [],
+    "court_in_context": true,
+    "removed_by_correction": []
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": true,
+    "mentions_deadline": true
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 3,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 2 (9 re-runs)",
+  "_run": "eval/results/golden/20260719_124206_certfix"
+ },
+ "G17": {
+  "id": "G17",
+  "domain": "family",
+  "conversation_id": "72e2124d-2c93-47db-aba7-6d7ad23043e8",
+  "trace_id": "c7585466-d5d6-4872-a4e0-9aafa2ee500b",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "civil_code:1336": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 6,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [
+     "ას-1280-2019"
+    ],
+    "court_in_context": true,
+    "removed_by_correction": []
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": true,
+    "mentions_deadline": true
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 2,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 1 (full 30)",
+  "_run": "eval/results/golden/20260719_121825_certfinal"
+ },
+ "G18": {
+  "id": "G18",
+  "domain": "tax",
+  "conversation_id": "eecb8a36-f4da-4314-bfb4-523bff4bd1c8",
+  "trace_id": "30eb78ba-70f9-4627-88b0-03c8e900a66f",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "tax_code:81": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 0,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [],
+    "court_in_context": false,
+    "removed_by_correction": []
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": false,
+    "mentions_deadline": false
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 1,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 1 (full 30)",
+  "_run": "eval/results/golden/20260719_121825_certfinal"
+ },
+ "G19": {
+  "id": "G19",
+  "domain": "tax",
+  "conversation_id": "806b7d79-15e0-4073-b892-991249c18310",
+  "trace_id": "5bb9c30a-fe34-469e-9553-e1e7f38ae0fc",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "tax_code:166": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 1,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [],
+    "court_in_context": true,
+    "removed_by_correction": []
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": false,
+    "mentions_deadline": false
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 1,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 1 (full 30)",
+  "_run": "eval/results/golden/20260719_121825_certfinal"
+ },
+ "G20": {
+  "id": "G20",
+  "domain": "tax",
+  "conversation_id": "96a366d0-0782-4c7d-b384-a66ddcb509bb",
+  "trace_id": "1b475c05-51e1-4ec2-adce-1e9e60affba8",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "tax_code:84": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 0,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [],
+    "court_in_context": true,
+    "removed_by_correction": []
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": true,
+    "mentions_deadline": true
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 1,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 1 (full 30)",
+  "_run": "eval/results/golden/20260719_121825_certfinal"
+ },
+ "G21": {
+  "id": "G21",
+  "domain": "land",
+  "conversation_id": "c487a29b-c690-458b-8011-5fdb925c6a40",
+  "trace_id": "c521d06b-a47d-45c3-974b-41e0aa903d04",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "civil_code:170": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 6,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [],
+    "court_in_context": true,
+    "removed_by_correction": [
+     "ას-1549-2018"
+    ]
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": true,
+    "mentions_deadline": true
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 4,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 1 (full 30)",
+  "_run": "eval/results/golden/20260719_121825_certfinal"
+ },
+ "G22": {
+  "id": "G22",
+  "domain": "land",
+  "conversation_id": "62bf20fa-ee16-4bde-bc44-3b7af8cbd81e",
+  "trace_id": "b19c4f1d-e2f9-4655-9485-f6c5368ea699",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "civil_code:175": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 6,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [],
+    "court_in_context": false,
+    "removed_by_correction": []
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": true,
+    "mentions_deadline": true
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 7,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 1 (full 30)",
+  "_run": "eval/results/golden/20260719_121825_certfinal"
+ },
+ "G23": {
+  "id": "G23",
+  "domain": "land",
+  "conversation_id": "54b9cfea-e01b-4d4a-b3cf-33d36f802208",
+  "trace_id": "32223776-b224-40ee-8197-5188d8cb8fa7",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "civil_code:247": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 0,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [],
+    "court_in_context": true,
+    "removed_by_correction": []
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": true,
+    "mentions_deadline": true
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 5,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 1 (full 30)",
+  "_run": "eval/results/golden/20260719_121825_certfinal"
+ },
+ "G24": {
+  "id": "G24",
+  "domain": "constitutional",
+  "conversation_id": "c6cd3ead-5b80-4692-b4b0-858bdeb0dd6d",
+  "trace_id": "293ac789-3f36-4aba-ab8a-db815922bf06",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "constitution:17": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 5,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [
+     "ას-1639-2022"
+    ],
+    "court_in_context": true,
+    "removed_by_correction": []
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": true,
+    "mentions_deadline": true
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 3,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 4 (2 re-runs)",
+  "_run": "eval/results/golden/20260719_125342_certfix3"
+ },
+ "G25": {
+  "id": "G25",
+  "domain": "constitutional",
+  "conversation_id": "554f1f8c-5178-4e2f-a6dc-155eab8236ce",
+  "trace_id": "499ff777-84ef-469d-8a24-a0ddf63f024d",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "constitution:19": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 2,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [],
+    "court_in_context": true,
+    "removed_by_correction": []
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": true,
+    "mentions_deadline": true
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 2,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 1 (full 30)",
+  "_run": "eval/results/golden/20260719_121825_certfinal"
+ },
+ "G26": {
+  "id": "G26",
+  "domain": "constitutional",
+  "conversation_id": "72f498b7-2e2a-49a1-a14e-a10381a1bb48",
+  "trace_id": "de5fb28e-b57b-4bf6-b3b3-f8d01bfb9ac8",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "constitution:11": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 2,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [],
+    "court_in_context": true,
+    "removed_by_correction": []
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": true,
+    "mentions_deadline": true
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 6,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 1 (full 30)",
+  "_run": "eval/results/golden/20260719_121825_certfinal"
+ },
+ "G27": {
+  "id": "G27",
+  "domain": "constitutional",
+  "conversation_id": "a33634fb-6fc1-4939-b3ab-435314afc7b6",
+  "trace_id": "4615ec10-e627-4ae2-9b77-c4aadffc5d7a",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "constitution:15": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 2,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [],
+    "court_in_context": true,
+    "removed_by_correction": []
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": true,
+    "mentions_deadline": true
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 3,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 4 (2 re-runs)",
+  "_run": "eval/results/golden/20260719_125342_certfix3"
+ },
+ "G28": {
+  "id": "G28",
+  "domain": "commercial",
+  "conversation_id": "0651df2e-63cd-49a9-aa45-a08d79ee3c0a",
+  "trace_id": "5c94c3f6-b1b8-4d26-b8e8-5f7a27eb59ca",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "civil_code:319": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 6,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [],
+    "court_in_context": true,
+    "removed_by_correction": []
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": false,
+    "mentions_deadline": false
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 2,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 2 (9 re-runs)",
+  "_run": "eval/results/golden/20260719_124206_certfix"
+ },
+ "G29": {
+  "id": "G29",
+  "domain": "personal_data",
+  "conversation_id": "45c09845-5f21-43bf-bf44-5779dd4d9968",
+  "trace_id": "1c344038-9979-48c5-bf31-45ea55f5525e",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "personal_data_law:5": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 3,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [],
+    "court_in_context": true,
+    "removed_by_correction": []
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": true,
+    "mentions_deadline": true
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 1,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 1 (full 30)",
+  "_run": "eval/results/golden/20260719_121825_certfinal"
+ },
+ "G30": {
+  "id": "G30",
+  "domain": "criminal",
+  "conversation_id": "54a16596-cc12-45bf-8688-d617f38ddb54",
+  "trace_id": "4ffee048-f559-4536-a40f-826d3682edaf",
+  "checks": {
+   "C1": {
+    "pass": true,
+    "latin_fragments": []
+   },
+   "C2": {
+    "pass": true,
+    "criminal_procedure_code:174": true
+   },
+   "C3": {
+    "pass": true,
+    "not_found": [],
+    "verified_without_url": 0
+   },
+   "C4": {
+    "pass": true,
+    "urls": 5,
+    "invented": []
+   },
+   "C5": {
+    "pass": true,
+    "cases_cited": [],
+    "court_in_context": true,
+    "removed_by_correction": [
+     "2კ-17",
+     "ბს-432-429"
+    ]
+   },
+   "C6": {
+    "pass": true,
+    "advises_action": true,
+    "mentions_deadline": true
+   },
+   "C7": {
+    "pass": true,
+    "unanchored_rate": 0.0,
+    "claim_paragraphs": 3,
+    "samples": []
+   },
+   "C8": {
+    "pass": true,
+    "polluting_thresholds": []
+   }
+  },
+  "all_pass": true,
+  "_batch": "batch 1 (full 30)",
+  "_run": "eval/results/golden/20260719_121825_certfinal"
+ }
+}
