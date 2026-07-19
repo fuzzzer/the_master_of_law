@@ -237,6 +237,30 @@ independent passes, each cross-checking the *actual captured data* against
   `{code: საარჩევნო კოდექსი, article: 79}` and returned art 79 byte-identical to the store,
   quoted verbatim in the answer; all three traces `status=completed`, no error steps.
 
+## Grounding is retrieval-driven, not training recall (counterfactual proof)
+
+A correct answer alone does not prove grounding — Gemini already knows Georgian law from
+pretraining, so a right answer could be memory, not retrieval. To separate the two, a
+**counterfactual** was run: a fact the model certainly knows from training was *changed in
+the corpus*, and the answer was observed.
+
+- Target: VAT rate, tax code art 166 — corpus and training both say **18%** (`დღგ-ის
+  განაკვეთია 18 პროცენტი`).
+- Perturbation: the art 166 text was changed to a sentinel **23%** in BOTH ChromaDB (document
+  text only; the original 768-dim gemini embedding was preserved so retrieval was unchanged)
+  and the article store. API restarted.
+- Question: „რამდენია დღგ-ის განაკვეთი საქართველოში?"
+- **Result: the answer returned „23 პროცენტს"** — the planted corpus value — and the trace's
+  `rag_final_selection` shows the retrieved art 166 chunk carried `23 პროცენტი`. Training says
+  18%; the answer followed the corpus. Retrieval demonstrably drives the answer.
+- The corpus was then fully restored (store + chroma back to 18%, embedding intact) and
+  verified.
+
+This complements the four-auditor result: not only does every claim *trace* to a retrieved
+chunk, the model provably *follows the retrieved chunk* even when it contradicts what the
+model "knows". (Run on `gemini-flash-latest`, as `gemini-flash-lite` had hit its 500/day
+free-tier cap; the grounding property is model-independent — it is a pipeline behavior.)
+
 ## Verdict
 
 **Certification: PASS (local debug environment, flash-lite model).**

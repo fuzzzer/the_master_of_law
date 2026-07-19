@@ -160,10 +160,21 @@ def main() -> None:
                 {"message": msg, "mode": "case_intake"})
             time.sleep(args.sleep)
 
-        # 3. build the case file ------------------------------------------------
+        # 3. build the case file (2 Gemini calls; 429-tolerant on free tier) ----
         print("[3] building case file...")
-        case = api(args.base_url, "POST", "/api/v1/case-files/build",
-                   {"conversation_id": conv})
+        case = None
+        for attempt in range(5):
+            try:
+                case = api(args.base_url, "POST", "/api/v1/case-files/build",
+                           {"conversation_id": conv})
+                break
+            except RuntimeError as e:
+                if ("429" in str(e) or "500" in str(e)) and attempt < 4:
+                    wait = 45 * (attempt + 1)
+                    print(f"    build rate-limited, retry in {wait}s...", flush=True)
+                    time.sleep(wait)
+                    continue
+                raise
         case_id = case["id"]
         print(f"    case_file_id = {case_id}")
         (out / "case_file.json").write_text(

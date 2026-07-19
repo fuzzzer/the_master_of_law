@@ -48,7 +48,7 @@ FastAPI Backend (~10K lines, 90 files)
   │ Grounding: article store (SQLite+FTS5) + get_article/browse_code tools + retrieval repair
   │ Gemini 3.1 Pro legal analysis + source-specific prompt injection
   │ Pipeline transparency traces (per-request step log + admin dashboard)
-  │ 562 tests across 37 test files (560 passing; 2 pre-existing infra failures)
+  │ 564 tests across 37 test files (562 passing; 2 pre-existing infra failures)
   ▼
 Data: PostgreSQL + ChromaDB (3 collections, 20,712 chunks) + Redis
   │ georgian_laws: 15,338 (12 legal codes)

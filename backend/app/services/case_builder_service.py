@@ -22,6 +22,7 @@ from app.integrations.vertex_ai_client import VertexAIClient, get_vertex_ai_clie
 from app.prompts.case_builder import CASE_BUILDER
 from app.prompts.chat import CASE_FULL_ANALYSIS
 from app.repositories.case_file_repository import CaseFileRepository
+from app.repositories.user_repository import UserRepository
 from app.services.conversation_service import ConversationService
 from app.utils.logger import get_logger
 
@@ -368,8 +369,14 @@ class CaseBuilderService:
     ) -> Any:
         """Persist the case file to the database."""
         cf_repo = CaseFileRepository(db)
+        # `user_id` arrives as the Firebase UID (string); case_files.user_id is a
+        # UUID FK to users.id. Resolve it — inserting the raw firebase_uid raises
+        # asyncpg DatatypeMismatchError (uuid column vs varchar value).
+        user = await UserRepository(db).get_by_firebase_uid(user_id)
+        if user is None:
+            raise ValueError(f"No user found for firebase_uid={user_id!r}")
         return await cf_repo.create(
-            user_id=user_id,
+            user_id=user.id,
             conversation_id=uuid.UUID(conversation_id),
             title=case_data.get("title", "Defense Case File"),
             facts=case_data.get("facts"),

@@ -297,7 +297,7 @@ cd backend && docker compose up --build -d
 docker compose exec api alembic upgrade head
 
 # Tests
-.venv/bin/python -m pytest tests/ -v  # 562 tests (560 pass; 2 pre-existing infra failures)
+.venv/bin/python -m pytest tests/ -v  # 564 tests (562 pass; 2 pre-existing infra failures)
 ```
 
 ---

@@ -8,7 +8,48 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+import uuid
+
 from app.services.case_builder_service import CaseFileRenderer, CaseBuilderService, LawContextFormatter
+
+
+class TestPersistResolvesUser:
+    """_persist receives the Firebase UID (string) but case_files.user_id is a
+    UUID FK to users.id — it must resolve, else asyncpg raises DatatypeMismatchError."""
+
+    @pytest.mark.asyncio
+    async def test_firebase_uid_resolved_to_user_uuid(self):
+        real_uuid = uuid.uuid4()
+        user = MagicMock(id=real_uuid)
+        cf_repo = MagicMock()
+        cf_repo.create = AsyncMock(return_value=MagicMock(id=uuid.uuid4()))
+        user_repo = MagicMock()
+        user_repo.get_by_firebase_uid = AsyncMock(return_value=user)
+        svc = CaseBuilderService(gemini_client=MagicMock())
+        with patch("app.services.case_builder_service.CaseFileRepository", return_value=cf_repo), \
+             patch("app.services.case_builder_service.UserRepository", return_value=user_repo):
+            await svc._persist(
+                db=MagicMock(), user_id="firebase-uid-abc",
+                conversation_id=str(uuid.uuid4()),
+                case_data={"title": "T"}, rendered="R", retrieved_chunks=None,
+            )
+        user_repo.get_by_firebase_uid.assert_awaited_once_with("firebase-uid-abc")
+        # the DB insert must use the resolved UUID, never the raw firebase uid
+        assert cf_repo.create.call_args.kwargs["user_id"] == real_uuid
+
+    @pytest.mark.asyncio
+    async def test_unknown_user_raises(self):
+        user_repo = MagicMock()
+        user_repo.get_by_firebase_uid = AsyncMock(return_value=None)
+        svc = CaseBuilderService(gemini_client=MagicMock())
+        with patch("app.services.case_builder_service.CaseFileRepository", return_value=MagicMock()), \
+             patch("app.services.case_builder_service.UserRepository", return_value=user_repo):
+            with pytest.raises(ValueError, match="No user found"):
+                await svc._persist(
+                    db=MagicMock(), user_id="ghost",
+                    conversation_id=str(uuid.uuid4()),
+                    case_data={"title": "T"}, rendered="R",
+                )
 
 
 # ── CaseFileRenderer tests ───────────────────────────────────
