@@ -13,7 +13,14 @@ class TestAppFactory:
 
     def test_routes_registered(self):
         app = create_app()
-        paths = [r.path for r in app.routes if hasattr(r, "path")]
+        paths = []
+        for r in app.routes:
+            if hasattr(r, "path"):
+                paths.append(r.path)
+            elif hasattr(r, "original_router"):
+                for sub_r in r.original_router.routes:
+                    if hasattr(sub_r, "path"):
+                        paths.append(sub_r.path)
         assert "/api/v1/health" in paths
         assert "/api/v1/auth/verify-token" in paths
         assert "/api/v1/conversations" in paths
@@ -23,10 +30,25 @@ class TestAppFactory:
 
     def test_route_count(self):
         app = create_app()
-        paths = [r.path for r in app.routes if hasattr(r, "path")]
+        paths = []
+        for r in app.routes:
+            if hasattr(r, "path"):
+                paths.append(r.path)
+            elif hasattr(r, "original_router"):
+                for sub_r in r.original_router.routes:
+                    if hasattr(sub_r, "path"):
+                        paths.append(sub_r.path)
         assert len(paths) >= 25
 
     def test_websocket_route(self):
         app = create_app()
-        paths = [r.path for r in app.routes if hasattr(r, "path")]
+        paths = []
+        for r in app.routes:
+            if hasattr(r, "path"):
+                paths.append(r.path)
+            elif hasattr(r, "original_router"):
+                for sub_r in r.original_router.routes:
+                    if hasattr(sub_r, "path"):
+                        paths.append(sub_r.path)
         assert "/api/v1/chat/{conversation_id}/ws" in paths
+

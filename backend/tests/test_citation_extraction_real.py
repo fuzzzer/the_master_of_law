@@ -68,29 +68,32 @@ NARCOTICS_RESPONSE = (
 
 # ── Extraction Tests ─────────────────────────────────────────
 
+def _article_numbers(text: str) -> list[str]:
+    """Extract just the article numbers via the pattern's named groups."""
+    return [
+        m.group("num_after") or m.group("num_before")
+        for m in ARTICLE_PATTERN.finditer(text)
+    ]
+
+
 class TestArticlePatternRegex:
     """Test the raw regex pattern against Georgian text."""
 
     def test_finds_simple_article_reference(self):
-        matches = ARTICLE_PATTERN.findall("მუხლი 177")
-        assert matches == ["177"]
+        assert _article_numbers("მუხლი 177") == ["177"]
 
     def test_finds_multiple_articles(self):
-        matches = ARTICLE_PATTERN.findall("მუხლი 177 და მუხლი 178")
-        assert matches == ["177", "178"]
+        assert _article_numbers("მუხლი 177 და მუხლი 178") == ["177", "178"]
 
     def test_handles_large_article_numbers(self):
-        matches = ARTICLE_PATTERN.findall("მუხლი 1407 ადგენს")
-        assert matches == ["1407"]
+        assert _article_numbers("მუხლი 1407 ადგენს") == ["1407"]
 
     def test_no_match_in_plain_text(self):
-        matches = ARTICLE_PATTERN.findall("ეს არის უბრალო ტექსტი")
-        assert matches == []
+        assert _article_numbers("ეს არის უბრალო ტექსტი") == []
 
     def test_handles_article_with_superscript_ref(self):
         """Text like 'მუხლი 260' should match even with surrounding text."""
-        matches = ARTICLE_PATTERN.findall("კოდექსის მუხლი 260 ადგენს")
-        assert matches == ["260"]
+        assert _article_numbers("კოდექსის მუხლი 260 ადგენს") == ["260"]
 
 
 class TestExtractCitations:

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, func, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 
@@ -40,6 +40,9 @@ class QuestionnaireAnswer(Base):
     """A user's answer to a questionnaire question."""
 
     __tablename__ = "questionnaire_answers"
+    __table_args__ = (
+        UniqueConstraint("conversation_id", "question_id", name="uq_conv_question_answer"),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     conversation_id = Column(

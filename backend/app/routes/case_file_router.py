@@ -305,10 +305,16 @@ async def generate_document(
     user_repo = UserRepository(db)
     user = await user_repo.get_by_firebase_uid(uid)
 
+    if not user:
+        return JSONResponse(
+            status_code=401,
+            content={"error": "unauthorized", "message": "User account not initialized."},
+        )
+
     is_admin = user_info.get("tier") in ("ADMIN", "SUPERADMIN")
 
     credit_repo = CreditRepository(db)
-    if user and not is_admin:
+    if not is_admin:
         credits = await credit_repo.get_balance(user.id)
         if not credit_repo.has_sufficient_credits(credits, cost):
             return JSONResponse(
@@ -333,14 +339,14 @@ async def generate_document(
         return JSONResponse(status_code=500, content={"error": str(e)})
 
     # Deduct credits
-    if user:
+    if not is_admin:
         await credit_repo.deduct(
             user_id=user.id,
             cost=cost,
             action=CreditAction.DOCUMENT_GENERATION.value,
             description=f"Generated document for case file {case_file_id}",
         )
-        await db.commit()
+    await db.commit()
 
     docx_base64 = base64.b64encode(result["docx_bytes"]).decode("utf-8")
 

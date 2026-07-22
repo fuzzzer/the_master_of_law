@@ -75,9 +75,15 @@ class CreditGateMiddleware(BaseHTTPMiddleware):
                 user = await user_repo.get_by_firebase_uid(uid)
 
                 if not user:
-                    # User not yet in DB — allow through, auth/verify-token
-                    # will create them. This handles first-request edge case.
-                    return await call_next(request)
+                    logger.warning("credit_gate_blocked_user_missing", uid=uid)
+                    return JSONResponse(
+                        status_code=401,
+                        content={
+                            "error": "unauthorized",
+                            "message": "მომხმარებელი ვერ მოიძებნა. გთხოვთ გაიაროთ ავტორიზაცია.",
+                            "message_en": "User account not initialized. Please authenticate first."
+                        }
+                    )
 
                 credit_repo = CreditRepository(db)
                 credits = await credit_repo.get_balance(user.id)

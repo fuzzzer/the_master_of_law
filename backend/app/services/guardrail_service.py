@@ -20,6 +20,7 @@ from app.config.constants import (
     GUARDRAIL_MODEL,
     UserTier,
 )
+from app.config.settings import settings
 from app.integrations.vertex_ai_client import VertexAIClient, get_vertex_ai_client
 from app.prompts.guardrail import GUARDRAIL_CLASSIFIER
 from app.utils.logger import get_logger
@@ -88,6 +89,7 @@ class GuardrailService:
                 temperature=0.0,
                 max_output_tokens=50,
                 response_mime_type="application/json",
+                model_name=settings.gemini_chat_model,  # cheap Flash, not Pro
             )
             if not raw:
                 logger.warning("guardrail_classification_empty", message="Empty response from Gemini")

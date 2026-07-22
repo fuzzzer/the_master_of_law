@@ -27,6 +27,7 @@ PUBLIC_PATHS = {
     "/api/v1/health/ready",
     "/api/v1/laws/search",
     "/api/v1/laws/codes",
+    "/api/v1/traces/dashboard",  # static HTML only; trace data endpoints stay admin-guarded
     "/docs",
     "/redoc",
     "/openapi.json",
@@ -70,7 +71,7 @@ class FirebaseAuthMiddleware(BaseHTTPMiddleware):
         # Temporary Staging API Key Auth
         api_key = request.headers.get("X-API-Key", "")
         if api_key:
-            if api_key == settings.admin_api_key:
+            if settings.app_env == "development" and api_key == settings.admin_api_key:
                 request.state.user = {
                     "uid": "admin-api-key",
                     "email": "admin@masteroflaw.ge",
@@ -83,7 +84,7 @@ class FirebaseAuthMiddleware(BaseHTTPMiddleware):
                 request.state.user = {
                     "uid": f"api-user-{api_key[:8]}",
                     "email": "tester@masteroflaw.ge",
-                    "tier": "ADMIN",  # Give testers full access
+                    "tier": "FREE",
                 }
                 return await call_next(request)
             else:

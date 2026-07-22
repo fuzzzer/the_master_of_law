@@ -205,7 +205,7 @@ class TestAuthFlowVariants:
         with patch.object(svc._msg_repo, "delete_for_conversation", AsyncMock()) as del_msgs, \
              patch.object(svc._conv_repo, "delete", AsyncMock(return_value=True)) as del_conv:
             import asyncio
-            result = asyncio.get_event_loop().run_until_complete(
+            result = asyncio.run(
                 svc.delete_conversation(conv_id)
             )
             # Verify order: messages deleted before conversation

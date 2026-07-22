@@ -38,6 +38,15 @@ def _make_call_next():
 class TestRateLimitMiddleware:
     """Rate limiting per-user, per-tier."""
 
+    @pytest.fixture(autouse=True)
+    async def flush_redis(self):
+        from app.middleware.rate_limit_middleware import get_redis_client
+        redis_client = get_redis_client()
+        try:
+            await redis_client.flushdb()
+        except Exception:
+            pass
+
     def setup_method(self):
         self.app = MagicMock()
         self.middleware = RateLimitMiddleware(self.app)
@@ -97,19 +106,24 @@ class TestRateLimitMiddleware:
         user = {"uid": "user5", "tier": "FREE"}
         call_next = _make_call_next()
 
-        # Fill the window
-        for _ in range(5):
+        t = time.time()
+        with patch("time.time", return_value=t):
+            # Fill the window
+            for _ in range(5):
+                request = _make_request(user=user)
+                await self.middleware.dispatch(request, call_next)
+
+            # 6th request → 429
             request = _make_request(user=user)
-            await self.middleware.dispatch(request, call_next)
+            response = await self.middleware.dispatch(request, call_next)
+            assert response.status_code == 429
 
-        # Manually expire timestamps
-        now = time.time()
-        self.middleware._requests["user5"] = [now - 61.0] * 5
-
-        # Should pass now
-        request = _make_request(user=user)
-        response = await self.middleware.dispatch(request, call_next)
-        assert response.status_code == 200
+        # Simulating time passage
+        with patch("time.time", return_value=t + 61.0):
+            # Should pass now
+            request = _make_request(user=user)
+            response = await self.middleware.dispatch(request, call_next)
+            assert response.status_code == 200
 
     @pytest.mark.asyncio
     async def test_public_path_bypass_health(self):
@@ -164,13 +178,20 @@ class TestRateLimitMiddleware:
         """Old timestamps outside window should be cleaned."""
         user = {"uid": "user7", "tier": "FREE"}
         call_next = _make_call_next()
-        now = time.time()
+        t = time.time()
 
-        # Plant old and new timestamps
-        self.middleware._requests["user7"] = [now - 120, now - 90, now - 1]
+        # Plant requests in the past
+        with patch("time.time", return_value=t - 90.0):
+            request = _make_request(user=user)
+            await self.middleware.dispatch(request, call_next)
 
-        request = _make_request(user=user)
-        await self.middleware.dispatch(request, call_next)
+        # Plant request in the present
+        with patch("time.time", return_value=t):
+            request = _make_request(user=user)
+            await self.middleware.dispatch(request, call_next)
 
-        # Only the recent timestamp + current should remain
-        assert len(self.middleware._requests["user7"]) == 2
+            # Query Redis to verify the expired one is gone
+            from app.middleware.rate_limit_middleware import get_redis_client
+            redis_client = get_redis_client()
+            card = await redis_client.zcard("rate_limit:http:user7")
+            assert card == 1  # The old one at t-90 is cleared, only the one at t remains

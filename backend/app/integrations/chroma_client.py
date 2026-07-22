@@ -14,6 +14,7 @@ async-friendly wrapper around the synchronous ``chromadb`` Python SDK.
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import Any
 
@@ -197,6 +198,20 @@ class ChromaClient:
         all_hits.sort(key=lambda x: x["distance"])
         return all_hits[:top_k]
 
+    async def vector_search_async(
+        self,
+        query_embedding: list[float],
+        top_k: int = 50,
+        collections: list[str] | None = None,
+        where: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Async wrapper for :meth:`vector_search` — offloads the blocking
+        ChromaDB query to a worker thread so it does not stall the event loop.
+        """
+        return await asyncio.to_thread(
+            self.vector_search, query_embedding, top_k, collections, where
+        )
+
     def get_by_ids(
         self,
         ids: list[str],
@@ -243,6 +258,16 @@ class ChromaClient:
                     remaining_ids.discard(chunk_id)
 
         return items
+
+    async def get_by_ids_async(
+        self,
+        ids: list[str],
+        collections: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Async wrapper for :meth:`get_by_ids` — offloads the blocking
+        ChromaDB fetch to a worker thread so it does not stall the event loop.
+        """
+        return await asyncio.to_thread(self.get_by_ids, ids, collections)
 
     def search_by_metadata(
         self,

@@ -9,7 +9,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, func, cast, Date, update, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.constants import UserTier
@@ -39,18 +39,24 @@ class CreditRepository:
         if credits:
             return credits
 
-        credits = UserCredits(
+        from sqlalchemy.dialects.postgresql import insert
+        stmt = insert(UserCredits).values(
             id=uuid.uuid4(),
             user_id=user_id,
             tier="FREE",
             credit_balance=0,
             daily_credits_used=0,
             daily_reset_at=None,
+        ).on_conflict_do_update(
+            index_elements=["user_id"],
+            set_={"updated_at": func.now()}
         )
-        self._db.add(credits)
+        await self._db.execute(stmt)
         await self._db.flush()
-        logger.info("credits_created", user_id=str(user_id))
-        return credits
+
+        stmt = select(UserCredits).where(UserCredits.user_id == user_id)
+        result = await self._db.execute(stmt)
+        return result.scalar_one()
 
     async def get_balance(self, user_id: uuid.UUID) -> UserCredits:
         """
@@ -66,10 +72,17 @@ class CreditRepository:
         if credits.tier == UserTier.FREE.value:
             now = datetime.now(timezone.utc)
             if credits.daily_reset_at is None or credits.daily_reset_at.date() < now.date():
-                credits.daily_credits_used = 0
-                credits.daily_reset_at = now
-                await self._db.flush()
-                logger.info("daily_credits_reset", user_id=str(user_id))
+                # Acquire row lock to prevent race on reset update
+                stmt = select(UserCredits).where(UserCredits.id == credits.id).with_for_update()
+                res = await self._db.execute(stmt)
+                locked_credits = res.scalar_one()
+                # Check again under lock
+                if locked_credits.daily_reset_at is None or locked_credits.daily_reset_at.date() < now.date():
+                    locked_credits.daily_credits_used = 0
+                    locked_credits.daily_reset_at = now
+                    await self._db.flush()
+                    logger.info("daily_credits_reset", user_id=str(user_id))
+                return locked_credits
 
         return credits
 
@@ -120,14 +133,65 @@ class CreditRepository:
         For PRO/ADMIN: decrements credit_balance
         Logs a credit_transaction for auditing.
         """
-        credits = await self.get_balance(user_id)
+        # 1. Ensure user credits row exists
+        credits = await self.get_or_create(user_id)
 
-        if credits.tier == UserTier.FREE.value:
-            credits.daily_credits_used += cost
-        else:
-            credits.credit_balance = max(0, credits.credit_balance - cost)
+        # 2. Perform atomic update with limit/tier guards and daily reset folded in
+        daily_limit = settings.free_tier_daily_credits
+        is_reset_needed = (UserCredits.daily_reset_at == None) | (
+            cast(UserCredits.daily_reset_at, Date) < func.current_date()
+        )
 
-        # Log the transaction
+        stmt = (
+            update(UserCredits)
+            .where(UserCredits.user_id == user_id)
+            .where(
+                (UserCredits.tier == UserTier.ADMIN.value)
+                | (
+                    (UserCredits.tier == UserTier.FREE.value)
+                    & (
+                        (is_reset_needed & (cost <= daily_limit))
+                        | (UserCredits.daily_credits_used + cost <= daily_limit)
+                    )
+                )
+                | (
+                    (UserCredits.tier == UserTier.PRO.value)
+                    & (UserCredits.credit_balance >= cost)
+                )
+            )
+            .values(
+                daily_credits_used=case(
+                    (UserCredits.tier == UserTier.FREE.value,
+                     case(
+                         (is_reset_needed, cost),
+                         else_=UserCredits.daily_credits_used + cost
+                     )),
+                    else_=UserCredits.daily_credits_used
+                ),
+                credit_balance=case(
+                    (UserCredits.tier == UserTier.FREE.value, UserCredits.credit_balance),
+                    else_=case(
+                        (UserCredits.credit_balance - cost < 0, 0),
+                        else_=UserCredits.credit_balance - cost
+                    )
+                ),
+                daily_reset_at=case(
+                    ((UserCredits.tier == UserTier.FREE.value) & is_reset_needed, func.now()),
+                    else_=UserCredits.daily_reset_at
+                ),
+                updated_at=func.now()
+            )
+            .returning(UserCredits)
+        )
+
+        res = await self._db.execute(stmt)
+        updated_credits = res.scalars().first()
+
+        if not updated_credits:
+            # Atomic update failed, likely because of insufficient credits
+            raise ValueError("Insufficient credits for action")
+
+        # 3. Log the transaction
         txn = CreditTransaction(
             id=uuid.uuid4(),
             user_id=user_id,
@@ -143,9 +207,9 @@ class CreditRepository:
             user_id=str(user_id),
             cost=cost,
             action=action,
-            remaining=self.get_remaining_credits(credits),
+            remaining=self.get_remaining_credits(updated_credits),
         )
-        return credits
+        return updated_credits
 
     async def add_credits(
         self,

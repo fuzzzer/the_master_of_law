@@ -87,17 +87,9 @@ class QuestionnaireRepository:
         skipped: bool = False,
     ) -> QuestionnaireAnswer:
         """Save or update an answer for a question."""
-        # Check if answer already exists (allow editing)
-        existing = await self._get_answer(conversation_id, question_id)
-        if existing:
-            existing.answer_value = answer_value
-            existing.answer_type = answer_type
-            existing.skipped = skipped
-            existing.answered_at = datetime.now(timezone.utc)
-            await self._db.flush()
-            return existing
+        from sqlalchemy.dialects.postgresql import insert
 
-        row = QuestionnaireAnswer(
+        stmt = insert(QuestionnaireAnswer).values(
             id=uuid.uuid4(),
             conversation_id=conversation_id,
             question_id=question_id,
@@ -105,10 +97,21 @@ class QuestionnaireRepository:
             answer_value=answer_value,
             answer_type=answer_type,
             skipped=skipped,
+            answered_at=datetime.now(timezone.utc),
+        ).on_conflict_do_update(
+            constraint="uq_conv_question_answer",
+            set_={
+                "answer_value": answer_value,
+                "answer_type": answer_type,
+                "skipped": skipped,
+                "answered_at": datetime.now(timezone.utc),
+            }
         )
-        self._db.add(row)
+        await self._db.execute(stmt)
         await self._db.flush()
-        return row
+        
+        # Re-fetch
+        return await self._get_answer(conversation_id, question_id)
 
     async def get_answers(
         self, conversation_id: uuid.UUID
@@ -133,11 +136,10 @@ class QuestionnaireRepository:
 
         skipped_count = 0
         for q in questions:
-            if q.question_id in answered_ids:
+            if q.question_id in answered_ids or q.required:
                 continue
-            if q.required:
-                continue
-            await self.save_answer(
+            row = QuestionnaireAnswer(
+                id=uuid.uuid4(),
                 conversation_id=conversation_id,
                 question_id=q.question_id,
                 question_text=q.question_text,
@@ -145,8 +147,11 @@ class QuestionnaireRepository:
                 answer_type=q.question_type,
                 skipped=True,
             )
+            self._db.add(row)
             skipped_count += 1
 
+        if skipped_count > 0:
+            await self._db.flush()
         return skipped_count
 
     async def _get_answer(

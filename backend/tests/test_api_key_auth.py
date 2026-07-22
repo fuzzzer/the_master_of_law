@@ -104,6 +104,7 @@ class TestApiKeyRouter:
         """GET /check with valid admin key should return ok."""
         from app.routes.api_key_router import check_admin_key
         with patch("app.routes.api_key_router.settings") as mock_settings:
+            mock_settings.app_env = "development"
             mock_settings.admin_api_key = "test-admin-key"
             result = await check_admin_key(x_admin_key="test-admin-key")
             assert result == {"status": "ok"}
@@ -114,6 +115,7 @@ class TestApiKeyRouter:
         from fastapi import HTTPException
         from app.routes.api_key_router import check_admin_key
         with patch("app.routes.api_key_router.settings") as mock_settings:
+            mock_settings.app_env = "development"
             mock_settings.admin_api_key = "test-admin-key"
             with pytest.raises(HTTPException) as exc_info:
                 await check_admin_key(x_admin_key="wrong-key")
@@ -182,7 +184,26 @@ class TestFirebaseAuthMiddleware:
 
     @pytest.mark.asyncio
     async def test_admin_api_key(self):
-        """Admin API key should give SUPERADMIN tier."""
+        """Admin API key should give SUPERADMIN tier in development."""
+        headers = MagicMock()
+        headers.get = MagicMock(side_effect=lambda k, d="": {"X-API-Key": "admin-key", "Authorization": ""}.get(k, d))
+        request = MagicMock()
+        request.url.path = "/api/v1/conversations"
+        request.method = "GET"
+        request.headers = headers
+        request.state = MagicMock()
+        call_next = AsyncMock(return_value=MagicMock(status_code=200))
+
+        with patch("app.middleware.firebase_auth_middleware.settings") as mock_settings:
+            mock_settings.app_env = "development"
+            mock_settings.admin_api_key = "admin-key"
+            response = await self.middleware.dispatch(request, call_next)
+            assert response.status_code == 200
+            assert request.state.user["tier"] == "SUPERADMIN"
+
+    @pytest.mark.asyncio
+    async def test_admin_api_key_forbidden_in_production(self):
+        """Admin API key should be forbidden/ignored in production."""
         headers = MagicMock()
         headers.get = MagicMock(side_effect=lambda k, d="": {"X-API-Key": "admin-key", "Authorization": ""}.get(k, d))
         request = MagicMock()
@@ -196,8 +217,7 @@ class TestFirebaseAuthMiddleware:
             mock_settings.app_env = "production"
             mock_settings.admin_api_key = "admin-key"
             response = await self.middleware.dispatch(request, call_next)
-            assert response.status_code == 200
-            assert request.state.user["tier"] == "SUPERADMIN"
+            assert response.status_code == 401
 
     @pytest.mark.asyncio
     async def test_invalid_api_key(self):

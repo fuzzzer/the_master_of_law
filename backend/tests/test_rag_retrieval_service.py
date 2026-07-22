@@ -72,53 +72,57 @@ class TestStage0QueryExpansion:
 class TestStage3MergeDedup:
     """Stage 3: merge and deduplicate tests."""
 
-    def test_dedup_same_id_keeps_lower_distance(self):
+    @pytest.mark.asyncio
+    async def test_dedup_same_id_keeps_lower_distance(self):
         """Same chunk_id in both sources — keep lower distance."""
         svc = RAGRetrievalService()
         svc._chroma = MagicMock()
-        svc._chroma.get_by_ids = MagicMock(return_value=[])
+        svc._chroma.get_by_ids_async = AsyncMock(return_value=[])
 
         vector = [_make_chunk("A", distance=0.3)]
         fulltext = [_make_chunk("A", distance=0.1)]
-        result = svc._stage_3_merge_and_dedup(vector, fulltext)
+        result = await svc._stage_3_merge_and_dedup(vector, fulltext)
         assert len(result) == 1
         # Vector came first so it has the entry; fulltext A is same id → not added as new
         assert result[0]["chunk_id"] == "A"
 
-    def test_merge_unique(self):
+    @pytest.mark.asyncio
+    async def test_merge_unique(self):
         """Different IDs should both appear."""
         svc = RAGRetrievalService()
         svc._chroma = MagicMock()
-        svc._chroma.get_by_ids = MagicMock(return_value=[])
+        svc._chroma.get_by_ids_async = AsyncMock(return_value=[])
 
         vector = [_make_chunk("A", distance=0.2)]
         fulltext = [_make_chunk("B", distance=0.3)]
-        result = svc._stage_3_merge_and_dedup(vector, fulltext)
+        result = await svc._stage_3_merge_and_dedup(vector, fulltext)
         assert len(result) == 2
         ids = {r["chunk_id"] for r in result}
         assert ids == {"A", "B"}
 
-    def test_fulltext_enrichment(self):
-        """Fulltext-only IDs should trigger chroma.get_by_ids for content."""
+    @pytest.mark.asyncio
+    async def test_fulltext_enrichment(self):
+        """Fulltext-only IDs should trigger chroma.get_by_ids_async for content."""
         svc = RAGRetrievalService()
         enriched = [{"chunk_id": "B", "content": "enriched content", "metadata": {"code": "test"}}]
         svc._chroma = MagicMock()
-        svc._chroma.get_by_ids = MagicMock(return_value=enriched)
+        svc._chroma.get_by_ids_async = AsyncMock(return_value=enriched)
 
         vector = [_make_chunk("A", distance=0.2)]
         fulltext = [{"chunk_id": "B", "content": "", "metadata": {}, "distance": 0.5}]
-        result = svc._stage_3_merge_and_dedup(vector, fulltext)
+        result = await svc._stage_3_merge_and_dedup(vector, fulltext)
         assert len(result) == 2
-        svc._chroma.get_by_ids.assert_called_once_with(["B"])
+        svc._chroma.get_by_ids_async.assert_called_once_with(["B"])
 
-    def test_sorted_by_distance(self):
+    @pytest.mark.asyncio
+    async def test_sorted_by_distance(self):
         """Results should be sorted by distance."""
         svc = RAGRetrievalService()
         svc._chroma = MagicMock()
-        svc._chroma.get_by_ids = MagicMock(return_value=[])
+        svc._chroma.get_by_ids_async = AsyncMock(return_value=[])
 
         vector = [_make_chunk("A", distance=0.5), _make_chunk("B", distance=0.1)]
-        result = svc._stage_3_merge_and_dedup(vector, [])
+        result = await svc._stage_3_merge_and_dedup(vector, [])
         assert result[0]["chunk_id"] == "B"
         assert result[1]["chunk_id"] == "A"
 

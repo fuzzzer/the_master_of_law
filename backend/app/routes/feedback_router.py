@@ -106,7 +106,7 @@ async def get_feedback_summary(
     """Aggregated feedback dashboard (ADMIN only)."""
     user_info = getattr(request.state, "user", {})
     tier = user_info.get("tier", "")
-    if tier != "ADMIN":
+    if tier not in ("ADMIN", "SUPERADMIN"):
         return JSONResponse(status_code=403, content={"error": "Admin access required"})
 
     repo = FeedbackRepository(db)
@@ -182,13 +182,13 @@ async def update_feedback(
         user_repo = UserRepository(db)
         user = await user_repo.get_by_firebase_uid(uid)
         if not user or user.id != fb.reviewer_id:
-            if user_info.get("tier") != "ADMIN":
+            if user_info.get("tier") not in ("ADMIN", "SUPERADMIN"):
                 return JSONResponse(status_code=403, content={"error": "Can only edit your own feedback"})
 
     # 24-hour edit window
     if fb.created_at:
         age = datetime.now(timezone.utc) - fb.created_at.replace(tzinfo=timezone.utc)
-        if age > timedelta(hours=24) and user_info.get("tier") != "ADMIN":
+        if age > timedelta(hours=24) and user_info.get("tier") not in ("ADMIN", "SUPERADMIN"):
             return JSONResponse(status_code=403, content={"error": "Edit window expired (24 hours)"})
 
     kwargs = {}
@@ -225,7 +225,7 @@ async def delete_feedback(
         return JSONResponse(status_code=404, content={"error": "Feedback not found"})
 
     # Ownership check
-    if fb.reviewer_id and user_info.get("tier") != "ADMIN":
+    if fb.reviewer_id and user_info.get("tier") not in ("ADMIN", "SUPERADMIN"):
         uid = user_info.get("uid", "")
         from app.repositories.user_repository import UserRepository
         user_repo = UserRepository(db)
