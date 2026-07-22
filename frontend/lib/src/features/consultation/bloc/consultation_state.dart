@@ -22,6 +22,13 @@ class ChatMessage {
     this.failureType,
     this.toolResults,
   });
+
+  /// Internal protocol sentinel embedded by the backend in assistant text.
+  static final _caseReadySentinel = RegExp(r'\s*\[CASE_READY\]\s*');
+
+  /// Text safe for display: strips internal protocol tokens (e.g. the
+  /// `[CASE_READY]` marker) so they never leak into the conversation UI.
+  String get displayText => text.replaceAll(_caseReadySentinel, '').trimRight();
 }
 
 class ToolResultData {

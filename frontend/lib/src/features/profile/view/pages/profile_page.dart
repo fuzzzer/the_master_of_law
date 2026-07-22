@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:themasteroflaw/src/src.dart';
 import 'package:ui_kit/ui_kit.dart';
 
@@ -47,16 +48,31 @@ class ProfilePage extends StatelessWidget {
                         style: uiTextStyles.bodyBold16.copyWith(color: uiColors.primaryTextColor),
                       ),
                       const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: uiColors.accentColor.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          '50 კრედიტი',
-                          style: uiTextStyles.labelBold12.copyWith(color: uiColors.accentColor),
-                        ),
+                      BlocBuilder<CreditsCubit, CreditsState>(
+                        builder: (context, creditsState) {
+                          final String label;
+                          if (creditsState.status.isLoading && !creditsState.hasBalance) {
+                            label = '...';
+                          } else if (creditsState.hasBalance) {
+                            label = '${creditsState.balance} კრედიტი';
+                          } else {
+                            label = 'კრედიტები მიუწვდომელია';
+                          }
+                          return GestureDetector(
+                            onTap: () => context.read<CreditsCubit>().load(),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: uiColors.accentColor.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                label,
+                                style: uiTextStyles.labelBold12.copyWith(color: uiColors.accentColor),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -133,7 +149,10 @@ class ProfilePage extends StatelessWidget {
           _SettingsTile(
             icon: Icons.info_outline,
             title: 'ვერსია',
-            trailing: Text('0.1.0', style: uiTextStyles.label14.copyWith(color: uiColors.secondaryTextColor)),
+            trailing: Text(
+              sl.get<PackageInfo>().version,
+              style: uiTextStyles.label14.copyWith(color: uiColors.secondaryTextColor),
+            ),
             uiColors: uiColors,
             uiTextStyles: uiTextStyles,
           ),

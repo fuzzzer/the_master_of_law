@@ -10,6 +10,12 @@ class AppRouter {
     navigatorKey: navigatorKey,
     initialLocation: '/auth',
     observers: [NavigationLogger()],
+    // Re-run the redirect when the server rejects the API key (401): the
+    // interceptor clears the stored key and emits, so the redirect below sees
+    // an empty key and routes back to '/auth'.
+    refreshListenable: GoRouterRefreshStream(
+      dataUpdatesHub.on<UnauthorizedEvent>(),
+    ),
     redirect: (context, state) async {
       final secureStorage = sl.get<SecureStorageService>();
       final key = await secureStorage.getData('temporary_api_key');

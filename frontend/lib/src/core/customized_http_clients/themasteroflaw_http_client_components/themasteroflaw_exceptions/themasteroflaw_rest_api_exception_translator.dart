@@ -27,8 +27,11 @@ abstract class ThemasteroflawRestApiExceptionTranslator extends HttpClientExcept
       return UnsuccessfulResponseException(errorCode: 'Unknown Dio Exception');
     }
 
-    final message = response.data['message']?.toString();
-    final errorCode = response.data['errorCode']?.toString();
+    // Guard against non-Map bodies: empty (502/504/nginx) or String (HTML error
+    // pages) responses would otherwise throw NoSuchMethodError on `[...]`.
+    final data = response.data;
+    final message = (data is Map) ? data['message']?.toString() : null;
+    final errorCode = (data is Map) ? data['errorCode']?.toString() : null;
 
     final uri = response.requestOptions.uri.toString();
 
@@ -44,6 +47,8 @@ abstract class ThemasteroflawRestApiExceptionTranslator extends HttpClientExcept
         return NotFoundException(message: message, errorCode: errorCode, data: response.data, uri: uri);
       case 409:
         return ConflictException(message: message, errorCode: errorCode, data: response.data, uri: uri);
+      case 429:
+        return TooManyRequestsException(message: message, errorCode: errorCode, data: response.data, uri: uri);
 
       // Server Errors
       case 500:

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:themasteroflaw/src/core/core.dart';
 import 'package:themasteroflaw/src/features/cases/cases.dart';
 import 'package:themasteroflaw/src/features/consultation/consultation.dart';
+import 'package:themasteroflaw/src/features/credits/credits.dart';
 import 'package:themasteroflaw/src/features/laws/laws.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -167,6 +168,9 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
           if (state.status == StateStatus.loading && state.messages.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }
+          if (state.status == StateStatus.failed && state.messages.isEmpty) {
+            return _buildFailedState(context, state);
+          }
           return Stack(
             children: [
               Column(
@@ -282,6 +286,40 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
               onPressed: () => context.read<ConsultationCubit>().startConversation(),
               icon: const Icon(Icons.chat),
               label: const Text('დაწყება'),
+              style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFailedState(BuildContext context, ConsultationState state) {
+    final uiColors = context.uiColors;
+    final uiTextStyles = context.uiTextStyles;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.cloud_off, size: 64, color: uiColors.errorColor.withValues(alpha: 0.5)),
+            const SizedBox(height: 20),
+            Text(
+              'კავშირი ვერ მოხერხდა',
+              style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _errorMessageKa(state.failureType),
+              style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => context.read<ConsultationCubit>().startConversation(),
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('ხელახლა ცდა'),
               style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14)),
             ),
           ],
@@ -483,7 +521,7 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SelectableText(
-                message.text.replaceAll(RegExp(r'\s*\[CASE_READY\]\s*'), '').trimRight(),
+                message.displayText,
                 style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor, height: 1.6),
               ),
               if (message.toolResults != null && message.toolResults!.isNotEmpty) ...[
@@ -882,6 +920,7 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
     final uiColors = context.uiColors;
     final cubit = context.read<ConsultationCubit>();
     final casesCubit = context.read<CasesCubit>();
+    final creditsCubit = context.read<CreditsCubit>();
     final router = GoRouter.of(context);
 
     final confirmed = await showDialog<bool>(
@@ -911,6 +950,8 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
     if (!mounted) return;
 
     if (caseFileData != null) {
+      // Reconcile the credit balance after a billable build.
+      creditsCubit.load();
       final newCase = await casesCubit.importCaseData(caseFileData);
       if (newCase != null && mounted) {
         router.go('/cases/${newCase.id}');
@@ -922,8 +963,18 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
     } else {
       final failureType = cubit.state.failureType;
       String errMsg = 'საქმის შექმნა ვერ მოხერხდა';
-      if (failureType == ConsultationFailureType.noCredits) {
-        errMsg = 'კრედიტები ამოიწურა';
+      switch (failureType) {
+        case ConsultationFailureType.noCredits:
+          errMsg = 'კრედიტები ამოიწურა';
+          creditsCubit.load();
+        case ConsultationFailureType.rateLimited:
+          errMsg = 'მოთხოვნების ლიმიტი ამოიწურა, სცადეთ მოგვიანებით';
+        case ConsultationFailureType.network:
+          errMsg = 'ინტერნეტთან კავშირი ვერ მოხერხდა';
+        case ConsultationFailureType.unauthorized:
+          errMsg = 'ავტორიზაცია საჭიროა';
+        case _:
+          errMsg = 'საქმის შექმნა ვერ მოხერხდა';
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errMsg)));
@@ -935,7 +986,9 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
     final text = _messageController.text.trim();
     if (text.isEmpty || state.isSending) return;
     _messageController.clear();
-    context.read<ConsultationCubit>().sendMessage(text);
+    final creditsCubit = context.read<CreditsCubit>();
+    // Refresh the balance once the (billable) turn finishes.
+    context.read<ConsultationCubit>().sendMessage(text).whenComplete(creditsCubit.load);
   }
 
   void _showModeSelector(BuildContext context) {
@@ -1134,12 +1187,7 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
   }
 
   void _showHistorySheet(BuildContext context) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
     final cubit = context.read<ConsultationCubit>();
-
-    // We instantiate a new repository just for this sheet to fetch history
-    final tempRepo = ConsultationRepository(remoteDataSource: ConsultationRemoteDataSource());
 
     showModalBottomSheet<void>(
       context: context,
@@ -1149,71 +1197,13 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
         maxChildSize: 0.9,
         minChildSize: 0.4,
         expand: false,
-        builder: (_, scrollController) => Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('ისტორია', style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor)),
-                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(sheetContext)),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: FutureBuilder<ConsultationResult<List<dynamic>>>(
-                  future: tempRepo.getConversations(),
-                  builder: (futureContext, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (snapshot.hasError || snapshot.data is ConsultationFailure) {
-                      return Center(
-                        child: Text('ვერ ჩაიტვირთა ისტორია', style: uiTextStyles.body14.copyWith(color: Colors.red)),
-                      );
-                    }
-                    final result = snapshot.data! as ConsultationSuccess<List<dynamic>>;
-                    final items = result.data;
-                    if (items.isEmpty) {
-                      return Center(
-                        child: Text(
-                          'ისტორია ცარიელია',
-                          style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
-                        ),
-                      );
-                    }
-                    return ListView.builder(
-                      controller: scrollController,
-                      itemCount: items.length,
-                      itemBuilder: (itemContext, index) {
-                        final item = items[index] as Map<String, dynamic>;
-                        final title = item['title']?.toString() ?? 'ახალი საუბარი';
-                        final phase = item['phase']?.toString() ?? '';
-                        final dateStr = item['updated_at']?.toString() ?? item['created_at']?.toString() ?? '';
-                        final date = DateTime.tryParse(dateStr) ?? DateTime.now();
-
-                        return ListTile(
-                          leading: Icon(Icons.chat_bubble_outline, color: uiColors.accentColor),
-                          title: Text(title, style: uiTextStyles.bodyBold14.copyWith(color: uiColors.primaryTextColor)),
-                          subtitle: Text(
-                            '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} • $phase',
-                            style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor),
-                          ),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          onTap: () {
-                            Navigator.pop(sheetContext);
-                            cubit.loadConversation(item['id'].toString());
-                          },
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
+        builder: (_, scrollController) => _HistorySheet(
+          cubit: cubit,
+          scrollController: scrollController,
+          onSelect: (conversationId) {
+            Navigator.pop(sheetContext);
+            cubit.loadConversation(conversationId);
+          },
         ),
       ),
     );
@@ -1223,6 +1213,7 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
     ConsultationFailureType.network => 'ინტერნეტთან კავშირი ვერ მოხერხდა',
     ConsultationFailureType.unauthorized => 'ავტორიზაცია საჭიროა',
     ConsultationFailureType.noCredits => 'კრედიტები ამოიწურა',
+    ConsultationFailureType.rateLimited => 'მოთხოვნების ლიმიტი ამოიწურა, სცადეთ მოგვიანებით',
     ConsultationFailureType.notFound => 'საუბარი ვერ მოიძებნა',
     ConsultationFailureType.serverError => 'სერვერის შეცდომა, სცადეთ ხელახლა',
     ConsultationFailureType.unknown || null => 'უცნობი შეცდომა',
@@ -1268,6 +1259,127 @@ class _ActionChip extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Conversation-history sheet. Holds its future so it doesn't refetch on every
+/// rebuild, distinguishes empty vs error, and offers a retry on failure.
+class _HistorySheet extends StatefulWidget {
+  const _HistorySheet({
+    required this.cubit,
+    required this.scrollController,
+    required this.onSelect,
+  });
+
+  final ConsultationCubit cubit;
+  final ScrollController scrollController;
+  final ValueChanged<String> onSelect;
+
+  @override
+  State<_HistorySheet> createState() => _HistorySheetState();
+}
+
+class _HistorySheetState extends State<_HistorySheet> {
+  late Future<ConsultationResult<List<dynamic>>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = widget.cubit.fetchConversations();
+  }
+
+  void _retry() {
+    setState(() => _future = widget.cubit.fetchConversations());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final uiColors = context.uiColors;
+    final uiTextStyles = context.uiTextStyles;
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('ისტორია', style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor)),
+              IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: FutureBuilder<ConsultationResult<List<dynamic>>>(
+              future: _future,
+              builder: (futureContext, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError || snapshot.data is ConsultationFailure) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.cloud_off, size: 48, color: uiColors.errorColor.withValues(alpha: 0.5)),
+                        const SizedBox(height: 12),
+                        Text(
+                          'ვერ ჩაიტვირთა ისტორია',
+                          style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: _retry,
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: const Text('ხელახლა ცდა'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: uiColors.accentColor,
+                            foregroundColor: uiColors.backgroundPrimaryColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                final result = snapshot.data! as ConsultationSuccess<List<dynamic>>;
+                final items = result.data;
+                if (items.isEmpty) {
+                  return Center(
+                    child: Text(
+                      'ისტორია ცარიელია',
+                      style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
+                    ),
+                  );
+                }
+                return ListView.builder(
+                  controller: widget.scrollController,
+                  itemCount: items.length,
+                  itemBuilder: (itemContext, index) {
+                    final item = items[index] as Map<String, dynamic>;
+                    final title = item['title']?.toString() ?? 'ახალი საუბარი';
+                    final phase = item['phase']?.toString() ?? '';
+                    final dateStr = item['updated_at']?.toString() ?? item['created_at']?.toString() ?? '';
+                    final date = DateTime.tryParse(dateStr) ?? DateTime.now();
+
+                    return ListTile(
+                      leading: Icon(Icons.chat_bubble_outline, color: uiColors.accentColor),
+                      title: Text(title, style: uiTextStyles.bodyBold14.copyWith(color: uiColors.primaryTextColor)),
+                      subtitle: Text(
+                        '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} • $phase',
+                        style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor),
+                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      onTap: () => widget.onSelect(item['id'].toString()),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

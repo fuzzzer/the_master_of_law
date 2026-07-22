@@ -72,7 +72,13 @@ class _CaseWorkspacePageState extends State<CaseWorkspacePage> with SingleTicker
     final uiColors = context.uiColors;
     final uiTextStyles = context.uiTextStyles;
 
-    return BlocBuilder<CaseDetailCubit, CaseDetailState>(
+    return BlocConsumer<CaseDetailCubit, CaseDetailState>(
+      listenWhen: (prev, curr) => !prev.saveFailed && curr.saveFailed,
+      listener: (context, state) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('ცვლილების შენახვა ვერ მოხერხდა')),
+        );
+      },
       builder: (context, state) {
         final caseData = state.caseData;
 

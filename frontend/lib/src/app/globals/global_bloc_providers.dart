@@ -22,6 +22,13 @@ class GlobalBlocProviders extends StatelessWidget {
             repository: CaseRepository(localDataSource: CaseLocalDataSource()),
           )..loadCases(),
         ),
+        BlocProvider<CreditsCubit>(
+          create: (_) => CreditsCubit(
+            repository: CreditsRepository(
+              remoteDataSource: CreditsRemoteDataSource(),
+            ),
+          )..load(),
+        ),
       ],
       child: child,
     );

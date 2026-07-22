@@ -15,7 +15,7 @@ class ConsultationFailure<T> extends ConsultationResult<T> {
   const ConsultationFailure({required this.type, this.message});
 }
 
-enum ConsultationFailureType { network, unauthorized, noCredits, notFound, serverError, unknown }
+enum ConsultationFailureType { network, unauthorized, noCredits, rateLimited, notFound, serverError, unknown }
 
 class ConsultationRepository {
   final ConsultationRemoteDataSource _remoteDataSource;
@@ -167,10 +167,17 @@ class ConsultationRepository {
     if (e is UnsuccessfulResponseException && e.statusCode == 402) {
       return ConsultationFailureType.noCredits;
     }
+    if (e is UnsuccessfulResponseException && e.statusCode == 429) {
+      return ConsultationFailureType.rateLimited;
+    }
     return switch (e) {
       UnauthorizedException() => ConsultationFailureType.unauthorized,
+      TooManyRequestsException() => ConsultationFailureType.rateLimited,
       NotFoundException() => ConsultationFailureType.notFound,
       NoConnectionException() => ConsultationFailureType.network,
+      ConnectionTimeoutException() => ConsultationFailureType.network,
+      RecieveTimeoutException() => ConsultationFailureType.network,
+      SendTimeoutException() => ConsultationFailureType.network,
       _ => ConsultationFailureType.serverError,
     };
   }

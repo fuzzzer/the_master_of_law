@@ -51,6 +51,7 @@ class ConsultationRemoteDataSource {
         'mode': mode,
         if (caseContext != null) 'case_context': caseContext,
       },
+      options: longRunningRequest(),
     );
     return response.data!;
   }
@@ -61,6 +62,7 @@ class ConsultationRemoteDataSource {
     final response = await _httpClient.post<Map<String, dynamic>>(
       _uri('/api/v1/case-files/build'),
       body: {'conversation_id': conversationId},
+      options: longRunningRequest(),
     );
     return response.data!;
   }
@@ -79,6 +81,7 @@ class ConsultationRemoteDataSource {
         'case_file_id': caseFileId,
         if (ragConfig != null) 'rag_config': ragConfig,
       },
+      options: longRunningRequest(),
     );
     return response.data!;
   }
@@ -122,18 +125,32 @@ class ConsultationRemoteDataSource {
     final uri = Uri.parse('$wsUrl/api/v1/chat/$conversationId/ws$queryParams');
     
     final channel = WebSocketChannel.connect(uri);
-    
-    // Send initial message
-    channel.sink.add(jsonEncode({
-      'message': message,
-      if (ragConfig != null) 'rag_config': ragConfig,
-      'mode': mode,
-      if (caseContext != null) 'case_context': caseContext,
-      if (caseFileId != null) 'case_file_id': caseFileId,
-    }));
-    
+
     try {
-      await for (final data in channel.stream) {
+      // Surface handshake failures (server down / bad upgrade) explicitly rather
+      // than waiting for the stream to error far downstream.
+      await channel.ready.timeout(const Duration(seconds: 15));
+
+      // Send initial message
+      channel.sink.add(jsonEncode({
+        'message': message,
+        if (ragConfig != null) 'rag_config': ragConfig,
+        'mode': mode,
+        if (caseContext != null) 'case_context': caseContext,
+        if (caseFileId != null) 'case_file_id': caseFileId,
+      }));
+
+      // Per-message inactivity timeout: if the server never sends another
+      // frame (and no done/error), don't let the typing indicator spin forever.
+      final guarded = channel.stream.timeout(
+        const Duration(seconds: 60),
+        onTimeout: (sink) {
+          sink.add(jsonEncode({'type': 'error', 'message': 'timeout'}));
+          sink.close();
+        },
+      );
+
+      await for (final data in guarded) {
         final decoded = jsonDecode(data as String) as Map<String, dynamic>;
         yield decoded;
         if (decoded['type'] == 'done' || decoded['type'] == 'error') {
@@ -141,7 +158,7 @@ class ConsultationRemoteDataSource {
         }
       }
     } finally {
-      channel.sink.close();
+      await channel.sink.close();
     }
   }
 }

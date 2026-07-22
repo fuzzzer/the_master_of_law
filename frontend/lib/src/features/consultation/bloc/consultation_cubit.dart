@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:themasteroflaw/src/src.dart';
 
@@ -31,6 +33,10 @@ enum ChatMode {
 class ConsultationCubit extends Cubit<ConsultationState> {
   final ConsultationRepository _repository;
 
+  /// Active WebSocket stream subscription for the in-flight message, if any.
+  /// Cancelled in [close] so the cubit never emits after disposal (F-02/F-03).
+  StreamSubscription<Map<String, dynamic>>? _streamSubscription;
+
   ConsultationCubit({
     required ConsultationRepository repository,
     ChatMode chatMode = ChatMode.allSources,
@@ -38,23 +44,38 @@ class ConsultationCubit extends Cubit<ConsultationState> {
   })  : _repository = repository,
         super(ConsultationState(chatMode: chatMode, isCaseChat: isCaseChat));
 
+  /// Emit only while the cubit is still open. Streaming responses are
+  /// long-lived; the user can navigate away mid-stream, so every emit on an
+  /// async path must be guarded against the closed state.
+  void _safeEmit(ConsultationState newState) {
+    if (isClosed) return;
+    emit(newState);
+  }
+
+  @override
+  Future<void> close() {
+    _streamSubscription?.cancel();
+    _streamSubscription = null;
+    return super.close();
+  }
+
   Future<void> startConversation({String? caseId}) async {
-    emit(state.copyWith(status: StateStatus.loading));
+    _safeEmit(state.copyWith(status: StateStatus.loading));
     final result = await _repository.createConversation(caseId: caseId);
     switch (result) {
       case ConsultationSuccess<Map<String, dynamic>>(:final data):
-        emit(state.copyWith(
+        _safeEmit(state.copyWith(
           status: StateStatus.success,
           conversationId: data['id'] as String? ?? '',
           messages: [],
         ));
       case ConsultationFailure<Map<String, dynamic>>(:final type):
-        emit(state.copyWith(status: StateStatus.failed, failureType: type));
+        _safeEmit(state.copyWith(status: StateStatus.failed, failureType: type));
     }
   }
 
   Future<void> loadConversation(String conversationId) async {
-    emit(state.copyWith(status: StateStatus.loading, conversationId: conversationId));
+    _safeEmit(state.copyWith(status: StateStatus.loading, conversationId: conversationId));
     final result = await _repository.getConversation(conversationId);
     switch (result) {
       case ConsultationSuccess<Map<String, dynamic>>(:final data):
@@ -71,27 +92,28 @@ class ConsultationCubit extends Cubit<ConsultationState> {
           );
         }).toList();
         final caseReady = data['case_ready'] == true;
-        emit(state.copyWith(status: StateStatus.success, messages: messages, caseAnalysisReady: caseReady));
+        _safeEmit(state.copyWith(status: StateStatus.success, messages: messages, caseAnalysisReady: caseReady));
       case ConsultationFailure<Map<String, dynamic>>(:final type):
-        emit(state.copyWith(status: StateStatus.failed, failureType: type));
+        _safeEmit(state.copyWith(status: StateStatus.failed, failureType: type));
     }
   }
 
   Future<void> sendMessage(String text) async {
     if (state.conversationId == null) return;
+
+    // Cancel any previous in-flight stream before starting a new one.
+    await _streamSubscription?.cancel();
+    _streamSubscription = null;
+
     final userMsg = ChatMessage(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       text: text, isUser: true, timestamp: DateTime.now(),
     );
-    
-    final streamingId = 'stream_${DateTime.now().millisecondsSinceEpoch}';
-    final aiMsg = ChatMessage(
-      id: streamingId,
-      text: '', isUser: false, timestamp: DateTime.now(),
-    );
 
-    emit(state.copyWith(
-      messages: [...state.messages, userMsg], 
+    final streamingId = 'stream_${DateTime.now().millisecondsSinceEpoch}';
+
+    _safeEmit(state.copyWith(
+      messages: [...state.messages, userMsg],
       isSending: true,
       streamingMessageId: streamingId,
       clearStreamingStatus: true,
@@ -107,12 +129,31 @@ class ConsultationCubit extends Cubit<ConsultationState> {
     );
 
     final toolResultsCollected = <ToolResultData>[];
+    final completer = Completer<void>();
 
-    try {
-      await for (final event in stream) {
+    void emitConnectionError() {
+      final errorMsg = ChatMessage(
+        id: 'error_${DateTime.now().millisecondsSinceEpoch}',
+        text: 'Connection error',
+        isUser: false, timestamp: DateTime.now(),
+        isError: true, failureType: ConsultationFailureType.network,
+      );
+      final msgs = List<ChatMessage>.from(state.messages)
+        ..removeWhere((m) => m.id == streamingId);
+      _safeEmit(state.copyWith(
+        messages: [...msgs, errorMsg],
+        isSending: false,
+        clearStreamingStatus: true,
+        clearStreamingMessageId: true,
+      ));
+    }
+
+    _streamSubscription = stream.listen(
+      (event) {
+        if (isClosed) return;
         final type = event['type'];
         if (type == 'status') {
-          emit(state.copyWith(streamingStatus: event['message']?.toString()));
+          _safeEmit(state.copyWith(streamingStatus: event['message']?.toString()));
         } else if (type == 'chunk') {
           final msgs = List<ChatMessage>.from(state.messages);
           final index = msgs.indexWhere((m) => m.id == streamingId);
@@ -124,7 +165,7 @@ class ConsultationCubit extends Cubit<ConsultationState> {
               isUser: false,
               timestamp: oldMsg.timestamp,
             );
-            emit(state.copyWith(messages: msgs, clearStreamingStatus: true, isSending: false));
+            _safeEmit(state.copyWith(messages: msgs, clearStreamingStatus: true, isSending: false));
           } else {
             final aiMsg = ChatMessage(
               id: streamingId,
@@ -132,7 +173,7 @@ class ConsultationCubit extends Cubit<ConsultationState> {
               isUser: false, timestamp: DateTime.now(),
             );
             msgs.add(aiMsg);
-            emit(state.copyWith(messages: msgs, clearStreamingStatus: true, isSending: false));
+            _safeEmit(state.copyWith(messages: msgs, clearStreamingStatus: true, isSending: false));
           }
         } else if (type == 'tool_executed') {
           final toolName = event['tool']?.toString() ?? '';
@@ -145,12 +186,12 @@ class ConsultationCubit extends Cubit<ConsultationState> {
           ));
 
           if (toolName == 'create_case' && toolResult.containsKey('case_file_id')) {
-            emit(state.copyWith(
+            _safeEmit(state.copyWith(
               caseFileId: toolResult['case_file_id']?.toString(),
               streamingStatus: '📁 ${_toolNameKa(toolName)}',
             ));
           } else {
-            emit(state.copyWith(
+            _safeEmit(state.copyWith(
               streamingStatus: '🔧 ${_toolNameKa(toolName)}',
             ));
           }
@@ -163,7 +204,7 @@ class ConsultationCubit extends Cubit<ConsultationState> {
             description: event['description']?.toString(),
           );
           toolResultsCollected.add(pending);
-          emit(state.copyWith(
+          _safeEmit(state.copyWith(
             pendingConfirmations: [...state.pendingConfirmations, pending],
           ));
         } else if (type == 'done') {
@@ -213,7 +254,7 @@ class ConsultationCubit extends Cubit<ConsultationState> {
             ));
           }
 
-          emit(state.copyWith(
+          _safeEmit(state.copyWith(
             messages: msgs,
             isSending: false,
             clearStreamingStatus: true,
@@ -221,7 +262,7 @@ class ConsultationCubit extends Cubit<ConsultationState> {
             caseAnalysisReady: caseReady,
             caseFileId: createdCaseId ?? state.caseFileId,
           ));
-          break;
+          if (!completer.isCompleted) completer.complete();
         } else if (type == 'error') {
           final errorMsg = ChatMessage(
             id: 'error_${DateTime.now().millisecondsSinceEpoch}',
@@ -229,37 +270,36 @@ class ConsultationCubit extends Cubit<ConsultationState> {
             isUser: false, timestamp: DateTime.now(),
             isError: true, failureType: ConsultationFailureType.unknown,
           );
-          
-          final msgs = List<ChatMessage>.from(state.messages);
-          msgs.removeWhere((m) => m.id == streamingId);
-          
-          emit(state.copyWith(
-            messages: [...msgs, errorMsg], 
+
+          final msgs = List<ChatMessage>.from(state.messages)
+            ..removeWhere((m) => m.id == streamingId);
+
+          _safeEmit(state.copyWith(
+            messages: [...msgs, errorMsg],
             isSending: false,
             clearStreamingStatus: true,
             clearStreamingMessageId: true,
           ));
-          break;
+          if (!completer.isCompleted) completer.complete();
         }
-      }
-    } catch (e) {
-      final errorMsg = ChatMessage(
-        id: 'error_${DateTime.now().millisecondsSinceEpoch}',
-        text: 'Connection error',
-        isUser: false, timestamp: DateTime.now(),
-        isError: true, failureType: ConsultationFailureType.network,
-      );
-      
-      final msgs = List<ChatMessage>.from(state.messages);
-      msgs.removeWhere((m) => m.id == streamingId);
-      
-      emit(state.copyWith(
-        messages: [...msgs, errorMsg], 
-        isSending: false,
-        clearStreamingStatus: true,
-        clearStreamingMessageId: true,
-      ));
-    }
+      },
+      onError: (Object e) {
+        emitConnectionError();
+        if (!completer.isCompleted) completer.complete();
+      },
+      onDone: () {
+        // Stream closed without an explicit done/error event (e.g. socket
+        // dropped mid-response). If we're still showing the typing indicator,
+        // surface a connection error rather than spinning forever.
+        if (!isClosed && state.isSending) {
+          emitConnectionError();
+        }
+        if (!completer.isCompleted) completer.complete();
+      },
+      cancelOnError: true,
+    );
+
+    await completer.future;
   }
 
   String _toolNameKa(String name) => switch (name) {
@@ -287,13 +327,18 @@ class ConsultationCubit extends Cubit<ConsultationState> {
     );
     switch (result) {
       case ConsultationSuccess<Map<String, dynamic>>(:final data):
-        emit(state.copyWith(isBuildingCase: false, caseFileData: data));
+        _safeEmit(state.copyWith(isBuildingCase: false, caseFileData: data));
         return data;
-      case ConsultationFailure<Map<String, dynamic>>():
-        emit(state.copyWith(isBuildingCase: false));
+      case ConsultationFailure<Map<String, dynamic>>(:final type):
+        _safeEmit(state.copyWith(isBuildingCase: false, failureType: type));
         return null;
     }
   }
+
+  /// Fetch the conversation history. Exposed so views can show history without
+  /// constructing a throwaway repository (keeps DI in one place).
+  Future<ConsultationResult<List<dynamic>>> fetchConversations() =>
+      _repository.getConversations();
 
   void switchMode(ChatMode mode) => emit(state.copyWith(chatMode: mode));
 
@@ -331,7 +376,7 @@ class ConsultationCubit extends Cubit<ConsultationState> {
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       text: text, isUser: true, timestamp: DateTime.now(),
     );
-    emit(state.copyWith(messages: [...state.messages, userMsg], isSending: true));
+    _safeEmit(state.copyWith(messages: [...state.messages, userMsg], isSending: true));
 
     final result = await _repository.sendAgentMessage(
       conversationId: state.conversationId!,
@@ -353,7 +398,7 @@ class ConsultationCubit extends Cubit<ConsultationState> {
           citations: _parseChatCitations(data['citations']),
           toolResults: toolResults,
         );
-        emit(state.copyWith(
+        _safeEmit(state.copyWith(
           messages: [...state.messages, aiMsg],
           isSending: false,
           pendingConfirmations: [...state.pendingConfirmations, ...pendingOnes],
@@ -364,7 +409,7 @@ class ConsultationCubit extends Cubit<ConsultationState> {
           text: type.name, isUser: false, timestamp: DateTime.now(),
           isError: true, failureType: type,
         );
-        emit(state.copyWith(messages: [...state.messages, errorMsg], isSending: false));
+        _safeEmit(state.copyWith(messages: [...state.messages, errorMsg], isSending: false));
     }
   }
 
@@ -386,12 +431,19 @@ class ConsultationCubit extends Cubit<ConsultationState> {
           isUser: false,
           timestamp: DateTime.now(),
         );
-        emit(state.copyWith(
+        _safeEmit(state.copyWith(
           messages: [...state.messages, confirmMsg],
           pendingConfirmations: updatedPending,
         ));
-      case ConsultationFailure<Map<String, dynamic>>():
-        break;
+      case ConsultationFailure<Map<String, dynamic>>(:final type):
+        // Surface the failure instead of silently leaving the card on screen.
+        final errorMsg = ChatMessage(
+          id: 'error_${DateTime.now().millisecondsSinceEpoch}',
+          text: 'მოქმედების დადასტურება ვერ მოხერხდა, სცადეთ ხელახლა',
+          isUser: false, timestamp: DateTime.now(),
+          isError: true, failureType: type,
+        );
+        _safeEmit(state.copyWith(messages: [...state.messages, errorMsg]));
     }
   }
 
@@ -413,12 +465,18 @@ class ConsultationCubit extends Cubit<ConsultationState> {
           isUser: false,
           timestamp: DateTime.now(),
         );
-        emit(state.copyWith(
+        _safeEmit(state.copyWith(
           messages: [...state.messages, rejectMsg],
           pendingConfirmations: updatedPending,
         ));
-      case ConsultationFailure<Map<String, dynamic>>():
-        break;
+      case ConsultationFailure<Map<String, dynamic>>(:final type):
+        final errorMsg = ChatMessage(
+          id: 'error_${DateTime.now().millisecondsSinceEpoch}',
+          text: 'მოქმედების გაუქმება ვერ მოხერხდა, სცადეთ ხელახლა',
+          isUser: false, timestamp: DateTime.now(),
+          isError: true, failureType: type,
+        );
+        _safeEmit(state.copyWith(messages: [...state.messages, errorMsg]));
     }
   }
 

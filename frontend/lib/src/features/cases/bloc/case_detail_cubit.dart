@@ -481,11 +481,14 @@ class CaseDetailCubit extends Cubit<CaseDetailState> {
 
   Future<void> _save(CaseData caseData) async {
     final result = await _repository.updateCase(caseData);
+    if (isClosed) return;
     switch (result) {
       case CaseSuccess<CaseData>(:final data):
-        emit(state.copyWith(caseData: data));
+        emit(state.copyWith(caseData: data, saveFailed: false));
       case CaseFailure<CaseData>():
-        break;
+        // Don't swallow: flag the failure so the UI can warn the user that the
+        // edit wasn't persisted, instead of silently diverging from storage.
+        emit(state.copyWith(saveFailed: true));
     }
   }
 }

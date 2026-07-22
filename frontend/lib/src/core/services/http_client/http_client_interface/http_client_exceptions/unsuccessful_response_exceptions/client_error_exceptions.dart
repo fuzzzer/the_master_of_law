@@ -44,6 +44,10 @@ class ConflictException extends ClientErrorException {
   ConflictException({super.message, super.data, super.uri, super.errorCode}) : super(statusCode: 409);
 }
 
+class TooManyRequestsException extends ClientErrorException {
+  TooManyRequestsException({super.message, super.data, super.uri, super.errorCode}) : super(statusCode: 429);
+}
+
 class PayloadTooLargeException extends ClientErrorException {
   PayloadTooLargeException({super.message, super.data, super.errorCode}) : super(statusCode: 413);
 }

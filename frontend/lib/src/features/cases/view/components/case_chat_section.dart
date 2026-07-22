@@ -136,10 +136,9 @@ class _CaseChatSectionState extends State<CaseChatSection> {
     try {
       final dataSource = ConsultationRemoteDataSource();
       final caseFiles = await dataSource.listCaseFiles();
-      final match = (caseFiles as List?)?.firstWhere(
-        (cf) => cf['conversation_id'] == convId,
-        orElse: () => null,
-      );
+      final match = caseFiles
+          .cast<Map<String, dynamic>>()
+          .firstWhereOrNull((cf) => cf['conversation_id'] == convId);
       if (match != null && mounted) {
         final serverId = match['id']?.toString();
         if (serverId != null) {
@@ -148,7 +147,10 @@ class _CaseChatSectionState extends State<CaseChatSection> {
           setState(() {});
         }
       }
-    } catch (_) {}
+    } catch (e, st) {
+      // Tool wiring is best-effort; log so silent failures are diagnosable.
+      logger.e('Failed to resolve server case file id', error: e, stackTrace: st);
+    }
   }
 
   @override
@@ -607,7 +609,7 @@ class _MessageBubble extends StatelessWidget {
               const SizedBox(height: 8),
             ],
             SelectableText(
-              message.isError && message.failureType != null ? _failureMessageKa(message.failureType) : message.text,
+              message.isError && message.failureType != null ? _failureMessageKa(message.failureType) : message.displayText,
               style: uiTextStyles.body14.copyWith(
                 color: message.isError ? uiColors.errorColor : uiColors.primaryTextColor,
                 height: 1.5,
@@ -724,6 +726,7 @@ String _failureMessageKa(ConsultationFailureType? type) => switch (type) {
   ConsultationFailureType.network => 'სერვერთან დაკავშირება ვერ მოხერხდა.\nშეამოწმეთ ინტერნეტ კავშირი.',
   ConsultationFailureType.unauthorized => 'სესია ვადაგასულია.\nგთხოვთ ხელახლა შეხვიდეთ.',
   ConsultationFailureType.noCredits => 'კრედიტები ამოიწურა.\nშეიძინეთ დამატებითი.',
+  ConsultationFailureType.rateLimited => 'მოთხოვნების ლიმიტი ამოიწურა.\nსცადეთ ცოტა მოგვიანებით.',
   ConsultationFailureType.notFound => 'მოთხოვნილი რესურსი ვერ მოიძებნა.',
   ConsultationFailureType.serverError => 'სერვერის შეცდომა.\nგთხოვთ ცოტა მოგვიანებით სცადოთ.',
   ConsultationFailureType.unknown || null => 'უცნობი შეცდომა მოხდა.\nხელახლა სცადეთ.',
