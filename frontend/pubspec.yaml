@@ -27,6 +27,7 @@ dependencies:
   internet_connection_checker_plus: 2.7.2
   intl: 0.20.2
   logger: 2.4.0
+  marionette_flutter: ^0.5.0
   package_info_plus: 8.3.0
   permission_handler: 12.0.0
   shake: 3.0.0
