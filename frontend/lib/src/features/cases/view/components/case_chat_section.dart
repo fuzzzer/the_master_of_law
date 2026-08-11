@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 import 'package:themasteroflaw/src/src.dart';
-import 'package:ui_kit/ui_kit.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// In-case AI chat section — unified advocate.
 /// Persists conversation across tab switches. When case_file_id is available,
 /// AI automatically uses tools (add_fact, link_article, etc.) via WebSocket.
+///
+/// This is the SECOND chat surface in the app; `consultation_page.dart` (M6b)
+/// is the first. Every shared idiom here — the bubble geometry, the citation
+/// chip, the docked composer, the typing box — is deliberately the same shape
+/// as its twin there, so the two chats read as one product and M11 can swap
+/// both onto `FuzzzyChatBubble` in one move.
 class CaseChatSection extends StatefulWidget {
   const CaseChatSection({super.key, required this.caseId});
   final String caseId;
@@ -63,7 +69,9 @@ class _CaseChatSectionState extends State<CaseChatSection> {
     }
   }
 
-  Future<void> _createAndLinkConversation(CaseDetailCubit caseDetailCubit) async {
+  Future<void> _createAndLinkConversation(
+    CaseDetailCubit caseDetailCubit,
+  ) async {
     await _cubit.startConversation(caseId: widget.caseId);
     final convId = _cubit.state.conversationId;
     if (convId != null && convId.isNotEmpty) {
@@ -88,14 +96,20 @@ class _CaseChatSectionState extends State<CaseChatSection> {
   }
 
   void _scrollToBottom() {
+    // The 200ms is a SETTLE, not animation timing: it lets the freshly
+    // appended row lay out before we read `maxScrollExtent`. `motion.*` is for
+    // things the user watches move, and the guard's `literal-motion` rule
+    // (which matches the named argument `duration:`) correctly does not fire
+    // on a `Future.delayed` positional. The scroll itself IS watched, so it
+    // takes `motion.standard` / `standardCurve`.
     Future.delayed(const Duration(milliseconds: 200), () {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
+      if (!mounted || !_scrollController.hasClients) return;
+      final motion = context.fuzzzyMotion;
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: motion.standard,
+        curve: motion.standardCurve,
+      );
     });
   }
 
@@ -105,7 +119,7 @@ class _CaseChatSectionState extends State<CaseChatSection> {
     if (caseFileData != null && mounted) {
       context.read<CaseDetailCubit>().populateFromAiAnalysis(caseFileData);
       final serverId = caseFileData['id']?.toString();
-      
+
       final fullText = caseFileData['full_analysis_text']?.toString();
       if (fullText != null && fullText.isNotEmpty) {
         final aiMsg = ChatMessage(
@@ -123,7 +137,12 @@ class _CaseChatSectionState extends State<CaseChatSection> {
       }
       if (mounted) {
         messenger.showSnackBar(
-          const SnackBar(content: Text('✅ საქმის სექციები შეივსო დამხმარის ანალიზით')),
+          // The ✅ is an emoji inside a plain string with no `fontSize`
+          // literal, so it survives this slice and is owed at M11 (the
+          // owner's emoji→monochrome-icon directive). See the journal table.
+          const SnackBar(
+            content: Text('✅ საქმის სექციები შეივსო დამხმარის ანალიზით'),
+          ),
         );
         _scrollToBottom();
       }
@@ -136,27 +155,35 @@ class _CaseChatSectionState extends State<CaseChatSection> {
     try {
       final dataSource = ConsultationRemoteDataSource();
       final caseFiles = await dataSource.listCaseFiles();
-      final match = caseFiles
-          .cast<Map<String, dynamic>>()
-          .firstWhereOrNull((cf) => cf['conversation_id'] == convId);
+      final match = caseFiles.cast<Map<String, dynamic>>().firstWhereOrNull(
+        (cf) => cf['conversation_id'] == convId,
+      );
       if (match != null && mounted) {
         final serverId = match['id']?.toString();
         if (serverId != null) {
-          context.read<CaseDetailCubit>().state.caseData?.serverCaseFileId = serverId;
+          context.read<CaseDetailCubit>().state.caseData?.serverCaseFileId =
+              serverId;
           _cubit.enterAgentMode(caseFileId: serverId);
           setState(() {});
         }
       }
     } catch (e, st) {
       // Tool wiring is best-effort; log so silent failures are diagnosable.
-      logger.e('Failed to resolve server case file id', error: e, stackTrace: st);
+      logger.e(
+        'Failed to resolve server case file id',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
 
     return BlocProvider.value(
       value: _cubit,
@@ -165,39 +192,51 @@ class _CaseChatSectionState extends State<CaseChatSection> {
           // Context banner — shows AI capabilities
           BlocBuilder<ConsultationCubit, ConsultationState>(
             bloc: _cubit,
-            buildWhen: (prev, curr) => prev.caseFileId != curr.caseFileId || prev.streamingStatus != curr.streamingStatus,
+            buildWhen: (prev, curr) =>
+                prev.caseFileId != curr.caseFileId ||
+                prev.streamingStatus != curr.streamingStatus,
             builder: (context, consultState) {
               final hasTools = consultState.isAgentMode;
               final statusText = consultState.streamingStatus;
 
               return Container(
-                margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                margin: EdgeInsets.fromLTRB(space.l, space.m, space.l, 0),
+                padding: density.notice,
+                // MAPPING §2.2 judgement 2: the tools-on state was a gold panel
+                // at alpha 0.08 with a gold border at 0.3; the tools-off state
+                // was a plain `backgroundSecondary` panel with NO border at
+                // all. In Ink those are ONE rung — both are `surface` — so what
+                // separated them (a hue) is gone and what separates them now is
+                // the border weight plus the ink rung. Same idiom M8 gave
+                // `_AiConsultationCard`. The tools-off state also GAINS the
+                // `line` hairline it never had, without which a `surface` box
+                // on `ground` is nearly invisible.
                 decoration: BoxDecoration(
-                  color: hasTools
-                      ? uiColors.accentColor.withValues(alpha: 0.08)
-                      : uiColors.backgroundSecondaryColor,
-                  borderRadius: BorderRadius.circular(12),
-                  border: hasTools
-                      ? Border.all(color: uiColors.accentColor.withValues(alpha: 0.3))
-                      : null,
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(radius.m),
+                  border: Border.all(
+                    color: hasTools ? colors.lineStrong : colors.line,
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
                       hasTools ? Icons.auto_awesome : Icons.chat_bubble_outline,
+                      // Dimension: the inline glyph, sized to the one-line
+                      // notice it shares a row with.
                       size: 14,
-                      color: hasTools ? uiColors.accentColor : uiColors.secondaryTextColor,
+                      color: hasTools ? colors.ink : colors.inkMute,
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: space.s),
                     Flexible(
                       child: Text(
-                        statusText ?? (hasTools
-                            ? 'დამხმარე ავტომატურად აკეთებს საქმის ცვლილებებს'
-                            : 'დამხმარეს აქვს საქმის სრული კონტექსტი'),
-                        style: uiTextStyles.labelBold12.copyWith(
-                          color: hasTools ? uiColors.accentColor : uiColors.secondaryTextColor,
+                        statusText ??
+                            (hasTools
+                                ? 'დამხმარე ავტომატურად აკეთებს საქმის ცვლილებებს'
+                                : 'დამხმარეს აქვს საქმის სრული კონტექსტი'),
+                        style: type.control.copyWith(
+                          color: hasTools ? colors.ink : colors.inkMute,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -211,32 +250,43 @@ class _CaseChatSectionState extends State<CaseChatSection> {
           // Messages
           Expanded(
             child: BlocConsumer<ConsultationCubit, ConsultationState>(
-              listenWhen: (prev, curr) => prev.messages.length != curr.messages.length,
+              listenWhen: (prev, curr) =>
+                  prev.messages.length != curr.messages.length,
               listener: (context, state) {
                 _scrollToBottom();
               },
               builder: (context, state) {
-                if (!_initialized || (state.status.isLoading && state.messages.isEmpty)) {
+                if (!_initialized ||
+                    (state.status.isLoading && state.messages.isEmpty)) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.psychology, size: 64, color: uiColors.accentColor.withValues(alpha: 0.4)),
-                        const SizedBox(height: 20),
+                        // Dimension: the oversized empty-state glyph. All of
+                        // MoL's 48/64px state glyphs were unified on `inkFaint`
+                        // at M4 — at this size a semantic hue is a decorative
+                        // wash, and the headline below names the state.
+                        Icon(
+                          Icons.psychology,
+                          size: 64,
+                          color: colors.inkFaint,
+                        ),
+                        SizedBox(height: space.l),
                         Text(
                           'დამხმარე კონსულტაცია',
-                          style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor),
+                          style: type.titleM.copyWith(color: colors.ink),
                         ),
-                        const SizedBox(height: 8),
+                        SizedBox(height: space.s),
                         Text(
                           'კავშირი მყარდება...',
-                          style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
+                          style: type.body.copyWith(color: colors.inkMute),
                         ),
-                        const SizedBox(height: 16),
-                        SizedBox(
+                        SizedBox(height: space.l),
+                        const SizedBox(
+                          // Dimension: the in-flow spinner's own footprint.
                           width: 24,
                           height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: uiColors.accentColor),
+                          child: _Spinner(),
                         ),
                       ],
                     ),
@@ -246,30 +296,38 @@ class _CaseChatSectionState extends State<CaseChatSection> {
                 if (state.status.isFailed && state.messages.isEmpty) {
                   return Center(
                     child: Padding(
-                      padding: const EdgeInsets.all(32),
+                      padding: EdgeInsets.all(space.xxl),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.cloud_off, size: 64, color: uiColors.errorColor.withValues(alpha: 0.5)),
-                          const SizedBox(height: 20),
+                          // Same M4 rule as above: the 64px failure glyph is
+                          // `inkFaint`, not `destructive`. The screen's red
+                          // voice belongs to the error BUBBLES and the pending
+                          // confirmation card, both of which are real markers.
+                          Icon(
+                            Icons.cloud_off,
+                            size: 64,
+                            color: colors.inkFaint,
+                          ),
+                          SizedBox(height: space.l),
                           Text(
                             'კავშირი ვერ მოხერხდა',
-                            style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor),
+                            style: type.titleM.copyWith(color: colors.ink),
                           ),
-                          const SizedBox(height: 8),
+                          SizedBox(height: space.s),
                           Text(
                             _failureMessageKa(state.failureType),
-                            style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
+                            style: type.body.copyWith(color: colors.inkMute),
                             textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 24),
+                          SizedBox(height: space.xl),
                           ElevatedButton.icon(
                             onPressed: _initConversation,
                             icon: const Icon(Icons.refresh, size: 18),
                             label: const Text('ხელახლა ცდა'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: uiColors.accentColor,
-                              foregroundColor: uiColors.backgroundPrimaryColor,
+                              backgroundColor: colors.actionPrimaryBg,
+                              foregroundColor: colors.actionPrimaryFg,
                             ),
                           ),
                         ],
@@ -283,16 +341,20 @@ class _CaseChatSectionState extends State<CaseChatSection> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.psychology, size: 64, color: uiColors.accentColor.withValues(alpha: 0.4)),
-                        const SizedBox(height: 20),
+                        Icon(
+                          Icons.psychology,
+                          size: 64,
+                          color: colors.inkFaint,
+                        ),
+                        SizedBox(height: space.l),
                         Text(
                           'დამხმარე კონსულტაცია',
-                          style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor),
+                          style: type.titleM.copyWith(color: colors.ink),
                         ),
-                        const SizedBox(height: 8),
+                        SizedBox(height: space.s),
                         Text(
                           'აღწერეთ თქვენი სიტუაცია და დამხმარე დაგისვამთ\nდამაზუსტებელ კითხვებს.',
-                          style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
+                          style: type.body.copyWith(color: colors.inkMute),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -302,38 +364,49 @@ class _CaseChatSectionState extends State<CaseChatSection> {
 
                 return ListView.builder(
                   controller: _scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: space.l,
+                    vertical: space.m,
+                  ),
                   itemCount:
                       state.messages.length +
                       (state.isSending ? 1 : 0) +
-                      (state.caseAnalysisReady && !state.isBuildingCase ? 1 : 0),
+                      (state.caseAnalysisReady && !state.isBuildingCase
+                          ? 1
+                          : 0),
                   itemBuilder: (context, index) {
                     // Typing indicator
                     if (index == state.messages.length && state.isSending) {
-                      return _TypingIndicator(uiColors: uiColors, uiTextStyles: uiTextStyles);
+                      return const _TypingIndicator();
                     }
 
                     // Case analysis ready CTA
-                    if (index == state.messages.length + (state.isSending ? 1 : 0) &&
+                    if (index ==
+                            state.messages.length + (state.isSending ? 1 : 0) &&
                         state.caseAnalysisReady &&
                         !state.isBuildingCase) {
-                      final caseData = context.read<CaseDetailCubit>().state.caseData;
-                      final hasBuiltCase = caseData != null &&
-                          (caseData.serverCaseFileId != null || caseData.facts.any((f) => f.isAiGenerated));
+                      final caseData = context
+                          .read<CaseDetailCubit>()
+                          .state
+                          .caseData;
+                      final hasBuiltCase =
+                          caseData != null &&
+                          (caseData.serverCaseFileId != null ||
+                              caseData.facts.any((f) => f.isAiGenerated));
 
                       return _BuildCaseCta(
-                        uiColors: uiColors,
-                        uiTextStyles: uiTextStyles,
                         onBuild: _buildCase,
                         isBuilding: state.isBuildingCase,
                         isRegenerate: hasBuiltCase,
                       );
                     }
 
-                    if (index >= state.messages.length) return const SizedBox.shrink();
+                    if (index >= state.messages.length) {
+                      return const SizedBox.shrink();
+                    }
 
                     final msg = state.messages[index];
-                    return _MessageBubble(message: msg, uiColors: uiColors, uiTextStyles: uiTextStyles);
+                    return _MessageBubble(message: msg);
                   },
                 );
               },
@@ -342,24 +415,36 @@ class _CaseChatSectionState extends State<CaseChatSection> {
 
           // Building indicator
           BlocBuilder<ConsultationCubit, ConsultationState>(
-            buildWhen: (prev, curr) => prev.isBuildingCase != curr.isBuildingCase,
+            buildWhen: (prev, curr) =>
+                prev.isBuildingCase != curr.isBuildingCase,
             builder: (context, state) {
               if (!state.isBuildingCase) return const SizedBox.shrink();
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                color: uiColors.accentColor.withValues(alpha: 0.1),
+                padding: EdgeInsets.symmetric(
+                  horizontal: space.l,
+                  vertical: space.s,
+                ),
+                // The fork painted this strip with a bare `accentColor` at
+                // alpha 0.1. It is the top rung of the docked stack, so it
+                // takes `surface` and the `line` rule that separates the dock
+                // from the scrolling list (USING §2.4 — no alpha tints).
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  border: Border(top: BorderSide(color: colors.line)),
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    SizedBox(
+                    const SizedBox(
+                      // Dimension: the inline spinner's own footprint.
                       width: 16,
                       height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: uiColors.accentColor),
+                      child: _Spinner(),
                     ),
-                    const SizedBox(width: 10),
+                    SizedBox(width: space.s),
                     Text(
                       'საქმის ანალიზი მიმდინარეობს...',
-                      style: uiTextStyles.labelBold12.copyWith(color: uiColors.accentColor),
+                      style: type.control.copyWith(color: colors.ink),
                     ),
                   ],
                 ),
@@ -369,19 +454,22 @@ class _CaseChatSectionState extends State<CaseChatSection> {
 
           // Pending confirmations
           BlocBuilder<ConsultationCubit, ConsultationState>(
-            buildWhen: (prev, curr) => prev.pendingConfirmations != curr.pendingConfirmations,
+            buildWhen: (prev, curr) =>
+                prev.pendingConfirmations != curr.pendingConfirmations,
             builder: (context, state) {
-              if (state.pendingConfirmations.isEmpty) return const SizedBox.shrink();
+              if (state.pendingConfirmations.isEmpty) {
+                return const SizedBox.shrink();
+              }
               return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: EdgeInsets.symmetric(horizontal: space.l),
                 child: Column(
                   children: state.pendingConfirmations.map((pending) {
                     return _PendingConfirmationCard(
-                      uiColors: uiColors,
-                      uiTextStyles: uiTextStyles,
                       data: pending,
-                      onConfirm: () => _cubit.confirmToolAction(pending.confirmationId!),
-                      onReject: () => _cubit.rejectToolAction(pending.confirmationId!),
+                      onConfirm: () =>
+                          _cubit.confirmToolAction(pending.confirmationId!),
+                      onReject: () =>
+                          _cubit.rejectToolAction(pending.confirmationId!),
                     );
                   }).toList(),
                 ),
@@ -389,55 +477,86 @@ class _CaseChatSectionState extends State<CaseChatSection> {
             },
           ),
 
-          // Input bar
+          // Input bar — M6b's docked composer, verbatim.
+          //
+          // The fork wrapped the whole row (button + field + send disc) in a
+          // 24px-radius pill Container that faked a fill, a border and a
+          // radius, and then had to switch the TextField's OWN decoration off
+          // (`border: InputBorder.none`, a local `hintStyle`, a local
+          // `contentPadding`). RUN_BRIEF §4 forbids re-declaring field
+          // decoration locally, so the pill is gone: the bar is now `surface`
+          // with a `line` top rule, and the field opts INTO M1's
+          // `inputDecorationTheme` (built from `FuzzzyFormStyles`) exactly as
+          // `consultation_page._buildInputBar` does.
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color: uiColors.backgroundSecondaryColor,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: uiColors.secondaryTextColor.withValues(alpha: 0.15)),
-              ),
-              child: Row(
-                children: [
-                  BlocBuilder<ConsultationCubit, ConsultationState>(
-                    builder: (builderContext, state) {
-                      return IconButton(
-                        icon: Icon(Icons.auto_awesome, color: uiColors.accentColor),
+            padding: EdgeInsets.fromLTRB(space.s, space.m, space.s, space.m),
+            decoration: BoxDecoration(
+              color: colors.surface,
+              border: Border(top: BorderSide(color: colors.line)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                BlocBuilder<ConsultationCubit, ConsultationState>(
+                  builder: (builderContext, state) {
+                    return Padding(
+                      padding: EdgeInsets.only(bottom: space.xs),
+                      child: IconButton(
+                        icon: Icon(
+                          Icons.auto_awesome,
+                          color: state.isBuildingCase
+                              ? colors.inkFaint
+                              : colors.ink,
+                          // Dimension: matches the composer glyph in the
+                          // consultation composer.
+                          size: 22,
+                        ),
                         tooltip: 'საქმის შევსება',
                         onPressed: state.isBuildingCase ? null : _buildCase,
-                      );
-                    },
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    );
+                  },
+                ),
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    style: type.body.copyWith(color: colors.fieldText),
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) => _send(),
+                    decoration: const InputDecoration(
+                      hintText: 'აღწერეთ სიტუაცია...',
+                    ),
                   ),
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor),
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _send(),
-                      decoration: InputDecoration(
-                        hintText: 'აღწერეთ სიტუაცია...',
-                        hintStyle: uiTextStyles.body14.copyWith(
-                          color: uiColors.secondaryTextColor.withValues(alpha: 0.5),
+                ),
+                SizedBox(width: space.s),
+                Padding(
+                  padding: EdgeInsets.only(bottom: space.xs),
+                  child: FuzzzyHitTarget(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _send,
+                      child: Container(
+                        // Dimension: the send affordance's own footprint. The
+                        // 44×44 touch minimum is met by FuzzzyHitTarget
+                        // WITHOUT growing the painted disc (M6b §D).
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: colors.actionPrimaryBg,
+                          borderRadius: BorderRadius.circular(radius.circle),
                         ),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Icon(
+                          Icons.arrow_upward,
+                          color: colors.actionPrimaryFg,
+                          // Dimension: the glyph inside the 40px disc.
+                          size: 20,
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: _send,
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(color: uiColors.accentColor, shape: BoxShape.circle),
-                      child: Icon(Icons.arrow_upward, color: uiColors.backgroundPrimaryColor, size: 20),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],
@@ -446,17 +565,32 @@ class _CaseChatSectionState extends State<CaseChatSection> {
   }
 }
 
+/// The in-flow progress spinner, on the content ink.
+///
+/// MAPPING §2.2 routes every `CircularProgressIndicator.color` to `ink` — a
+/// spinner is content, not an action fill. Extracted so the three call sites
+/// in this file cannot drift apart, and so the `strokeWidth` is documented
+/// once rather than three times.
+class _Spinner extends StatelessWidget {
+  const _Spinner();
+
+  @override
+  Widget build(BuildContext context) {
+    // Dimension: a 2px stroke is what reads at 16–24px. Not a `space` rung.
+    return CircularProgressIndicator(
+      strokeWidth: 2,
+      color: context.fuzzzyColors.ink,
+    );
+  }
+}
+
 /// CTA button shown when AI has gathered enough info.
 class _BuildCaseCta extends StatefulWidget {
   const _BuildCaseCta({
-    required this.uiColors,
-    required this.uiTextStyles,
     required this.onBuild,
     required this.isBuilding,
     this.isRegenerate = false,
   });
-  final UiColors uiColors;
-  final UiTextStyles uiTextStyles;
   final VoidCallback onBuild;
   final bool isBuilding;
   final bool isRegenerate;
@@ -478,28 +612,41 @@ class _BuildCaseCtaState extends State<_BuildCaseCta> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
+
+    // Both states were a gold panel at alpha 0.1 inside a gold border at 0.3.
+    // M8's `_AiConsultationCard` call, repeated: a CTA card is a peer `surface`
+    // card whose call-to-action-ness is carried by the one-step-heavier
+    // `lineStrong` border and by the affordances inside it, never by a tint.
+    final boxDecoration = BoxDecoration(
+      color: colors.surface,
+      borderRadius: BorderRadius.circular(radius.l),
+      border: Border.all(color: colors.lineStrong),
+    );
+
     if (!_expanded) {
       return GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: () => setState(() => _expanded = true),
         child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 12),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: widget.uiColors.accentColor.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: widget.uiColors.accentColor.withValues(alpha: 0.3)),
-          ),
+          margin: EdgeInsets.symmetric(vertical: space.m),
+          padding: density.tile,
+          decoration: boxDecoration,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.auto_awesome, size: 16, color: widget.uiColors.accentColor),
-              const SizedBox(width: 8),
+              Icon(Icons.auto_awesome, size: 16, color: colors.ink),
+              SizedBox(width: space.s),
               Text(
                 'საქმის ხელახლა გენერაცია',
-                style: widget.uiTextStyles.bodyBold14.copyWith(color: widget.uiColors.accentColor),
+                style: type.titleS.copyWith(color: colors.ink),
               ),
-              const SizedBox(width: 4),
-              Icon(Icons.expand_more, size: 16, color: widget.uiColors.accentColor),
+              SizedBox(width: space.xs),
+              Icon(Icons.expand_more, size: 16, color: colors.ink),
             ],
           ),
         ),
@@ -507,48 +654,61 @@ class _BuildCaseCtaState extends State<_BuildCaseCta> {
     }
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: widget.uiColors.accentColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: widget.uiColors.accentColor.withValues(alpha: 0.3)),
-      ),
+      margin: EdgeInsets.symmetric(vertical: space.m),
+      padding: density.card,
+      decoration: boxDecoration,
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (widget.isRegenerate) const SizedBox(width: 24), // balance for expand_less icon
+              // Dimension: mirrors the expand_less glyph's own reach so the
+              // headline stays optically centred between them.
+              if (widget.isRegenerate) const SizedBox(width: 24),
               Expanded(
                 child: Text(
-                  widget.isRegenerate ? '🔄 განახლებული ინფორმაცია ხელმისაწვდომია' : '✅ დამხმარემ საკმარისი ინფორმაცია შეაგროვა',
-                  style: widget.uiTextStyles.bodyBold14.copyWith(color: widget.uiColors.accentColor),
+                  // The 🔄 / ✅ are emoji inside plain strings with no
+                  // `fontSize` literal — owed at M11, not this slice.
+                  widget.isRegenerate
+                      ? '🔄 განახლებული ინფორმაცია ხელმისაწვდომია'
+                      : '✅ დამხმარემ საკმარისი ინფორმაცია შეაგროვა',
+                  style: type.titleS.copyWith(color: colors.ink),
                   textAlign: TextAlign.center,
                 ),
               ),
               if (widget.isRegenerate)
-                GestureDetector(
-                  onTap: () => setState(() => _expanded = false),
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 4),
-                    child: Icon(Icons.expand_less, size: 20, color: widget.uiColors.accentColor),
+                // 44×44 of reach around a 20px glyph WITHOUT making the header
+                // row 44px tall (M6b §D).
+                FuzzzyHitTarget(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => setState(() => _expanded = false),
+                    child: Icon(Icons.expand_less, size: 20, color: colors.ink),
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: space.m),
           SizedBox(
             width: double.infinity,
+            // Dimension: the full-width CTA height, the same 48 M8 gave the
+            // add-fact CTA. Replaces the fork's vertical padding, which was
+            // the wrong axis for a button whose width is already forced.
+            height: 48,
             child: ElevatedButton.icon(
               onPressed: widget.isBuilding ? null : widget.onBuild,
               icon: const Icon(Icons.auto_awesome, size: 18),
-              label: Text(widget.isRegenerate ? '🔄 საქმის ხელახლა გენერაცია' : '📁 საქმის ანალიზის გენერაცია'),
+              label: Text(
+                widget.isRegenerate
+                    ? '🔄 საქმის ხელახლა გენერაცია'
+                    : '📁 საქმის ანალიზის გენერაცია',
+              ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: widget.uiColors.accentColor,
-                foregroundColor: widget.uiColors.backgroundPrimaryColor,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                backgroundColor: colors.actionPrimaryBg,
+                foregroundColor: colors.actionPrimaryFg,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(radius.m),
+                ),
               ),
             ),
           ),
@@ -560,104 +720,140 @@ class _BuildCaseCtaState extends State<_BuildCaseCta> {
 
 /// Single chat message bubble.
 class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({required this.message, required this.uiColors, required this.uiTextStyles});
+  const _MessageBubble({required this.message});
   final ChatMessage message;
-  final UiColors uiColors;
-  final UiTextStyles uiTextStyles;
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
     final isUser = message.isUser;
+
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(14),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
+        ),
+        margin: EdgeInsets.only(bottom: space.m),
+        padding: density.snug,
+        // `FuzzzyChatBubble`'s exact recipe (domain/fuzzzy_chat_bubble.dart:
+        // 68-77), identical to `consultation_page._buildMessageBubble`:
+        // sent = the actionPrimary pair with NO border, received = `surface`
+        // plus a `line` hairline, and the tail corner is `radius.s` on the
+        // sender's side with `radius.l` everywhere else. The fork's
+        // gold-tint-vs-grey-panel pair becomes inverted mono, a stronger
+        // distinction than the 0.15 alpha it replaces.
+        //
+        // The error bubble is the third rung: the sanctioned 0.12 lerp against
+        // `ground` (never alpha — USING §2.4) inside `destructiveLine`. NOT
+        // `errorBorder`, which is a form field's error border and nothing else
+        // (MAPPING §2.6 corrects MIGRATION_RECIPE §2.1 here).
         decoration: BoxDecoration(
           color: isUser
-              ? uiColors.accentColor.withValues(alpha: 0.15)
+              ? colors.actionPrimaryBg
               : message.isError
-              ? uiColors.errorColor.withValues(alpha: 0.1)
-              : uiColors.surfaceColor,
+              ? Color.lerp(colors.ground, colors.destructive, 0.12)
+              : colors.surface,
           borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: isUser ? const Radius.circular(16) : const Radius.circular(4),
-            bottomRight: isUser ? const Radius.circular(4) : const Radius.circular(16),
+            topLeft: Radius.circular(radius.l),
+            topRight: Radius.circular(radius.l),
+            bottomLeft: Radius.circular(isUser ? radius.l : radius.s),
+            bottomRight: Radius.circular(isUser ? radius.s : radius.l),
           ),
-          border: message.isError ? Border.all(color: uiColors.errorColor.withValues(alpha: 0.3)) : null,
+          border: isUser
+              ? null
+              : Border.all(
+                  color: message.isError ? colors.destructiveLine : colors.line,
+                ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (!isUser && message.trustLevel != null) ...[
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: _trustColor(message.trustLevel!).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  _trustLabel(message.trustLevel!),
-                  style: uiTextStyles.caption11.copyWith(
-                    color: _trustColor(message.trustLevel!),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
+              _TrustBadge(level: message.trustLevel!),
+              SizedBox(height: space.s),
             ],
             SelectableText(
-              message.isError && message.failureType != null ? _failureMessageKa(message.failureType) : message.displayText,
-              style: uiTextStyles.body14.copyWith(
-                color: message.isError ? uiColors.errorColor : uiColors.primaryTextColor,
-                height: 1.5,
+              message.isError && message.failureType != null
+                  ? _failureMessageKa(message.failureType)
+                  : message.displayText,
+              // `height: 1.5` deleted — line-height belongs to the type role
+              // (M6b). Sent text takes the inverted `actionPrimaryFg`.
+              style: type.body.copyWith(
+                color: message.isError
+                    ? colors.destructiveText
+                    : isUser
+                    ? colors.actionPrimaryFg
+                    : colors.ink,
               ),
             ),
             if (message.citations != null && message.citations!.isNotEmpty) ...[
-              const SizedBox(height: 12),
+              SizedBox(height: space.m),
               ...message.citations!.map(
                 (c) {
                   final hasUrl = c.url != null && c.url!.isNotEmpty;
                   final content = Container(
-                    margin: const EdgeInsets.only(bottom: 6),
-                    padding: const EdgeInsets.all(10),
+                    margin: EdgeInsets.only(bottom: space.xs),
+                    padding: density.chip,
+                    // Parent-aware surface rule: this chip sits INSIDE a
+                    // `surface` bubble, so its recessed rung is `ground`, not
+                    // another `surface`. The fork's gold gavel + gold label
+                    // go monochrome; the tappability is carried by the
+                    // underline, which survives. M11 swaps this whole chip for
+                    // `FuzzzyCitationChip`.
                     decoration: BoxDecoration(
-                      color: uiColors.backgroundPrimaryColor.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: uiColors.accentColor.withValues(alpha: 0.2)),
+                      color: colors.ground,
+                      borderRadius: BorderRadius.circular(radius.s),
+                      border: Border.all(color: colors.line),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.gavel, size: 12, color: uiColors.accentColor),
-                        const SizedBox(width: 6),
+                        Icon(Icons.gavel, size: 12, color: colors.ink),
+                        SizedBox(width: space.xs),
                         Expanded(
                           child: Text(
                             c.articleTitle,
-                            style: uiTextStyles.labelBold12.copyWith(
-                              color: uiColors.accentColor,
-                              decoration: hasUrl ? TextDecoration.underline : null,
+                            style: type.bodyS.copyWith(
+                              color: colors.ink,
+                              decoration: hasUrl
+                                  ? TextDecoration.underline
+                                  : null,
+                              // Without this the rule is drawn in the
+                              // INHERITED colour, which after the role swap is
+                              // not always the text's (M8 judgement 1).
+                              decorationColor: hasUrl ? colors.ink : null,
                             ),
                           ),
                         ),
                         if (hasUrl) ...[
-                          const SizedBox(width: 6),
-                          Icon(Icons.open_in_new, size: 12, color: uiColors.accentColor),
-                        ]
+                          SizedBox(width: space.xs),
+                          Icon(
+                            Icons.open_in_new,
+                            size: 12,
+                            color: colors.inkMute,
+                          ),
+                        ],
                       ],
                     ),
                   );
 
                   if (hasUrl) {
                     return GestureDetector(
+                      behavior: HitTestBehavior.opaque,
                       onTap: () async {
                         final uri = Uri.parse(c.url!);
                         if (await canLaunchUrl(uri)) {
                           await launchUrl(uri);
                         }
                       },
-                      child: MouseRegion(cursor: SystemMouseCursors.click, child: content),
+                      child: MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: content,
+                      ),
                     );
                   }
                   return content;
@@ -669,52 +865,131 @@ class _MessageBubble extends StatelessWidget {
       ),
     );
   }
+}
 
-  Color _trustColor(String level) => switch (level) {
-    'verified' => const Color(0xFF2ECC71),
-    'interpretation' => const Color(0xFFF39C12),
-    _ => const Color(0xFF95A5A6),
-  };
+/// The AI answer's trust marker — `FuzzzyStatusChip`'s recipe, app-side.
+///
+/// `FuzzzyStatusChip` itself could NOT be used verbatim: its label takes
+/// `fuzzzyTextStyles.label`, the uppercase mono eyebrow role, and these three
+/// labels are Georgian — a family with no Georgian block and tracking that is
+/// wrong for Mkhedruli (MAPPING §3 judgement 3). So this is the kit's own
+/// recipe rebuilt on the roles with a Georgian-capable type role
+/// (`fuzzzy_status_chip.dart:80-98`): NO fill, a 1px
+/// `Color.lerp(ground, role, 0.40)` border, `density.chip`, `radius.s`, an 8px
+/// leading disc in the role, and the label in the role's own colour.
+///
+/// The three levels map exactly as `harvest/mol.md` §1 specifies:
+/// verified → `success` · interpretation → `warning` · general → `inkMute`
+/// (`FuzzzyStatusKind.neutral`). That is also what MoL's own never-called
+/// `verifiedColor` / `interpretationColor` / `guidanceColor` fields meant.
+class _TrustBadge extends StatelessWidget {
+  const _TrustBadge({required this.level});
+  final String level;
 
-  String _trustLabel(String level) => switch (level) {
-    'verified' => '✓ დადასტურებული',
-    'interpretation' => '◐ ინტერპრეტაცია',
-    _ => '○ ზოგადი მითითება',
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
+
+    final role = switch (level) {
+      'verified' => colors.success,
+      'interpretation' => colors.warning,
+      _ => colors.inkMute,
+    };
+    // `neutral` draws a plain grey outline decoupled from its dot; every other
+    // kind colour-mixes its own role into the border. Kit behaviour, copied.
+    final border = level == 'verified' || level == 'interpretation'
+        ? Color.lerp(colors.ground, role, 0.40)!
+        : Color.lerp(colors.ground, colors.lineStrong, 0.40)!;
+
+    return Container(
+      padding: density.chip,
+      decoration: BoxDecoration(
+        border: Border.all(color: border),
+        borderRadius: BorderRadius.circular(radius.s),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            // Dimension: §4.4's ONE sanctioned status-dot diameter. It
+            // replaces the ✓ / ◐ / ○ glyphs the fork prefixed to each label —
+            // the dot IS what those stood for, and M7/M8 already reduced this
+            // app's other taxonomies to the same disc.
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: role,
+              borderRadius: BorderRadius.circular(radius.circle),
+            ),
+          ),
+          SizedBox(width: space.s),
+          Text(
+            _trustLabel(level),
+            // caption11 + w600 → `control`, the w600 role (M6 rule). The
+            // explicit `fontWeight: w600` the fork bolted on is deleted: weight
+            // belongs to the type role.
+            style: type.control.copyWith(color: role),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _trustLabel(String level) => switch (level) {
+    'verified' => 'დადასტურებული',
+    'interpretation' => 'ინტერპრეტაცია',
+    _ => 'ზოგადი მითითება',
   };
 }
 
 /// Typing indicator shown while AI is responding.
 class _TypingIndicator extends StatelessWidget {
-  const _TypingIndicator({required this.uiColors, required this.uiTextStyles});
-  final UiColors uiColors;
-  final UiTextStyles uiTextStyles;
+  const _TypingIndicator();
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
+
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        margin: EdgeInsets.only(bottom: space.m),
+        padding: density.snug,
         decoration: BoxDecoration(
-          color: uiColors.surfaceColor,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(16),
-            topRight: Radius.circular(16),
-            bottomRight: Radius.circular(16),
-            bottomLeft: Radius.circular(4),
+          // Same box as a received bubble — it IS one, still filling. It also
+          // GAINS the `line` hairline the fork never drew, so it does not
+          // float unbounded on `ground`.
+          color: colors.surface,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(radius.l),
+            topRight: Radius.circular(radius.l),
+            bottomRight: Radius.circular(radius.l),
+            bottomLeft: Radius.circular(radius.s),
           ),
+          border: Border.all(color: colors.line),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
+            const SizedBox(
+              // Dimension: the inline spinner's own footprint.
               width: 16,
               height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2, color: uiColors.accentColor),
+              child: _Spinner(),
             ),
-            const SizedBox(width: 10),
-            Text('დამხმარე ფიქრობს...', style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor)),
+            SizedBox(width: space.s),
+            Text(
+              'დამხმარე ფიქრობს...',
+              style: type.body.copyWith(color: colors.inkMute),
+            ),
           ],
         ),
       ),
@@ -723,75 +998,105 @@ class _TypingIndicator extends StatelessWidget {
 }
 
 String _failureMessageKa(ConsultationFailureType? type) => switch (type) {
-  ConsultationFailureType.network => 'სერვერთან დაკავშირება ვერ მოხერხდა.\nშეამოწმეთ ინტერნეტ კავშირი.',
-  ConsultationFailureType.unauthorized => 'სესია ვადაგასულია.\nგთხოვთ ხელახლა შეხვიდეთ.',
-  ConsultationFailureType.noCredits => 'კრედიტები ამოიწურა.\nშეიძინეთ დამატებითი.',
-  ConsultationFailureType.rateLimited => 'მოთხოვნების ლიმიტი ამოიწურა.\nსცადეთ ცოტა მოგვიანებით.',
+  ConsultationFailureType.network =>
+    'სერვერთან დაკავშირება ვერ მოხერხდა.\nშეამოწმეთ ინტერნეტ კავშირი.',
+  ConsultationFailureType.unauthorized =>
+    'სესია ვადაგასულია.\nგთხოვთ ხელახლა შეხვიდეთ.',
+  ConsultationFailureType.noCredits =>
+    'კრედიტები ამოიწურა.\nშეიძინეთ დამატებითი.',
+  ConsultationFailureType.rateLimited =>
+    'მოთხოვნების ლიმიტი ამოიწურა.\nსცადეთ ცოტა მოგვიანებით.',
   ConsultationFailureType.notFound => 'მოთხოვნილი რესურსი ვერ მოიძებნა.',
-  ConsultationFailureType.serverError => 'სერვერის შეცდომა.\nგთხოვთ ცოტა მოგვიანებით სცადოთ.',
-  ConsultationFailureType.unknown || null => 'უცნობი შეცდომა მოხდა.\nხელახლა სცადეთ.',
+  ConsultationFailureType.serverError =>
+    'სერვერის შეცდომა.\nგთხოვთ ცოტა მოგვიანებით სცადოთ.',
+  ConsultationFailureType.unknown ||
+  null => 'უცნობი შეცდომა მოხდა.\nხელახლა სცადეთ.',
 };
 
 class _PendingConfirmationCard extends StatelessWidget {
   const _PendingConfirmationCard({
-    required this.uiColors,
-    required this.uiTextStyles,
     required this.data,
     required this.onConfirm,
     required this.onReject,
   });
 
-  final UiColors uiColors;
-  final UiTextStyles uiTextStyles;
   final ToolResultData data;
   final VoidCallback onConfirm;
   final VoidCallback onReject;
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
+      margin: EdgeInsets.only(bottom: space.s),
+      padding: density.tile,
+      // This card is the gate in front of a mutating tool call (delete_fact,
+      // delete_risk, …), so `destructive` is the honest voice and the fork's
+      // `errorColor` maps straight through (MAPPING §2.6). Alpha 0.1 → the
+      // sanctioned 0.12 lerp against `ground`; the 0.3 border → `destructiveLine`.
       decoration: BoxDecoration(
-        color: uiColors.errorColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: uiColors.errorColor.withValues(alpha: 0.3)),
+        color: Color.lerp(colors.ground, colors.destructive, 0.12),
+        borderRadius: BorderRadius.circular(radius.m),
+        border: Border.all(color: colors.destructiveLine),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.warning_amber_rounded, size: 20, color: uiColors.errorColor),
-              const SizedBox(width: 8),
+              Icon(
+                Icons.warning_amber_rounded,
+                size: 20,
+                color: colors.destructiveText,
+              ),
+              SizedBox(width: space.s),
               Expanded(
                 child: Text(
                   'დასადასტურებელი მოქმედება: ${_toolNameKa(data.toolName)}',
-                  style: uiTextStyles.labelBold12.copyWith(color: uiColors.errorColor),
+                  style: type.control.copyWith(color: colors.destructiveText),
                 ),
               ),
             ],
           ),
           if (data.description != null && data.description!.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(data.description!, style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor)),
+            SizedBox(height: space.s),
+            Text(
+              data.description!,
+              style: type.body.copyWith(color: colors.ink),
+            ),
           ],
-          const SizedBox(height: 12),
+          SizedBox(height: space.m),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               TextButton(
                 onPressed: onReject,
-                child: Text('გაუქმება', style: uiTextStyles.bodyBold14.copyWith(color: uiColors.secondaryTextColor)),
+                // A button label is the `control` role, not `titleS`: the fork
+                // used `bodyBold14` because it had no button-label style.
+                child: Text(
+                  'გაუქმება',
+                  style: type.control.copyWith(color: colors.inkMute),
+                ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: space.s),
               ElevatedButton(
                 onPressed: onConfirm,
+                // The one sanctioned destructive FILL on this screen (USING §6
+                // duty 4 — a commit). `onRed` is the foreground that belongs on
+                // it; the fork used the page colour, which only happened to be
+                // legible.
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: uiColors.errorColor,
-                  foregroundColor: uiColors.backgroundPrimaryColor,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  backgroundColor: colors.destructive,
+                  foregroundColor: colors.onRed,
+                  padding: density.tile,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(radius.m),
+                  ),
                 ),
                 child: const Text('დადასტურება'),
               ),
