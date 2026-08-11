@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:themasteroflaw/src/core/core.dart';
-import 'package:themasteroflaw/src/features/laws/laws.dart';
+import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
+import 'package:themasteroflaw/src/src.dart';
 
 /// Shows the structure of a single legal code (chapters + articles).
 class LawCodeDetailPage extends StatelessWidget {
@@ -11,17 +11,10 @@ class LawCodeDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
-
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          code.name,
-          style: uiTextStyles.bodyBold16.copyWith(color: uiColors.primaryTextColor),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
+        // Title style comes from appBarTheme (titleM + ink), built from roles.
+        title: Text(code.name, maxLines: 1, overflow: TextOverflow.ellipsis),
       ),
       body: BlocBuilder<LawsCubit, LawsState>(
         buildWhen: (prev, curr) =>
@@ -41,8 +34,11 @@ class LawCodeDetailPage extends StatelessWidget {
   }
 
   Widget _buildStructure(BuildContext context, LawsState state) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
     final structure = state.selectedCodeStructure;
     if (structure == null) return const SizedBox.shrink();
 
@@ -56,11 +52,11 @@ class LawCodeDetailPage extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.article_outlined, size: 48, color: uiColors.secondaryTextColor),
-            const SizedBox(height: 16),
+            Icon(Icons.article_outlined, size: 48, color: colors.inkFaint),
+            SizedBox(height: space.l),
             Text(
               'სტრუქტურა ვერ მოიძებნა',
-              style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
+              style: type.body.copyWith(color: colors.inkMute),
             ),
           ],
         ),
@@ -78,9 +74,9 @@ class LawCodeDetailPage extends StatelessWidget {
     final articleKeys = articleGroups.keys.toList();
 
     return ListView.separated(
-      padding: const EdgeInsets.all(16),
+      padding: density.screen,
       itemCount: articleKeys.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 4),
+      separatorBuilder: (_, __) => SizedBox(height: space.xs),
       itemBuilder: (context, index) {
         final articleNumber = articleKeys[index];
         final chunks = articleGroups[articleNumber]!;
@@ -94,27 +90,28 @@ class LawCodeDetailPage extends StatelessWidget {
 
         return Container(
           decoration: BoxDecoration(
-            color: uiColors.backgroundSecondaryColor,
-            borderRadius: BorderRadius.circular(10),
+            color: colors.surface,
+            border: Border.all(color: colors.line),
+            borderRadius: BorderRadius.circular(radius.l),
           ),
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            contentPadding: density.tile,
             title: Text(
               title,
-              style: uiTextStyles.bodyBold14.copyWith(color: uiColors.primaryTextColor),
+              style: type.titleS.copyWith(color: colors.ink),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
             subtitle: Padding(
-              padding: const EdgeInsets.only(top: 4),
+              padding: EdgeInsets.only(top: space.xs),
               child: Text(
                 snippet,
-                style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor),
+                style: type.bodyS.copyWith(color: colors.inkMute),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            trailing: Icon(Icons.chevron_right, color: uiColors.secondaryTextColor, size: 20),
+            trailing: Icon(Icons.chevron_right, color: colors.inkMute, size: 20),
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
@@ -136,20 +133,21 @@ class LawCodeDetailPage extends StatelessWidget {
   }
 
   Widget _buildError(BuildContext context) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
 
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.error_outline, size: 48, color: uiColors.accentColor.withValues(alpha: 0.5)),
-          const SizedBox(height: 16),
+          Icon(Icons.error_outline, size: 48, color: colors.inkFaint),
+          SizedBox(height: space.l),
           Text(
             'ჩატვირთვა ვერ მოხერხდა',
-            style: uiTextStyles.bodyBold14.copyWith(color: uiColors.primaryTextColor),
+            style: type.titleS.copyWith(color: colors.ink),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: space.l),
           ElevatedButton(
             onPressed: () => context.read<LawsCubit>().loadCodeStructure(code.id),
             child: const Text('ხელახლა ცდა'),

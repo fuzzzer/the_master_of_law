@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:themasteroflaw/src/core/core.dart';
-import 'package:themasteroflaw/src/features/cases/cases.dart';
-import 'package:themasteroflaw/src/features/laws/laws.dart';
+import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
+import 'package:themasteroflaw/src/src.dart';
 
 class LawArticlePage extends StatelessWidget {
   final String articleId;
@@ -19,24 +18,21 @@ class LawArticlePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          articleTitle,
-          style: uiTextStyles.bodyBold16.copyWith(color: uiColors.primaryTextColor),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
+        // Title style comes from appBarTheme (titleM + ink), built from roles.
+        title: Text(articleTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           IconButton(
-            icon: Icon(Icons.bookmark_add_outlined, color: uiColors.accentColor, size: 22),
+            // Primary action: inherits appBarTheme.actionsIconTheme (ink).
+            icon: const Icon(Icons.bookmark_add_outlined, size: 22),
             onPressed: () => _showSaveToCaseSheet(context),
           ),
           IconButton(
-            icon: Icon(Icons.copy, color: uiColors.secondaryTextColor, size: 20),
+            // Secondary action, deliberately demoted one rung.
+            icon: Icon(Icons.copy, color: colors.inkMute, size: 20),
             onPressed: () => _copyContent(context),
           ),
         ],
@@ -59,51 +55,58 @@ class LawArticlePage extends StatelessWidget {
   }
 
   Widget _buildContent(BuildContext context, LawsState state) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
     final article = state.selectedArticle;
     if (article == null) return const SizedBox.shrink();
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: density.screen,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: density.chip,
             decoration: BoxDecoration(
-              color: uiColors.accentColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(6),
+              color: colors.surface,
+              border: Border.all(color: colors.line),
+              borderRadius: BorderRadius.circular(radius.s),
             ),
             child: Text(
               codeName.isNotEmpty ? codeName : article.codeName,
-              style: uiTextStyles.caption11.copyWith(color: uiColors.accentColor),
+              style: type.bodyS.copyWith(color: colors.ink),
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: space.m),
           Text(
             article.articleTitle.isNotEmpty ? article.articleTitle : articleTitle,
-            style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor),
+            style: type.titleM.copyWith(color: colors.ink),
           ),
           if (article.articleNumber.isNotEmpty) ...[
-            const SizedBox(height: 4),
+            SizedBox(height: space.xs),
             Text(
               'მუხლი ${article.articleNumber}',
-              style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
+              style: type.body.copyWith(color: colors.inkMute),
             ),
           ],
-          const SizedBox(height: 20),
+          SizedBox(height: space.xl),
           SelectableText(
             article.combinedContent,
-            style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor, height: 1.6),
+            // No `height:` override — the pack owns the type scale, and
+            // `body` already carries the long-form line height (1.55).
+            style: type.body.copyWith(color: colors.ink),
           ),
-          const SizedBox(height: 32),
+          SizedBox(height: space.xxl),
           if (article.chunks.isNotEmpty) ...[
-            Divider(color: uiColors.secondaryTextColor.withValues(alpha: 0.2)),
-            const SizedBox(height: 8),
+            // Divider colour comes from dividerTheme (line).
+            const Divider(),
+            SizedBox(height: space.s),
             Text(
               '${article.total} ფრაგმენტი',
-              style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor),
+              style: type.bodyS.copyWith(color: colors.inkMute),
             ),
           ],
         ],
@@ -116,14 +119,18 @@ class LawArticlePage extends StatelessWidget {
     if (article == null) return;
     Clipboard.setData(ClipboardData(text: article.combinedContent));
     ScaffoldMessenger.of(context).showSnackBar(
+      // Dwell time, not animation — see JOURNAL M3. Becomes FuzzzyToast at M11.
       const SnackBar(content: Text('ტექსტი დაკოპირდა'), duration: Duration(seconds: 2)),
     );
   }
 
   void _showSaveToCaseSheet(BuildContext context) {
     final article = context.read<LawsCubit>().state.selectedArticle;
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
 
     showModalBottomSheet<void>(
       context: context,
@@ -134,6 +141,8 @@ class LawArticlePage extends StatelessWidget {
         child: BlocBuilder<CasesCubit, CasesState>(
           builder: (sheetContext, casesState) {
             if (casesState.status == StateStatus.loading) {
+              // Dimension, not a gap: the sheet's reserved loading height, so
+              // it does not collapse and re-expand around the spinner.
               return const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()));
             }
 
@@ -141,30 +150,32 @@ class LawArticlePage extends StatelessWidget {
 
             return SafeArea(
               child: Padding(
-                padding: const EdgeInsets.all(20),
+                padding: density.dialog,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('შეინახეთ საქმეში',
-                        style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor)),
-                    const SizedBox(height: 16),
+                        style: type.titleM.copyWith(color: colors.ink)),
+                    SizedBox(height: space.l),
                     if (cases.isEmpty)
                       Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        padding: EdgeInsets.symmetric(vertical: space.xl),
                         child: Center(
                           child: Text('საქმეები ვერ მოიძებნა',
-                              style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor)),
+                              style: type.body.copyWith(color: colors.inkMute)),
                         ),
                       )
                     else
                       ...cases.map((caseData) => ListTile(
-                            leading: Icon(Icons.folder_special, color: uiColors.accentColor),
+                            leading: Icon(Icons.folder_special, color: colors.ink),
                             title: Text(caseData.title,
-                                style: uiTextStyles.bodyBold14.copyWith(color: uiColors.primaryTextColor)),
+                                style: type.titleS.copyWith(color: colors.ink)),
                             subtitle: Text('${caseData.linkedArticles.length} მუხლი შენახული',
-                                style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor)),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                style: type.bodyS.copyWith(color: colors.inkMute)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(radius.m),
+                            ),
                             onTap: () => _saveToCase(context, caseData, article),
                           )),
                   ],
@@ -202,6 +213,7 @@ class LawArticlePage extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('შენახულია: ${caseData.title}'),
+            // Dwell time, not animation — see JOURNAL M3.
             duration: const Duration(seconds: 2),
           ),
         );
@@ -210,17 +222,18 @@ class LawArticlePage extends StatelessWidget {
   }
 
   Widget _buildError(BuildContext context) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.error_outline, size: 48, color: uiColors.accentColor.withValues(alpha: 0.5)),
-          const SizedBox(height: 16),
+          Icon(Icons.error_outline, size: 48, color: colors.inkFaint),
+          SizedBox(height: space.l),
           Text('მუხლის ჩატვირთვა ვერ მოხერხდა',
-              style: uiTextStyles.bodyBold14.copyWith(color: uiColors.primaryTextColor)),
-          const SizedBox(height: 16),
+              style: type.titleS.copyWith(color: colors.ink)),
+          SizedBox(height: space.l),
           ElevatedButton(
             onPressed: () => context.read<LawsCubit>().loadArticle(articleId),
             child: const Text('ხელახლა ცდა'),

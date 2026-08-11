@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:themasteroflaw/src/core/core.dart';
-import 'package:themasteroflaw/src/features/laws/laws.dart';
+import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
+import 'package:themasteroflaw/src/src.dart';
 
 /// Laws browser home page — lists all legal codes with search.
 class LawsHomePage extends StatelessWidget {
@@ -29,18 +29,14 @@ class LawsHomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
-
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'კანონები',
-          style: uiTextStyles.headlineBold20.copyWith(color: uiColors.accentColor),
-        ),
+        // Title style comes from appBarTheme (titleM + ink), built from roles.
+        title: const Text('კანონები'),
         actions: [
           IconButton(
-            icon: Icon(Icons.search, color: uiColors.secondaryTextColor),
+            // Icon colour comes from appBarTheme.actionsIconTheme (ink).
+            icon: const Icon(Icons.search),
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
@@ -71,14 +67,18 @@ class LawsHomePage extends StatelessWidget {
   }
 
   Widget _buildCodesList(BuildContext context, LawsState state) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: density.screen,
       children: [
         // Search banner
         GestureDetector(
+          behavior: HitTestBehavior.opaque,
           onTap: () {
             Navigator.of(context).push(
               MaterialPageRoute<void>(
@@ -90,27 +90,27 @@ class LawsHomePage extends StatelessWidget {
             );
           },
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: density.card,
             decoration: BoxDecoration(
-              color: uiColors.accentColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: uiColors.accentColor.withValues(alpha: 0.2)),
+              color: colors.surface,
+              borderRadius: BorderRadius.circular(radius.l),
+              border: Border.all(color: colors.line),
             ),
             child: Row(
               children: [
-                Icon(Icons.search, color: uiColors.accentColor),
-                const SizedBox(width: 12),
+                Icon(Icons.search, color: colors.ink),
+                SizedBox(width: space.m),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'მოძებნეთ კანონი',
-                        style: uiTextStyles.bodyBold14.copyWith(color: uiColors.accentColor),
+                        style: type.titleS.copyWith(color: colors.ink),
                       ),
                       Text(
                         '${state.codes.fold<int>(0, (sum, c) => sum + c.articleCount)} სტატია ინდექსირებულია',
-                        style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor),
+                        style: type.bodyS.copyWith(color: colors.inkMute),
                       ),
                     ],
                   ),
@@ -119,31 +119,33 @@ class LawsHomePage extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 20),
-        Text(
-          'კოდექსები',
-          style: uiTextStyles.bodyBold16.copyWith(color: uiColors.primaryTextColor),
-        ),
-        const SizedBox(height: 12),
+        SizedBox(height: space.xl),
+        Text('კოდექსები', style: type.titleS.copyWith(color: colors.ink)),
+        SizedBox(height: space.m),
         ...state.codes.map((code) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: EdgeInsets.only(bottom: space.s),
               child: Container(
                 decoration: BoxDecoration(
-                  color: uiColors.backgroundSecondaryColor,
-                  borderRadius: BorderRadius.circular(12),
+                  color: colors.surface,
+                  border: Border.all(color: colors.line),
+                  borderRadius: BorderRadius.circular(radius.l),
                 ),
                 child: ListTile(
-                  leading: Text(_iconForCode(code.name), style: const TextStyle(fontSize: 28)),
+                  // The emoji IS text, so it takes a type role rather than a
+                  // literal fontSize (guard: literal-font-size is BLOCKING).
+                  leading: Text(_iconForCode(code.name), style: type.titleL),
                   title: Text(
                     code.name,
-                    style: uiTextStyles.bodyBold14.copyWith(color: uiColors.primaryTextColor),
+                    style: type.titleS.copyWith(color: colors.ink),
                   ),
                   subtitle: Text(
                     '${code.articleCount} მუხლი',
-                    style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor),
+                    style: type.bodyS.copyWith(color: colors.inkMute),
                   ),
-                  trailing: Icon(Icons.chevron_right, color: uiColors.secondaryTextColor),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  trailing: Icon(Icons.chevron_right, color: colors.inkMute),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(radius.l),
+                  ),
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
@@ -162,25 +164,26 @@ class LawsHomePage extends StatelessWidget {
   }
 
   Widget _buildErrorState(BuildContext context, LawsState state) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
 
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.error_outline, size: 48, color: uiColors.accentColor.withValues(alpha: 0.5)),
-          const SizedBox(height: 16),
+          Icon(Icons.error_outline, size: 48, color: colors.inkFaint),
+          SizedBox(height: space.l),
           Text(
             'მონაცემების ჩატვირთვა ვერ მოხერხდა',
-            style: uiTextStyles.bodyBold14.copyWith(color: uiColors.primaryTextColor),
+            style: type.titleS.copyWith(color: colors.ink),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: space.s),
           Text(
             'სცადეთ ხელახლა',
-            style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor),
+            style: type.bodyS.copyWith(color: colors.inkMute),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: space.l),
           ElevatedButton(
             onPressed: () => context.read<LawsCubit>().loadCodes(),
             child: const Text('ხელახლა ცდა'),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:themasteroflaw/src/core/core.dart';
-import 'package:themasteroflaw/src/features/laws/laws.dart';
+import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
+import 'package:themasteroflaw/src/src.dart';
 
 class LawSearchPage extends StatefulWidget {
   const LawSearchPage({super.key});
@@ -29,19 +29,27 @@ class _LawSearchPageState extends State<LawSearchPage> {
 
   @override
   Widget build(BuildContext context) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
 
     return Scaffold(
       appBar: AppBar(
+        // This field is app-bar CHROME, not a form field: it must opt OUT of
+        // inputDecorationTheme's box (fill + four border states + padding),
+        // which would otherwise draw a full outlined field inside the AppBar.
+        // Declaring absence is not "re-declaring a border" — hintStyle still
+        // comes from the theme.
         title: TextField(
           controller: _searchController,
           focusNode: _focusNode,
-          style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor),
-          decoration: InputDecoration(
+          style: type.body.copyWith(color: colors.fieldText),
+          decoration: const InputDecoration(
             hintText: 'მოძებნეთ კანონი...',
-            hintStyle: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
+            filled: false,
             border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            contentPadding: EdgeInsets.zero,
           ),
           onChanged: (query) => context.read<LawsCubit>().searchLawsDebounced(query),
         ),
@@ -51,7 +59,9 @@ class _LawSearchPageState extends State<LawSearchPage> {
             builder: (context, state) {
               if (state.searchQuery.isEmpty) return const SizedBox.shrink();
               return IconButton(
-                icon: Icon(Icons.clear, color: uiColors.secondaryTextColor),
+                // Inherits appBarTheme.actionsIconTheme (ink): clearing the
+                // query is the bar's only affordance, so it is not demoted.
+                icon: const Icon(Icons.clear),
                 onPressed: () {
                   _searchController.clear();
                   context.read<LawsCubit>().clearSearch();
@@ -83,24 +93,27 @@ class _LawSearchPageState extends State<LawSearchPage> {
   }
 
   Widget _buildHint(BuildContext context) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.search, size: 64, color: uiColors.secondaryTextColor.withValues(alpha: 0.3)),
-          const SizedBox(height: 16),
+          Icon(Icons.search, size: 64, color: colors.inkFaint),
+          SizedBox(height: space.l),
           Text('შეიყვანეთ მინიმუმ 2 სიმბოლო',
-              style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor)),
+              style: type.body.copyWith(color: colors.inkMute)),
         ],
       ),
     );
   }
 
   Widget _buildResults(BuildContext context, LawsState state) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final density = context.fuzzzyDensity;
     final results = state.searchResults;
 
     if (results == null || results.results.isEmpty) {
@@ -108,13 +121,13 @@ class _LawSearchPageState extends State<LawSearchPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off, size: 48, color: uiColors.secondaryTextColor.withValues(alpha: 0.4)),
-            const SizedBox(height: 16),
+            Icon(Icons.search_off, size: 48, color: colors.inkFaint),
+            SizedBox(height: space.l),
             Text('შედეგები ვერ მოიძებნა',
-                style: uiTextStyles.bodyBold14.copyWith(color: uiColors.primaryTextColor)),
-            const SizedBox(height: 8),
+                style: type.titleS.copyWith(color: colors.ink)),
+            SizedBox(height: space.s),
             Text('სცადეთ სხვა საძიებო სიტყვები',
-                style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor)),
+                style: type.bodyS.copyWith(color: colors.inkMute)),
           ],
         ),
       );
@@ -124,15 +137,16 @@ class _LawSearchPageState extends State<LawSearchPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          // Screen inset horizontally so the header aligns with the cards.
+          padding: density.screen.copyWith(top: space.m, bottom: space.s),
           child: Text('${results.total} შედეგი',
-              style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor)),
+              style: type.bodyS.copyWith(color: colors.inkMute)),
         ),
         Expanded(
           child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: density.screen.copyWith(top: 0, bottom: 0),
             itemCount: results.results.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            separatorBuilder: (_, __) => SizedBox(height: space.s),
             itemBuilder: (context, index) => _buildResultCard(context, results.results[index]),
           ),
         ),
@@ -141,8 +155,11 @@ class _LawSearchPageState extends State<LawSearchPage> {
   }
 
   Widget _buildResultCard(BuildContext context, LawChunk chunk) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
 
     final title = chunk.articleTitle.isNotEmpty
         ? chunk.articleTitle
@@ -153,37 +170,45 @@ class _LawSearchPageState extends State<LawSearchPage> {
 
     return Container(
       decoration: BoxDecoration(
-        color: uiColors.backgroundSecondaryColor,
-        borderRadius: BorderRadius.circular(10),
+        color: colors.surface,
+        border: Border.all(color: colors.line),
+        borderRadius: BorderRadius.circular(radius.l),
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        contentPadding: density.tile,
         title: Row(
           children: [
             Expanded(
               child: Text(title,
-                  style: uiTextStyles.bodyBold14.copyWith(color: uiColors.primaryTextColor),
+                  style: type.titleS.copyWith(color: colors.ink),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
             if (chunk.codeName.isNotEmpty) ...[
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: uiColors.accentColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(4),
+              SizedBox(width: space.s),
+              // Flexible, not fixed: the badge grew from a 9pt literal to the
+              // smallest Georgian-capable role, so it must be able to yield
+              // rather than squeeze the title to nothing.
+              Flexible(
+                child: Container(
+                  padding: density.chip,
+                  decoration: BoxDecoration(
+                    // Recessed well: this pill sits ON a surface card.
+                    color: colors.ground,
+                    border: Border.all(color: colors.line),
+                    borderRadius: BorderRadius.circular(radius.s),
+                  ),
+                  child: Text(chunk.codeName,
+                      style: type.bodyS.copyWith(color: colors.ink),
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
-                child: Text(chunk.codeName,
-                    style: uiTextStyles.caption11.copyWith(color: uiColors.accentColor, fontSize: 9),
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             ],
           ],
         ),
         subtitle: Padding(
-          padding: const EdgeInsets.only(top: 6),
+          padding: EdgeInsets.only(top: space.xs),
           child: Text(snippet,
-              style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor),
+              style: type.bodyS.copyWith(color: colors.inkMute),
               maxLines: 3, overflow: TextOverflow.ellipsis),
         ),
         onTap: () {
@@ -202,17 +227,18 @@ class _LawSearchPageState extends State<LawSearchPage> {
   }
 
   Widget _buildSearchError(BuildContext context) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.error_outline, size: 48, color: uiColors.accentColor.withValues(alpha: 0.5)),
-          const SizedBox(height: 16),
+          Icon(Icons.error_outline, size: 48, color: colors.inkFaint),
+          SizedBox(height: space.l),
           Text('ძიება ვერ მოხერხდა',
-              style: uiTextStyles.bodyBold14.copyWith(color: uiColors.primaryTextColor)),
-          const SizedBox(height: 16),
+              style: type.titleS.copyWith(color: colors.ink)),
+          SizedBox(height: space.l),
           ElevatedButton(
             onPressed: () => context.read<LawsCubit>().searchLawsDebounced(_searchController.text),
             child: const Text('ხელახლა ცდა'),
