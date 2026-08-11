@@ -415,9 +415,14 @@ class _ActionItemsCard extends StatelessWidget {
               // '📋' emoji → monochrome glyph (owner directive).
               Icon(Icons.checklist, size: 20, color: colors.inkMute),
               SizedBox(width: space.s),
-              Text(
-                'სამოქმედო გეგმა',
-                style: type.titleS.copyWith(color: colors.ink),
+              // M14d: same unbounded-growth class as T-0255 — a non-scaling
+              // 20 px glyph plus a heading that does scale, in a Row that
+              // constrained neither. Overflowed at textScaler 1.3 / 360 dp.
+              Expanded(
+                child: Text(
+                  'სამოქმედო გეგმა',
+                  style: type.titleS.copyWith(color: colors.ink),
+                ),
               ),
             ],
           ),

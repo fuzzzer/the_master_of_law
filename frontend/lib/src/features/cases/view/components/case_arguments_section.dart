@@ -383,11 +383,27 @@ class _ArgumentCard extends StatelessWidget {
               // "არგუმენტები" stat card and M11b gave the tab.
               Icon(Icons.balance, size: 20, color: colors.inkMute),
               SizedBox(width: space.s),
-              Text(
-                'არგუმენტი #$index',
-                style: type.titleS.copyWith(color: colors.ink),
+              // 🔴 T-0255 (M14d). This `Text` and the chip were both
+              // unconstrained, so both took their natural width and the row
+              // overflowed by 2.9 px at textScaler 1.3 / 360 dp — the
+              // unbounded-growth mode contract §3.1.13 predicts for this app.
+              //
+              // `Expanded` + a fixed gap, NOT `Spacer`. `Spacer` is itself a
+              // flex child, so keeping it here would split the free space
+              // 50/50 with the title and make it wrap at every width. With the
+              // title expanded, the chip is still pushed hard right — the
+              // Spacer's only job — and the title now wraps instead of
+              // overflowing. Deliberately NO `maxLines`/`ellipsis`: an
+              // ellipsis at this width would eat the argument's own index
+              // number, and truncating text is a defect in its own right
+              // (plan §4), not a fix for one.
+              Expanded(
+                child: Text(
+                  'არგუმენტი #$index',
+                  style: type.titleS.copyWith(color: colors.ink),
+                ),
               ),
-              const Spacer(),
+              SizedBox(width: space.s),
               AppStatusChip(
                 label: argument.strength.displayNameKa,
                 kind: _strengthKind(argument.strength),
@@ -449,9 +465,17 @@ class _ArgumentCard extends StatelessWidget {
                 // argument it attributes. Same call as M8's facts list.
                 Icon(Icons.psychology, size: 14, color: colors.inkFaint),
                 SizedBox(width: space.xs),
-                Text(
-                  'AI-ის მიერ გენერირებული',
-                  style: type.bodyS.copyWith(color: colors.inkFaint),
+                // M14d: same unbounded-growth class as T-0255 one card up.
+                // The 14 px icon does NOT scale with textScaler while the
+                // label does, so the row's fixed overhead stays put while its
+                // text grows. `Expanded` is the idiom `case_risks_section`'s
+                // mitigation row already uses two lines above its own copy of
+                // this bug.
+                Expanded(
+                  child: Text(
+                    'AI-ის მიერ გენერირებული',
+                    style: type.bodyS.copyWith(color: colors.inkFaint),
+                  ),
                 ),
               ],
             ),

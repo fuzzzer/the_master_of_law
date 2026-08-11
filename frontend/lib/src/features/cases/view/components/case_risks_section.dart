@@ -172,10 +172,16 @@ class CaseRisksSection extends StatelessWidget {
                                     color: colors.inkFaint,
                                   ),
                                   SizedBox(width: space.xs),
-                                  Text(
-                                    'AI-ის მიერ გენერირებული',
-                                    style: type.bodyS.copyWith(
-                                      color: colors.inkFaint,
+                                  // M14d: the same unbounded-growth class as
+                                  // T-0255. The mitigation row directly above
+                                  // already expands its text; this one did
+                                  // not, and overflowed at 360 dp.
+                                  Expanded(
+                                    child: Text(
+                                      'AI-ის მიერ გენერირებული',
+                                      style: type.bodyS.copyWith(
+                                        color: colors.inkFaint,
+                                      ),
                                     ),
                                   ),
                                 ],
