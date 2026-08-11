@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:themasteroflaw/src/src.dart';
+import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class UsefulContactsPage extends StatelessWidget {
@@ -8,8 +8,11 @@ class UsefulContactsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
 
     final contacts = [
       {
@@ -40,61 +43,62 @@ class UsefulContactsPage extends StatelessWidget {
     ];
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'სასარგებლო კონტაქტები',
-          style: uiTextStyles.bodyBold16.copyWith(color: uiColors.primaryTextColor),
-        ),
-      ),
+      // Title style comes from appBarTheme (titleM + ink), built from roles.
+      appBar: AppBar(title: const Text('სასარგებლო კონტაქტები')),
       body: ListView.separated(
-        padding: const EdgeInsets.all(16),
+        padding: density.screen,
         itemCount: contacts.length,
-        separatorBuilder: (context, index) => const SizedBox(height: 12),
+        separatorBuilder: (context, index) => SizedBox(height: space.m),
         itemBuilder: (context, index) {
           final contact = contacts[index];
           final phone = contact['phone']!;
           final dialNumber = phone.replaceAll(' ', '');
 
           return Container(
-            padding: const EdgeInsets.all(16),
+            padding: density.card,
             decoration: BoxDecoration(
-              color: uiColors.backgroundSecondaryColor,
-              borderRadius: BorderRadius.circular(12),
+              color: colors.surface,
+              border: Border.all(color: colors.line),
+              borderRadius: BorderRadius.circular(radius.l),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   contact['title']!,
-                  style: uiTextStyles.bodyBold16.copyWith(color: uiColors.primaryTextColor),
+                  style: type.titleS.copyWith(color: colors.ink),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: space.xs),
                 Text(
                   contact['subtitle']!,
-                  style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor),
+                  style: type.bodyS.copyWith(color: colors.inkMute),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: space.m),
                 GestureDetector(
+                  behavior: HitTestBehavior.opaque,
                   onTap: () => launchUrl(Uri(scheme: 'tel', path: dialNumber)),
                   onLongPress: () {
                     Clipboard.setData(ClipboardData(text: phone));
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('$phone დაკოპირებულია'),
+                        // Dwell time, not animation: the kit's longest motion
+                        // role is `pulse` at 1600ms. Becomes FuzzzyToast's own
+                        // dwell at M11 — see JOURNAL M3.
                         duration: const Duration(seconds: 2),
                       ),
                     );
                   },
                   child: Row(
                     children: [
-                      Icon(Icons.phone, size: 16, color: uiColors.accentColor),
-                      const SizedBox(width: 8),
+                      Icon(Icons.phone, size: 16, color: colors.ink),
+                      SizedBox(width: space.s),
                       Text(
                         phone,
-                        style: uiTextStyles.bodyBold14.copyWith(
-                          color: uiColors.accentColor,
+                        style: type.titleS.copyWith(
+                          color: colors.ink,
                           decoration: TextDecoration.underline,
-                          decorationColor: uiColors.accentColor,
+                          decorationColor: colors.ink,
                         ),
                       ),
                     ],

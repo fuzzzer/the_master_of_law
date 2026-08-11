@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:themasteroflaw/src/src.dart';
+import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 import 'legal_dictionary_data.dart';
 
 class LegalDictionaryPage extends StatefulWidget {
@@ -43,34 +43,27 @@ class _LegalDictionaryPageState extends State<LegalDictionaryPage> {
 
   @override
   Widget build(BuildContext context) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final density = context.fuzzzyDensity;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'იურიდიული ლექსიკონი',
-          style: uiTextStyles.bodyBold16.copyWith(color: uiColors.primaryTextColor),
-        ),
-      ),
+      // Title style comes from appBarTheme (titleM + ink), built from roles.
+      appBar: AppBar(title: const Text('იურიდიული ლექსიკონი')),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: density.screen,
             child: TextField(
               controller: _searchController,
-              style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor),
+              style: type.body.copyWith(color: colors.fieldText),
+              // fill, borders, contentPadding and hintStyle all come from
+              // inputDecorationTheme, which is built from the ten kit form
+              // colour roles. Nothing about the box is restated here.
               decoration: InputDecoration(
                 hintText: 'მოძებნეთ ტერმინი...',
-                hintStyle: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
-                prefixIcon: Icon(Icons.search, color: uiColors.secondaryTextColor),
-                filled: true,
-                fillColor: uiColors.backgroundSecondaryColor,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                prefixIcon: Icon(Icons.search, color: colors.inkMute),
               ),
             ),
           ),
@@ -79,28 +72,34 @@ class _LegalDictionaryPageState extends State<LegalDictionaryPage> {
                 ? Center(
                     child: Text(
                       'ტერმინი ვერ მოიძებნა',
-                      style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
+                      style: type.body.copyWith(color: colors.inkMute),
                     ),
                   )
                 : ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    // Same screen inset as the search field above it, so the
+                    // two columns align; tighter vertically because the list
+                    // already separates its own rows.
+                    padding: density.screen.copyWith(
+                      top: space.s,
+                      bottom: space.s,
+                    ),
                     itemCount: _filteredTerms.length,
-                    separatorBuilder: (context, index) => Divider(color: uiColors.backgroundSecondaryColor),
+                    separatorBuilder: (context, index) => const Divider(),
                     itemBuilder: (context, index) {
                       final term = _filteredTerms[index];
                       return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        padding: EdgeInsets.symmetric(vertical: space.s),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               term.term,
-                              style: uiTextStyles.bodyBold16.copyWith(color: uiColors.accentColor),
+                              style: type.titleS.copyWith(color: colors.ink),
                             ),
-                            const SizedBox(height: 4),
+                            SizedBox(height: space.xs),
                             Text(
                               term.definition,
-                              style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor),
+                              style: type.body.copyWith(color: colors.ink),
                             ),
                           ],
                         ),

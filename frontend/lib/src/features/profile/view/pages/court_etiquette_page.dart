@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:themasteroflaw/src/src.dart';
+import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 
 class CourtEtiquettePage extends StatelessWidget {
   const CourtEtiquettePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
 
     final rules = [
       'როდესაც მოსამართლე შემოდის სასამართლო დარბაზში, ყველა უნდა წამოდგეს.',
@@ -22,33 +25,29 @@ class CourtEtiquettePage extends StatelessWidget {
     ];
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'სასამართლო ეტიკეტი',
-          style: uiTextStyles.bodyBold16.copyWith(color: uiColors.primaryTextColor),
-        ),
-      ),
+      // Title style comes from appBarTheme (titleM + ink), built from roles.
+      appBar: AppBar(title: const Text('სასამართლო ეტიკეტი')),
       body: ListView.separated(
-        padding: const EdgeInsets.all(16),
+        padding: density.screen,
         itemCount: rules.length,
-        separatorBuilder: (context, index) => const SizedBox(height: 12),
+        separatorBuilder: (context, index) => SizedBox(height: space.m),
         itemBuilder: (context, index) {
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                margin: const EdgeInsets.only(top: 4, right: 12),
+                margin: EdgeInsets.only(top: space.xs, right: space.m),
                 width: 8,
                 height: 8,
                 decoration: BoxDecoration(
-                  color: uiColors.accentColor,
-                  shape: BoxShape.circle,
+                  color: colors.ink,
+                  borderRadius: BorderRadius.circular(radius.circle),
                 ),
               ),
               Expanded(
                 child: Text(
                   rules[index],
-                  style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor),
+                  style: type.body.copyWith(color: colors.ink),
                 ),
               ),
             ],

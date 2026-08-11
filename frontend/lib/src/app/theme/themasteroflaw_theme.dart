@@ -127,6 +127,15 @@ abstract final class ThemasteroflawTheme {
 
   /// 14 stock `AppBar` sites. Flat on `ground`, ink foreground, no scroll
   /// elevation — the Ink surface has no shadow vocabulary.
+  ///
+  /// **`titleM`, not `titleL` (corrected at M3).** `MAPPING.md` §3 judgement 1
+  /// maps MoL's page headers to `titleM` on purpose: the app has no
+  /// display-scale text, its AppBar titles were 16–20pt in the fork (three of
+  /// the four in `features/profile` were `bodyBold16`), and every one of them
+  /// is a long Georgian string. `titleL` is 24pt — a 50% jump on the 16pt
+  /// titles, and the single row `MAPPING.md` flags as most likely to overflow
+  /// at `textScaler 1.3` on a 360dp screen. `titleM` (18pt) sits inside the
+  /// fork's own range and keeps the ratio to `titleS`/`body`.
   static AppBarTheme _appBar(FuzzzyColors c, FuzzzyTextStyles t) => AppBarTheme(
         backgroundColor: c.ground,
         foregroundColor: c.ink,
@@ -134,7 +143,7 @@ abstract final class ThemasteroflawTheme {
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
-        titleTextStyle: t.titleL.copyWith(color: c.ink),
+        titleTextStyle: t.titleM.copyWith(color: c.ink),
         iconTheme: IconThemeData(color: c.ink),
         actionsIconTheme: IconThemeData(color: c.ink),
       );
@@ -142,6 +151,14 @@ abstract final class ThemasteroflawTheme {
   /// 28 stock `Card` sites. Material 3's default card is an elevated, tinted,
   /// shadow-casting surface; Ink cards are a flat `surface` panel with a
   /// hairline `line` border.
+  ///
+  /// **`radius.l`, not `radius.m` (corrected at M3).** `FuzzzyCard`
+  /// (`containers/fuzzzy_card.dart:51-59`) and `USING.md` §5.1's copyable
+  /// screen both build the surface rung at `radius.l`. Matching it is what
+  /// makes a stock `Card` and a hand-rolled `surface` panel indistinguishable
+  /// from a `FuzzzyCard` — the same reasoning [_input] already applies to
+  /// fields. It is 1px in Ink and 8px in the stress pack, so it only shows up
+  /// where it matters: under a pack swap.
   static CardThemeData _card(FuzzzyColors c, FuzzzyRadius r) => CardThemeData(
         color: c.surface,
         surfaceTintColor: Colors.transparent,
@@ -149,7 +166,7 @@ abstract final class ThemasteroflawTheme {
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(r.m),
+          borderRadius: BorderRadius.circular(r.l),
           side: BorderSide(color: c.line),
         ),
       );
