@@ -93,7 +93,10 @@ class CaseOverviewSection extends StatelessWidget {
         if (caseData.actionItems.isNotEmpty) ...[
           SizedBox(height: space.l),
           _ActionItemsCard(
-            items: caseData.actionItems.where((i) => !i.isCompleted).take(3).toList(),
+            items: caseData.actionItems
+                .where((i) => !i.isCompleted)
+                .take(3)
+                .toList(),
           ),
         ],
 
@@ -115,7 +118,13 @@ class CaseOverviewSection extends StatelessWidget {
     final density = context.fuzzzyDensity;
 
     final deadlines =
-        caseData.timeline.where((e) => e.typeIndex == TimelineEventType.deadline.index && !e.isCompleted).toList()
+        caseData.timeline
+            .where(
+              (e) =>
+                  e.typeIndex == TimelineEventType.deadline.index &&
+                  !e.isCompleted,
+            )
+            .toList()
           ..sort((a, b) => a.date.compareTo(b.date));
 
     if (deadlines.isEmpty) return [];
@@ -147,20 +156,13 @@ class CaseOverviewSection extends StatelessWidget {
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: () => onTabSwitch(7),
-            child: Container(
+            // `FuzzzyCard(leadingRule:)` again, plus the `line` hairline the
+            // fork never drew on any of these cards. T-0254: the per-side
+            // `Border` + `borderRadius` this used to carry throws at paint.
+            child: AppRuleCard(
+              rule: rule,
+              borderRadius: radius.l,
               padding: density.panel,
-              decoration: BoxDecoration(
-                color: colors.surface,
-                borderRadius: BorderRadius.circular(radius.l),
-                // `FuzzzyCard(leadingRule:)` again, plus the `line` hairline
-                // the fork never drew on any of these cards.
-                border: Border(
-                  left: BorderSide(color: rule, width: 4),
-                  top: BorderSide(color: colors.line),
-                  right: BorderSide(color: colors.line),
-                  bottom: BorderSide(color: colors.line),
-                ),
-              ),
               child: Row(
                 children: [
                   Icon(Icons.timer, size: 20, color: voice),
@@ -169,7 +171,10 @@ class CaseOverviewSection extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(deadline.title, style: type.titleS.copyWith(color: colors.ink)),
+                        Text(
+                          deadline.title,
+                          style: type.titleS.copyWith(color: colors.ink),
+                        ),
                         Text(
                           days > 0
                               ? '$days დღე დარჩა'
@@ -248,7 +253,10 @@ class _StrengthCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('საქმის სიძლიერე', style: type.titleS.copyWith(color: colors.ink)),
+                Text(
+                  'საქმის სიძლიერე',
+                  style: type.titleS.copyWith(color: colors.ink),
+                ),
                 SizedBox(height: space.xs),
                 Text(
                   '${caseData.completenessPercent}% შევსებულია',
@@ -407,7 +415,10 @@ class _ActionItemsCard extends StatelessWidget {
               // '📋' emoji → monochrome glyph (owner directive).
               Icon(Icons.checklist, size: 20, color: colors.inkMute),
               SizedBox(width: space.s),
-              Text('სამოქმედო გეგმა', style: type.titleS.copyWith(color: colors.ink)),
+              Text(
+                'სამოქმედო გეგმა',
+                style: type.titleS.copyWith(color: colors.ink),
+              ),
             ],
           ),
           SizedBox(height: space.m),
@@ -417,7 +428,9 @@ class _ActionItemsCard extends StatelessWidget {
               child: Row(
                 children: [
                   Icon(
-                    item.isCompleted ? Icons.check_box : Icons.check_box_outline_blank,
+                    item.isCompleted
+                        ? Icons.check_box
+                        : Icons.check_box_outline_blank,
                     size: 20,
                     color: item.isCompleted ? colors.success : colors.inkMute,
                   ),
@@ -427,7 +440,9 @@ class _ActionItemsCard extends StatelessWidget {
                       item.task,
                       style: type.body.copyWith(
                         color: item.isCompleted ? colors.inkMute : colors.ink,
-                        decoration: item.isCompleted ? TextDecoration.lineThrough : null,
+                        decoration: item.isCompleted
+                            ? TextDecoration.lineThrough
+                            : null,
                         decorationColor: colors.inkMute,
                       ),
                     ),
@@ -481,9 +496,14 @@ class _AiConsultationCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('AI კონსულტაცია', style: type.titleS.copyWith(color: colors.ink)),
                   Text(
-                    conversationCount > 0 ? '$conversationCount კონსულტაცია' : 'დაიწყეთ პირველი კონსულტაცია',
+                    'AI კონსულტაცია',
+                    style: type.titleS.copyWith(color: colors.ink),
+                  ),
+                  Text(
+                    conversationCount > 0
+                        ? '$conversationCount კონსულტაცია'
+                        : 'დაიწყეთ პირველი კონსულტაცია',
                     style: type.bodyS.copyWith(color: colors.inkMute),
                   ),
                 ],

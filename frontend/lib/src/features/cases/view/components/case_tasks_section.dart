@@ -49,7 +49,8 @@ class CaseTasksSection extends StatelessWidget {
               count: data.actionItems.where((i) => !i.isCompleted).length,
             ),
             SizedBox(height: space.s),
-            if (data.actionItems.isEmpty) const _EmptyState(text: 'დავალებები ჯერ არ არის'),
+            if (data.actionItems.isEmpty)
+              const _EmptyState(text: 'დავალებები ჯერ არ არის'),
             ...data.actionItems.map(
               (item) => _ActionItemTile(
                 item: item,
@@ -72,7 +73,9 @@ class CaseTasksSection extends StatelessWidget {
               style: OutlinedButton.styleFrom(
                 foregroundColor: colors.ink,
                 side: BorderSide(color: colors.lineStrong),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius.m)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(radius.m),
+                ),
                 padding: density.snug,
                 textStyle: type.control,
               ),
@@ -100,7 +103,10 @@ class CaseTasksSection extends StatelessWidget {
             borderRadius: BorderRadius.circular(radius.l),
             side: BorderSide(color: colors.lineStrong),
           ),
-          title: Text('ახალი დავალება', style: type.titleS.copyWith(color: colors.ink)),
+          title: Text(
+            'ახალი დავალება',
+            style: type.titleS.copyWith(color: colors.ink),
+          ),
           content: TextField(
             controller: controller,
             autofocus: true,
@@ -112,7 +118,10 @@ class CaseTasksSection extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text('გაუქმება', style: type.control.copyWith(color: colors.inkMute)),
+              child: Text(
+                'გაუქმება',
+                style: type.control.copyWith(color: colors.inkMute),
+              ),
             ),
             TextButton(
               onPressed: () {
@@ -128,7 +137,10 @@ class CaseTasksSection extends StatelessWidget {
                 }
                 Navigator.pop(ctx);
               },
-              child: Text('დამატება', style: type.control.copyWith(color: colors.ink)),
+              child: Text(
+                'დამატება',
+                style: type.control.copyWith(color: colors.ink),
+              ),
             ),
           ],
         );
@@ -171,7 +183,10 @@ class _SectionHeader extends StatelessWidget {
               borderRadius: BorderRadius.circular(radius.s),
             ),
             // A bare integer is Latin-only, so it can take the mono `dataS`.
-            child: Text('$count', style: type.dataS.copyWith(color: colors.actionPrimaryFg)),
+            child: Text(
+              '$count',
+              style: type.dataS.copyWith(color: colors.actionPrimaryFg),
+            ),
           ),
       ],
     );
@@ -195,73 +210,77 @@ class _ClarificationTile extends StatelessWidget {
     final space = context.fuzzzySpace;
     final radius = context.fuzzzyRadius;
 
-    return Container(
-      margin: EdgeInsets.only(bottom: space.s),
-      padding: context.fuzzzyDensity.tile,
-      decoration: BoxDecoration(
-        // Both states are ONE box now. The fork gave the open state a
-        // warning-tinted panel and the resolved state a half-alpha panel —
-        // two alpha tints doing what a rule and a strikethrough already say.
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(radius.m),
-        // The open state keeps its `warning` voice, as a 3px left rule
-        // (FuzzzyBanner's shape); resolved drops back to the plain hairline.
-        border: Border(
-          left: BorderSide(color: item.isResolved ? colors.line : colors.warning, width: 3),
-          top: BorderSide(color: colors.line),
-          right: BorderSide(color: colors.line),
-          bottom: BorderSide(color: colors.line),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          FuzzzyHitTarget(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: onToggle,
-              child: Padding(
-                padding: EdgeInsets.only(top: space.xs),
-                child: Icon(
-                  item.isResolved ? Icons.check_circle : Icons.radio_button_unchecked,
-                  size: 22,
-                  color: item.isResolved ? colors.success : colors.warning,
+    // Both states are ONE box now. The fork gave the open state a
+    // warning-tinted panel and the resolved state a half-alpha panel — two
+    // alpha tints doing what a rule and a strikethrough already say.
+    //
+    // The open state keeps its `warning` voice, as a 3px left rule
+    // (FuzzzyBanner's shape); resolved drops back to the plain hairline.
+    // T-0254: as a per-side `Border` + `borderRadius` this threw at paint in
+    // the UNRESOLVED state only (resolved had one distinct visible colour and
+    // painted fine) — a state-dependent throw a resolved-only screenshot misses.
+    return Padding(
+      padding: EdgeInsets.only(bottom: space.s),
+      child: AppRuleCard(
+        rule: item.isResolved ? colors.line : colors.warning,
+        ruleWidth: 3,
+        borderRadius: radius.m,
+        padding: context.fuzzzyDensity.tile,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            FuzzzyHitTarget(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: onToggle,
+                child: Padding(
+                  padding: EdgeInsets.only(top: space.xs),
+                  child: Icon(
+                    item.isResolved
+                        ? Icons.check_circle
+                        : Icons.radio_button_unchecked,
+                    size: 22,
+                    color: item.isResolved ? colors.success : colors.warning,
+                  ),
                 ),
               ),
             ),
-          ),
-          SizedBox(width: space.m),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.question,
-                  style: type.body.copyWith(
-                    color: item.isResolved ? colors.inkMute : colors.ink,
-                    decoration: item.isResolved ? TextDecoration.lineThrough : null,
-                    decorationColor: colors.inkMute,
-                  ),
-                ),
-                if (item.resolution != null && item.resolution!.isNotEmpty) ...[
-                  SizedBox(height: space.xs),
+            SizedBox(width: space.m),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    '→ ${item.resolution}',
-                    style: type.bodyS.copyWith(color: colors.success),
+                    item.question,
+                    style: type.body.copyWith(
+                      color: item.isResolved ? colors.inkMute : colors.ink,
+                      decoration: item.isResolved
+                          ? TextDecoration.lineThrough
+                          : null,
+                      decorationColor: colors.inkMute,
+                    ),
                   ),
+                  if (item.resolution != null &&
+                      item.resolution!.isNotEmpty) ...[
+                    SizedBox(height: space.xs),
+                    Text(
+                      '→ ${item.resolution}',
+                      style: type.bodyS.copyWith(color: colors.success),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-          FuzzzyHitTarget(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: onDelete,
-              // Alpha 0.5 deleted: `inkFaint` IS the de-emphasised rung.
-              child: Icon(Icons.close, size: 16, color: colors.inkFaint),
+            FuzzzyHitTarget(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: onDelete,
+                // Alpha 0.5 deleted: `inkFaint` IS the de-emphasised rung.
+                child: Icon(Icons.close, size: 16, color: colors.inkFaint),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -304,7 +323,9 @@ class _ActionItemTile extends StatelessWidget {
               child: Padding(
                 padding: EdgeInsets.only(top: space.xs),
                 child: Icon(
-                  item.isCompleted ? Icons.check_circle : Icons.radio_button_unchecked,
+                  item.isCompleted
+                      ? Icons.check_circle
+                      : Icons.radio_button_unchecked,
                   size: 22,
                   // Done keeps `success`; the OPEN state is `ink`, not a
                   // semantic role — an unticked checkbox is not a status.
@@ -322,7 +343,9 @@ class _ActionItemTile extends StatelessWidget {
                 item.task,
                 style: type.body.copyWith(
                   color: item.isCompleted ? colors.inkMute : colors.ink,
-                  decoration: item.isCompleted ? TextDecoration.lineThrough : null,
+                  decoration: item.isCompleted
+                      ? TextDecoration.lineThrough
+                      : null,
                   decorationColor: colors.inkMute,
                 ),
               ),
@@ -372,7 +395,10 @@ class _ActionItemTile extends StatelessWidget {
             borderRadius: BorderRadius.circular(radius.l),
             side: BorderSide(color: colors.lineStrong),
           ),
-          title: Text('რედაქტირება', style: type.titleS.copyWith(color: colors.ink)),
+          title: Text(
+            'რედაქტირება',
+            style: type.titleS.copyWith(color: colors.ink),
+          ),
           content: TextField(
             controller: controller,
             autofocus: true,
@@ -382,14 +408,20 @@ class _ActionItemTile extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text('გაუქმება', style: type.control.copyWith(color: colors.inkMute)),
+              child: Text(
+                'გაუქმება',
+                style: type.control.copyWith(color: colors.inkMute),
+              ),
             ),
             TextButton(
               onPressed: () {
                 onEdit(controller.text.trim());
                 Navigator.pop(ctx);
               },
-              child: Text('შენახვა', style: type.control.copyWith(color: colors.ink)),
+              child: Text(
+                'შენახვა',
+                style: type.control.copyWith(color: colors.ink),
+              ),
             ),
           ],
         );

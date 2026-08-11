@@ -45,21 +45,14 @@ class CaseCard extends StatelessWidget {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            color: colors.surface,
-            borderRadius: BorderRadius.circular(radius.l),
-            // `FuzzzyCard(leadingRule:)`'s shape (containers/fuzzzy_card.dart)
-            // — the fork's AccentCard idiom, kept verbatim so M11 is a swap.
-            // The card also gains the hairline the fork never drew: a
-            // `surface` box on `ground` needs a `line` edge in Ink.
-            border: Border(
-              left: BorderSide(color: domainColor, width: 4),
-              top: BorderSide(color: colors.line),
-              right: BorderSide(color: colors.line),
-              bottom: BorderSide(color: colors.line),
-            ),
-          ),
+        // `FuzzzyCard(leadingRule:)`'s shape (containers/fuzzzy_card.dart) —
+        // the fork's AccentCard idiom. The card also gains the hairline the
+        // fork never drew: a `surface` box on `ground` needs a `line` edge in
+        // Ink. T-0254: this used to be a per-side `Border` + `borderRadius`,
+        // which throws at paint; `AppRuleCard` carries the kit's real idiom.
+        child: AppRuleCard(
+          rule: domainColor,
+          borderRadius: radius.l,
           padding: density.card,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

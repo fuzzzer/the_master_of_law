@@ -21,11 +21,12 @@ class CaseFactsSection extends StatefulWidget {
 /// text, never as a fill. Selection is carried by the action pair instead
 /// (USING §6: *"a discrete choice takes a fill from the action pair — never
 /// red"*).
-Color _classificationRole(FuzzzyColors c, FactClassification fc) => switch (fc) {
-  FactClassification.favorable => c.success,
-  FactClassification.unfavorable => c.destructive,
-  FactClassification.neutral => c.info,
-};
+Color _classificationRole(FuzzzyColors c, FactClassification fc) =>
+    switch (fc) {
+      FactClassification.favorable => c.success,
+      FactClassification.unfavorable => c.destructive,
+      FactClassification.neutral => c.info,
+    };
 
 class _CaseFactsSectionState extends State<CaseFactsSection> {
   late FactClassification _selectedFilter = _initialFilter();
@@ -39,8 +40,9 @@ class _CaseFactsSectionState extends State<CaseFactsSection> {
     return FactClassification.favorable;
   }
 
-  List<FactData> get _filteredFacts =>
-      widget.caseData.facts.where((f) => f.classificationIndex == _selectedFilter.index).toList();
+  List<FactData> get _filteredFacts => widget.caseData.facts
+      .where((f) => f.classificationIndex == _selectedFilter.index)
+      .toList();
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +60,9 @@ class _CaseFactsSectionState extends State<CaseFactsSection> {
           padding: density.screen,
           child: Row(
             children: FactClassification.values.map((fc) {
-              final count = widget.caseData.facts.where((f) => f.classificationIndex == fc.index).length;
+              final count = widget.caseData.facts
+                  .where((f) => f.classificationIndex == fc.index)
+                  .length;
               final isSelected = fc == _selectedFilter;
               final role = _classificationRole(colors, fc);
               return Expanded(
@@ -75,13 +79,17 @@ class _CaseFactsSectionState extends State<CaseFactsSection> {
                       // fork tinted the selected segment with the
                       // classification's own colour, which put a red fill on
                       // "unfavourable" — banned outright by USING §6.
-                      color: isSelected ? colors.actionPrimaryBg : colors.surface,
+                      color: isSelected
+                          ? colors.actionPrimaryBg
+                          : colors.surface,
                       borderRadius: BorderRadius.circular(radius.s),
                       // Border reserved at a CONSTANT width in both states —
                       // the fork's unselected border was `Colors.transparent`,
                       // which is fine, but the width must never change.
                       border: Border.all(
-                        color: isSelected ? colors.actionPrimaryBg : colors.line,
+                        color: isSelected
+                            ? colors.actionPrimaryBg
+                            : colors.line,
                       ),
                     ),
                     child: Column(
@@ -101,7 +109,9 @@ class _CaseFactsSectionState extends State<CaseFactsSection> {
                         Text(
                           '${fc.displayNameKa} ($count)',
                           style: type.control.copyWith(
-                            color: isSelected ? colors.actionPrimaryFg : colors.inkMute,
+                            color: isSelected
+                                ? colors.actionPrimaryFg
+                                : colors.inkMute,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -124,16 +134,22 @@ class _CaseFactsSectionState extends State<CaseFactsSection> {
                   ),
                 )
               : ListView.separated(
-                  padding: EdgeInsets.symmetric(horizontal: density.screen.left),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: density.screen.left,
+                  ),
                   itemCount: _filteredFacts.length,
                   separatorBuilder: (_, __) => SizedBox(height: space.s),
                   itemBuilder: (context, index) {
                     final fact = _filteredFacts[index];
-                    final role = _classificationRole(colors, fact.classification);
+                    final role = _classificationRole(
+                      colors,
+                      fact.classification,
+                    );
                     return Dismissible(
                       key: ValueKey(fact.id),
                       direction: DismissDirection.endToStart,
-                      onDismissed: (_) => context.read<CaseDetailCubit>().deleteFact(fact.id),
+                      onDismissed: (_) =>
+                          context.read<CaseDetailCubit>().deleteFact(fact.id),
                       background: Container(
                         alignment: Alignment.centerRight,
                         padding: EdgeInsets.only(right: space.l),
@@ -147,25 +163,22 @@ class _CaseFactsSectionState extends State<CaseFactsSection> {
                         ),
                         child: Icon(Icons.delete, color: colors.onRed),
                       ),
-                      child: Container(
+                      // `FuzzzyCard(leadingRule:)`: the classification's role is
+                      // the 4px rule, and the card gains the `line` hairline the
+                      // fork never drew. T-0254: a per-side `Border` +
+                      // `borderRadius` throws at paint — `AppRuleCard` carries
+                      // the kit's real (uniform border + clipped overlay) idiom.
+                      child: AppRuleCard(
+                        rule: role,
+                        borderRadius: radius.m,
                         padding: density.panel,
-                        decoration: BoxDecoration(
-                          color: colors.surface,
-                          borderRadius: BorderRadius.circular(radius.m),
-                          // `FuzzzyCard(leadingRule:)`: the classification's
-                          // role is the 4px rule, and the card gains the `line`
-                          // hairline the fork never drew.
-                          border: Border(
-                            left: BorderSide(color: role, width: 4),
-                            top: BorderSide(color: colors.line),
-                            right: BorderSide(color: colors.line),
-                            bottom: BorderSide(color: colors.line),
-                          ),
-                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(fact.text, style: type.body.copyWith(color: colors.ink)),
+                            Text(
+                              fact.text,
+                              style: type.body.copyWith(color: colors.ink),
+                            ),
                             if (fact.isAiGenerated) ...[
                               SizedBox(height: space.xs),
                               Row(
@@ -173,11 +186,17 @@ class _CaseFactsSectionState extends State<CaseFactsSection> {
                                   // Provenance is META (USING §2.2), so it is
                                   // `inkFaint` — the fork's gold made an
                                   // attribution line louder than the fact.
-                                  Icon(Icons.psychology, size: 14, color: colors.inkFaint),
+                                  Icon(
+                                    Icons.psychology,
+                                    size: 14,
+                                    color: colors.inkFaint,
+                                  ),
                                   SizedBox(width: space.xs),
                                   Text(
                                     'AI-ით ამოცნობილი',
-                                    style: type.bodyS.copyWith(color: colors.inkFaint),
+                                    style: type.bodyS.copyWith(
+                                      color: colors.inkFaint,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -205,7 +224,9 @@ class _CaseFactsSectionState extends State<CaseFactsSection> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: colors.ink,
                 side: BorderSide(color: colors.lineStrong),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius.m)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(radius.m),
+                ),
                 padding: density.snug,
                 textStyle: type.control,
               ),
@@ -238,23 +259,32 @@ class _CaseFactsSectionState extends State<CaseFactsSection> {
               decoration: BoxDecoration(
                 color: colors.raised,
                 border: Border(top: BorderSide(color: colors.lineStrong)),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(radius.l)),
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(radius.l),
+                ),
               ),
               padding: density.dialog.copyWith(
-                bottom: density.dialog.bottom + MediaQuery.of(ctx).viewInsets.bottom,
+                bottom:
+                    density.dialog.bottom +
+                    MediaQuery.of(ctx).viewInsets.bottom,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('ახალი ფაქტი', style: type.titleM.copyWith(color: colors.ink)),
+                  Text(
+                    'ახალი ფაქტი',
+                    style: type.titleM.copyWith(color: colors.ink),
+                  ),
                   SizedBox(height: space.l),
                   TextField(
                     controller: controller,
                     maxLines: 3,
                     style: type.body.copyWith(color: colors.fieldText),
                     // Box + hint style come from M1's inputDecorationTheme.
-                    decoration: const InputDecoration(hintText: 'აღწერეთ ფაქტი...'),
+                    decoration: const InputDecoration(
+                      hintText: 'აღწერეთ ფაქტი...',
+                    ),
                   ),
                   SizedBox(height: space.l),
                   Row(
@@ -271,10 +301,14 @@ class _CaseFactsSectionState extends State<CaseFactsSection> {
                             decoration: BoxDecoration(
                               // Parent is the sheet's `raised` rung → the
                               // resting chip steps down to `surface`.
-                              color: isSelected ? colors.actionPrimaryBg : colors.surface,
+                              color: isSelected
+                                  ? colors.actionPrimaryBg
+                                  : colors.surface,
                               borderRadius: BorderRadius.circular(radius.s),
                               border: Border.all(
-                                color: isSelected ? colors.actionPrimaryBg : colors.line,
+                                color: isSelected
+                                    ? colors.actionPrimaryBg
+                                    : colors.line,
                               ),
                             ),
                             child: Row(
@@ -286,7 +320,9 @@ class _CaseFactsSectionState extends State<CaseFactsSection> {
                                   height: 8,
                                   decoration: BoxDecoration(
                                     color: role,
-                                    borderRadius: BorderRadius.circular(radius.circle),
+                                    borderRadius: BorderRadius.circular(
+                                      radius.circle,
+                                    ),
                                   ),
                                 ),
                                 SizedBox(width: space.xs),
@@ -295,7 +331,9 @@ class _CaseFactsSectionState extends State<CaseFactsSection> {
                                     fc.displayNameKa,
                                     textAlign: TextAlign.center,
                                     style: type.control.copyWith(
-                                      color: isSelected ? colors.actionPrimaryFg : colors.inkMute,
+                                      color: isSelected
+                                          ? colors.actionPrimaryFg
+                                          : colors.inkMute,
                                     ),
                                   ),
                                 ),
@@ -326,7 +364,9 @@ class _CaseFactsSectionState extends State<CaseFactsSection> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: colors.actionPrimaryBg,
                         foregroundColor: colors.actionPrimaryFg,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius.m)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(radius.m),
+                        ),
                       ),
                       child: Text('დამატება', style: type.control),
                     ),

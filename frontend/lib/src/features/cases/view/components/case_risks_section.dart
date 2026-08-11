@@ -100,23 +100,18 @@ class CaseRisksSection extends StatelessWidget {
                           color: colors.destructiveText,
                         ),
                       ),
-                      child: Container(
+                      // The severity keeps its 4px leading rule — the
+                      // sanctioned home for a semantic colour — and the other
+                      // three sides GAIN the `line` hairline the fork never
+                      // drew. Same shape as `FuzzzyCard(leadingRule:)`.
+                      // T-0254: as a per-side `Border` + `borderRadius` this
+                      // threw at paint for EVERY severity (`_severityRole` is
+                      // never `line`). Missed by the ticket's original 4-site
+                      // sweep and found by the M13b scanner.
+                      child: AppRuleCard(
+                        rule: severityRole,
+                        borderRadius: radius.m,
                         padding: density.panel,
-                        decoration: BoxDecoration(
-                          color: colors.surface,
-                          borderRadius: BorderRadius.circular(radius.m),
-                          // The severity keeps its 4px leading rule — the
-                          // sanctioned home for a semantic colour — and the
-                          // other three sides GAIN the `line` hairline the
-                          // fork never drew. Same shape as `FuzzzyCard(
-                          // leadingRule:)` and M7's CaseCard.
-                          border: Border(
-                            left: BorderSide(color: severityRole, width: 4),
-                            top: BorderSide(color: colors.line),
-                            right: BorderSide(color: colors.line),
-                            bottom: BorderSide(color: colors.line),
-                          ),
-                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [

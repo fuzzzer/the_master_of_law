@@ -129,23 +129,20 @@ class CaseTimelineSection extends StatelessWidget {
                           Expanded(
                             child: Padding(
                               padding: EdgeInsets.only(bottom: space.l),
-                              child: Container(
+                              // The event's role keeps its 3px leading rule —
+                              // the sanctioned home for a semantic colour
+                              // (`FuzzzyBanner`'s shape) — and the other three
+                              // sides GAIN the `line` hairline the fork never
+                              // drew. T-0254: as a per-side `Border` +
+                              // `borderRadius` this threw at paint for EVERY
+                              // event type (`_eventRole` is never `line`).
+                              // Missed by the ticket's original 4-site sweep
+                              // and found by the M13b scanner.
+                              child: AppRuleCard(
+                                rule: role,
+                                borderRadius: radius.m,
+                                ruleWidth: 3,
                                 padding: density.tile,
-                                decoration: BoxDecoration(
-                                  color: colors.surface,
-                                  borderRadius: BorderRadius.circular(radius.m),
-                                  // The event's role keeps its 3px leading rule
-                                  // — the sanctioned home for a semantic colour
-                                  // (`FuzzzyBanner`'s shape) — and the other
-                                  // three sides GAIN the `line` hairline the
-                                  // fork never drew.
-                                  border: Border(
-                                    left: BorderSide(color: role, width: 3),
-                                    top: BorderSide(color: colors.line),
-                                    right: BorderSide(color: colors.line),
-                                    bottom: BorderSide(color: colors.line),
-                                  ),
-                                ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
