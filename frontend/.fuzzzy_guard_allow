@@ -48,9 +48,19 @@ src/app/theme/legal_domain_colors.dart:73   # paper · property
 src/app/theme/legal_domain_colors.dart:74   # paper · other
 #
 # ── literal-motion · snackbar dwell times ───────────────────────────────────
-# NOT YET PINNED. Six SnackBar `duration:` sites are reviewed and annotated in
-# code (JOURNAL M3/M5/M6/M6b): a toast DWELL is not animation timing, and
-# `fuzzzyMotion` tops out at 420ms. They all die at M11 with FuzzzyToast, so
-# they are deliberately left failing until then rather than pinned now — if
-# M11 lands as planned there is nothing to pin. Add them here at M13 ONLY if
-# any survive, with the surviving file:line.
+# RESOLVED BY DELETION AT M11 — NOTHING TO PIN, AND THAT IS THE POINT.
+# Six SnackBar `duration:` sites used to fail here (a toast DWELL is not
+# animation timing, and `fuzzzyMotion` tops out at 420ms, so no role fit). They
+# were deliberately left FAILING rather than pinned, to keep pressure on the
+# FuzzzyToast swap. M11 made every one of them disappear — `FuzzzyToast` owns
+# its own dwell, so the app no longer states one — and M13 re-verified that
+# zero survive. **This block is kept as the worked example**: when no role fits,
+# the first question is whether the app should be saying the thing at all. A
+# pin would have ended the argument; leaving it red finished the migration.
+#
+# ── the 24 advisory hits are NOT pinned, on purpose ─────────────────────────
+# Advisory rules cannot fail a build, so a pin buys nothing and costs the
+# review. Twelve are reviewed dimensions carrying a `// Dimension:` reason at
+# the site; twelve are `core/services/dev_panel/` geometry that has not been
+# swapped onto roles yet. The sort is written up in `test/fuzzzy_guard_test.dart`
+# (`_advisoryBudget`), which is where the count is now enforced.

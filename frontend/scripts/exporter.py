@@ -5,6 +5,25 @@ import sys
 # Default directory to process if none is provided via command-line argument
 DEFAULT_DIRECTORY = '../lib/src'
 
+# A file containing this marker on a line of its own is NEVER exported from its
+# folder barrel, and any pre-existing export of it is REMOVED.
+#
+# Added Phase M · M13 (2026-08-11). Why it had to exist:
+#
+# The two halves of a conditional import — `import 'a_web.dart'
+# if (dart.library.io) 'a_native.dart'` — declare the SAME top-level names on
+# purpose. Exporting both from one barrel is `ambiguous_export`, and the app
+# stops compiling. Because this script UNIONS its computed exports with whatever
+# the barrel already contains, deleting the offending line by hand could never
+# stick: the very next `./exp.sh` put it straight back. Three barrels were being
+# hand-trimmed and `git checkout --`'d after every single run of this script,
+# which made `./exp.sh` — a MANDATORY step after adding a file — unsafe to run
+# without knowing that folklore.
+#
+# The marker lives in the excluded file itself, next to the reason, so it cannot
+# drift away from what it describes. `part of` files are skipped the same way.
+EXPORTER_IGNORE_MARKER = '// exporter:ignore'
+
 def process_dart_files(directory):
     # Dictionary to track folder-level export files for parent directories
     folder_export_files = {}  # Key: folder path, Value: list of export statements for that folder
@@ -21,19 +40,25 @@ def process_dart_files(directory):
         # Prepare export statements for each Dart file in the folder
         export_statements = []
         part_files = set()
+        ignored_files = set()
 
-        # First, identify files with `part of` directive to avoid exporting them
+        # First, identify files with `part of` directive to avoid exporting them,
+        # and files that opted out via EXPORTER_IGNORE_MARKER
         for dart_file in dart_files:
             file_path = os.path.join(root, dart_file)
             with open(file_path, 'r', encoding='utf-8') as f:
                 lines = f.readlines()
                 if any(line.strip().startswith('part of') for line in lines):
                     part_files.add(dart_file)
+                if any(line.strip() == EXPORTER_IGNORE_MARKER for line in lines):
+                    ignored_files.add(dart_file)
 
         # Now prepare the export statements for Dart files
         for dart_file in dart_files:
-            # Skip the folder's own export file or files with `part of`
-            if dart_file == f"{folder_name}.dart" or dart_file in part_files:
+            # Skip the folder's own export file, `part of` files, and opt-outs
+            if (dart_file == f"{folder_name}.dart"
+                    or dart_file in part_files
+                    or dart_file in ignored_files):
                 continue
             export_statements.append(f"export '{dart_file}';")
 
@@ -72,7 +97,13 @@ def process_dart_files(directory):
             # If the file doesn't exist, initialize remaining content
             remaining_lines = []
 
-        # Combine new and existing exports
+        # Combine new and existing exports.
+        # An opted-out file must never appear, so its export is removed from what
+        # the barrel already had. Without this the union would silently
+        # resurrect it and the marker would do nothing.
+        existing_exports.difference_update(
+            {f"export '{dart_file}';" for dart_file in ignored_files}
+        )
         all_export_statements = sorted(existing_exports.union(export_statements))
 
         # Write or update the export file with sorted exports after imports

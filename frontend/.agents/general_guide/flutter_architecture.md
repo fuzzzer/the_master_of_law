@@ -175,6 +175,20 @@ Every feature module MUST follow this structure. This is non-negotiable.
 ### 3.2. Barrel Files & `./exp.sh` (MANDATORY)
 Every directory MUST have a barrel file (`<dir_name>.dart`) that exports its children. After creating any new `.dart` files, the user **MUST** be reminded to run `./exp.sh` to automatically update this entire barrel chain. Failure to do so will result in compilation errors.
 
+**Opting a file out — `// exporter:ignore` (added Phase M · M13).** A file whose
+first lines contain `// exporter:ignore` on a line of its own is never exported
+from its folder barrel, and any existing export of it is removed. This exists
+for the **two halves of a conditional import** (`dependency_injection_native/web`
+and `shake_native/web`): both halves declare the same top-level names by design,
+so exporting both is `ambiguous_export` and the app stops compiling.
+
+Before M13, `scripts/exporter.py` had no opt-out and *unioned* its computed
+exports with whatever the barrel already contained — so deleting the offending
+line by hand could never stick, and `./exp.sh` had to be followed by a
+`git checkout --` of three barrels every single time. **`./exp.sh` is now safe
+to run blind, and is idempotent.** Put the marker in the excluded file next to
+the reason; never hand-trim a generated barrel.
+
 ---
 
 ## 4. Architectural Patterns & Rules
