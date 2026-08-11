@@ -167,15 +167,33 @@ class _CaseWorkspacePageState extends State<CaseWorkspacePage>
                           padding: EdgeInsets.symmetric(
                             horizontal: density.screen.left,
                           ),
+                          // 🔴 M14b. Two unbounded chips plus a `%` readout
+                          // overflowed this row by 39 px on the right under
+                          // the stress pack — on all ten tabs, because this
+                          // header is painted above every one of them.
+                          //
+                          // `Flexible`, not a second `Expanded`: at ink widths
+                          // both chips still take their natural width and the
+                          // row is pixel-identical, and only when the row runs
+                          // out does each chip give ground (its label ellipses
+                          // — see `AppStatusChip`'s `LayoutBuilder`). The
+                          // `PreferredSize` above is a hard 80 px, so wrapping
+                          // to a second line was never an option here: it
+                          // would have traded a horizontal overflow for a
+                          // vertical one.
                           child: Row(
                             children: [
-                              AppStatusChip(
-                                label: caseData.status.displayNameKa,
-                                kind: caseStatusKind(caseData.status),
-                                qaId: 'workspaceStatus',
+                              Flexible(
+                                child: AppStatusChip(
+                                  label: caseData.status.displayNameKa,
+                                  kind: caseStatusKind(caseData.status),
+                                  qaId: 'workspaceStatus',
+                                ),
                               ),
                               SizedBox(width: space.s),
-                              _DomainChip(domain: caseData.domain),
+                              Flexible(
+                                child: _DomainChip(domain: caseData.domain),
+                              ),
                               const Spacer(),
                               Text(
                                 '${caseData.completenessPercent}%',
@@ -386,26 +404,40 @@ class _DomainChip extends StatelessWidget {
         border: Border.all(color: colors.line),
         borderRadius: BorderRadius.circular(radius.s),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            // The taxonomy disc replaces the fork's '⚖️ ' emoji prefix (which
-            // also carried a hardcoded fontSize: 12) — the dot is what the
-            // emoji was standing in for, and it actually names the domain.
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: context.legalDomainColors.of(domain),
-              borderRadius: BorderRadius.circular(radius.circle),
-            ),
-          ),
-          SizedBox(width: space.s),
-          Text(
+      // M14b: same `LayoutBuilder` guard as `AppStatusChip` — this chip is now
+      // `Flexible` in the header row, so it must be able to give ground, but a
+      // `Flexible` under unbounded main-axis constraints throws.
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final labelText = Text(
             domain.shortLabelKa,
             style: type.control.copyWith(color: colors.inkMute),
-          ),
-        ],
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          );
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                // The taxonomy disc replaces the fork's '⚖️ ' emoji prefix
+                // (which also carried a hardcoded fontSize: 12) — the dot is
+                // what the emoji was standing in for, and it actually names
+                // the domain.
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: context.legalDomainColors.of(domain),
+                  borderRadius: BorderRadius.circular(radius.circle),
+                ),
+              ),
+              SizedBox(width: space.s),
+              if (constraints.maxWidth.isFinite)
+                Flexible(child: labelText)
+              else
+                labelText,
+            ],
+          );
+        },
       ),
     );
   }

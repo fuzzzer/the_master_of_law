@@ -306,54 +306,88 @@ class _ConsultationPageState extends State<ConsultationPage>
     final space = context.fuzzzySpace;
     final radius = context.fuzzzyRadius;
     final density = context.fuzzzyDensity;
-    return Center(
-      child: Padding(
-        // A centred state panel's inset is a component FOOTPRINT, so it takes
-        // a density tier, not `space.xxl` (USING §4.3) — even though 32 → 32
-        // would have matched by number.
-        padding: density.screen,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Oversized decorative state glyph → `inkFaint`, alpha deleted.
-            Icon(Icons.psychology, size: 64, color: colors.inkFaint),
-            SizedBox(height: space.xl),
-            Text(
-              'AI კონსულტაცია',
-              style: type.titleM.copyWith(color: colors.ink),
-            ),
-            SizedBox(height: space.s),
-            Text(
-              'დაუსვით იურიდიული კითხვა',
-              style: type.body.copyWith(color: colors.inkMute),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: space.xl),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildModeButton(context, ChatMode.lawsOnly, state.chatMode),
-                SizedBox(width: space.m),
-                _buildModeButton(context, ChatMode.allSources, state.chatMode),
-              ],
-            ),
-            SizedBox(height: space.xxl),
-            // `FuzzzyButton.primary`: actionPrimary pair, radius.m, `snug`.
-            ElevatedButton.icon(
-              onPressed: () =>
-                  context.read<ConsultationCubit>().startConversation(),
-              icon: const Icon(Icons.chat),
-              label: const Text('დაწყება'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: colors.actionPrimaryBg,
-                foregroundColor: colors.actionPrimaryFg,
-                padding: density.snug,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(radius.m),
-                ),
+    return // 🔴 M14b. A centred state panel is NOT free of layout risk: this one
+    // overflowed the viewport by up to 268 px on the BOTTOM under the
+    // stress pack (`case_chat_section.dart:300` fired at 1.0 AND 1.3) — a
+    // 64 px glyph, two texts and a button simply do not fit once the pack
+    // inflates type and spacing, and a `Center` has nothing to give.
+    //
+    // Scroll it, but keep it centred while it still fits: the
+    // `ConstrainedBox(minHeight: viewport)` preserves the existing look
+    // exactly — without it the panel jumps to the top of every screen it
+    // appears on. Same class as T-0257 (feedback_sheet), one screen over.
+    LayoutBuilder(
+      builder: (context, viewport) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: viewport.maxHeight),
+          child: Center(
+            child: Padding(
+              // A centred state panel's inset is a component FOOTPRINT, so it takes
+              // a density tier, not `space.xxl` (USING §4.3) — even though 32 → 32
+              // would have matched by number.
+              padding: density.screen,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Oversized decorative state glyph → `inkFaint`, alpha deleted.
+                  Icon(Icons.psychology, size: 64, color: colors.inkFaint),
+                  SizedBox(height: space.xl),
+                  Text(
+                    'AI კონსულტაცია',
+                    style: type.titleM.copyWith(color: colors.ink),
+                  ),
+                  SizedBox(height: space.s),
+                  Text(
+                    'დაუსვით იურიდიული კითხვა',
+                    style: type.body.copyWith(color: colors.inkMute),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: space.xl),
+                  // 🔴 M14b: this row overflowed 96 px on the RIGHT under the
+                  // stress pack. Two mode buttons with Georgian labels side by
+                  // side, and the row constrained neither. `Wrap`, not
+                  // `Flexible`: these are TAP TARGETS, so shrinking or
+                  // ellipsing them would trade an overflow for a sub-44×44
+                  // target and an unreadable affordance — both defects in
+                  // their own right (plan §4). Dropping the second button onto
+                  // its own line costs nothing now that the panel scrolls.
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: space.m,
+                    runSpacing: space.s,
+                    children: [
+                      _buildModeButton(
+                        context,
+                        ChatMode.lawsOnly,
+                        state.chatMode,
+                      ),
+                      _buildModeButton(
+                        context,
+                        ChatMode.allSources,
+                        state.chatMode,
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: space.xxl),
+                  // `FuzzzyButton.primary`: actionPrimary pair, radius.m, `snug`.
+                  ElevatedButton.icon(
+                    onPressed: () =>
+                        context.read<ConsultationCubit>().startConversation(),
+                    icon: const Icon(Icons.chat),
+                    label: const Text('დაწყება'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colors.actionPrimaryBg,
+                      foregroundColor: colors.actionPrimaryFg,
+                      padding: density.snug,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(radius.m),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

@@ -88,28 +88,55 @@ class AppStatusChip extends StatelessWidget {
             border: Border.all(color: border),
             borderRadius: BorderRadius.circular(radius.s),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (dot) ...[
-                Container(
-                  // Dimension: §4.4's ONE sanctioned status-dot diameter. In
-                  // this app it also replaces the fork's coloured emoji
-                  // (🟢/🟡/⚪, ✓/◐/○) — the disc IS what those imitated.
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: role,
-                    borderRadius: BorderRadius.circular(radius.circle),
-                  ),
-                ),
-                SizedBox(width: space.s),
-              ],
-              // `control` IS the w600 role — the fork's caption11 +
-              // `fontWeight: w600` override becomes a role choice, and the
-              // label is NOT uppercased (see the class doc).
-              Text(label, style: type.control.copyWith(color: role)),
-            ],
+          // 🔴 M14b. Under the STRESS pack the case-workspace header
+          // (`case_workspace_page.dart:170`) overflowed by 39 px on the right
+          // at every one of its ten tabs: two of these chips plus a `%`
+          // readout, and a chip took its natural width no matter what the row
+          // could spare. A chip that cannot give ground is a layout hazard
+          // wherever two of them share a line.
+          //
+          // So the label becomes `Flexible` — **but only when this chip was
+          // actually given a bounded width.** A `Flexible` inside a `Row` that
+          // receives unbounded main-axis constraints THROWS, and a chip that
+          // is a plain (non-flex) child of a `Row` receives exactly that. The
+          // `LayoutBuilder` is what makes the widget safe at all five call
+          // sites: constrain the chip at the call site and it ellipses;
+          // leave it unconstrained and it behaves exactly as before.
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final labelText = Text(
+                label,
+                style: type.control.copyWith(color: role),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              );
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (dot) ...[
+                    Container(
+                      // Dimension: §4.4's ONE sanctioned status-dot diameter.
+                      // In this app it also replaces the fork's coloured emoji
+                      // (🟢/🟡/⚪, ✓/◐/○) — the disc IS what those imitated.
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: role,
+                        borderRadius: BorderRadius.circular(radius.circle),
+                      ),
+                    ),
+                    SizedBox(width: space.s),
+                  ],
+                  // `control` IS the w600 role — the fork's caption11 +
+                  // `fontWeight: w600` override becomes a role choice, and the
+                  // label is NOT uppercased (see the class doc).
+                  if (constraints.maxWidth.isFinite)
+                    Flexible(child: labelText)
+                  else
+                    labelText,
+                ],
+              );
+            },
           ),
         ),
       ),

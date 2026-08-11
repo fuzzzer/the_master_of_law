@@ -258,106 +258,171 @@ class _CaseChatSectionState extends State<CaseChatSection> {
               builder: (context, state) {
                 if (!_initialized ||
                     (state.status.isLoading && state.messages.isEmpty)) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // Dimension: the oversized empty-state glyph. All of
-                        // MoL's 48/64px state glyphs were unified on `inkFaint`
-                        // at M4 — at this size a semantic hue is a decorative
-                        // wash, and the headline below names the state.
-                        Icon(
-                          Icons.psychology,
-                          size: 64,
-                          color: colors.inkFaint,
+                  return // 🔴 M14b. A centred state panel is NOT free of layout risk: this one
+                  // overflowed the viewport by up to 268 px on the BOTTOM under the
+                  // stress pack (`case_chat_section.dart:300` fired at 1.0 AND 1.3) — a
+                  // 64 px glyph, two texts and a button simply do not fit once the pack
+                  // inflates type and spacing, and a `Center` has nothing to give.
+                  //
+                  // Scroll it, but keep it centred while it still fits: the
+                  // `ConstrainedBox(minHeight: viewport)` preserves the existing look
+                  // exactly — without it the panel jumps to the top of every screen it
+                  // appears on. Same class as T-0257 (feedback_sheet), one screen over.
+                  LayoutBuilder(
+                    builder: (context, viewport) => SingleChildScrollView(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: viewport.maxHeight,
                         ),
-                        SizedBox(height: space.l),
-                        Text(
-                          'დამხმარე კონსულტაცია',
-                          style: type.titleM.copyWith(color: colors.ink),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              // Dimension: the oversized empty-state glyph. All of
+                              // MoL's 48/64px state glyphs were unified on `inkFaint`
+                              // at M4 — at this size a semantic hue is a decorative
+                              // wash, and the headline below names the state.
+                              Icon(
+                                Icons.psychology,
+                                size: 64,
+                                color: colors.inkFaint,
+                              ),
+                              SizedBox(height: space.l),
+                              Text(
+                                'დამხმარე კონსულტაცია',
+                                style: type.titleM.copyWith(color: colors.ink),
+                              ),
+                              SizedBox(height: space.s),
+                              Text(
+                                'კავშირი მყარდება...',
+                                style: type.body.copyWith(
+                                  color: colors.inkMute,
+                                ),
+                              ),
+                              SizedBox(height: space.l),
+                              const SizedBox(
+                                // Dimension: the in-flow spinner's own footprint.
+                                width: 24,
+                                height: 24,
+                                child: _Spinner(),
+                              ),
+                            ],
+                          ),
                         ),
-                        SizedBox(height: space.s),
-                        Text(
-                          'კავშირი მყარდება...',
-                          style: type.body.copyWith(color: colors.inkMute),
-                        ),
-                        SizedBox(height: space.l),
-                        const SizedBox(
-                          // Dimension: the in-flow spinner's own footprint.
-                          width: 24,
-                          height: 24,
-                          child: _Spinner(),
-                        ),
-                      ],
+                      ),
                     ),
                   );
                 }
 
                 if (state.status.isFailed && state.messages.isEmpty) {
-                  return Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(space.xxl),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // Same M4 rule as above: the 64px failure glyph is
-                          // `inkFaint`, not `destructive`. The screen's red
-                          // voice belongs to the error BUBBLES and the pending
-                          // confirmation card, both of which are real markers.
-                          Icon(
-                            Icons.cloud_off,
-                            size: 64,
-                            color: colors.inkFaint,
-                          ),
-                          SizedBox(height: space.l),
-                          Text(
-                            'კავშირი ვერ მოხერხდა',
-                            style: type.titleM.copyWith(color: colors.ink),
-                          ),
-                          SizedBox(height: space.s),
-                          Text(
-                            _failureMessageKa(state.failureType),
-                            style: type.body.copyWith(color: colors.inkMute),
-                            textAlign: TextAlign.center,
-                          ),
-                          SizedBox(height: space.xl),
-                          ElevatedButton.icon(
-                            onPressed: _initConversation,
-                            icon: const Icon(Icons.refresh, size: 18),
-                            label: const Text('ხელახლა ცდა'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: colors.actionPrimaryBg,
-                              foregroundColor: colors.actionPrimaryFg,
+                  return // 🔴 M14b. A centred state panel is NOT free of layout risk: this one
+                  // overflowed the viewport by up to 268 px on the BOTTOM under the
+                  // stress pack (`case_chat_section.dart:300` fired at 1.0 AND 1.3) — a
+                  // 64 px glyph, two texts and a button simply do not fit once the pack
+                  // inflates type and spacing, and a `Center` has nothing to give.
+                  //
+                  // Scroll it, but keep it centred while it still fits: the
+                  // `ConstrainedBox(minHeight: viewport)` preserves the existing look
+                  // exactly — without it the panel jumps to the top of every screen it
+                  // appears on. Same class as T-0257 (feedback_sheet), one screen over.
+                  LayoutBuilder(
+                    builder: (context, viewport) => SingleChildScrollView(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: viewport.maxHeight,
+                        ),
+                        child: Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(space.xxl),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                // Same M4 rule as above: the 64px failure glyph is
+                                // `inkFaint`, not `destructive`. The screen's red
+                                // voice belongs to the error BUBBLES and the pending
+                                // confirmation card, both of which are real markers.
+                                Icon(
+                                  Icons.cloud_off,
+                                  size: 64,
+                                  color: colors.inkFaint,
+                                ),
+                                SizedBox(height: space.l),
+                                Text(
+                                  'კავშირი ვერ მოხერხდა',
+                                  style: type.titleM.copyWith(
+                                    color: colors.ink,
+                                  ),
+                                ),
+                                SizedBox(height: space.s),
+                                Text(
+                                  _failureMessageKa(state.failureType),
+                                  style: type.body.copyWith(
+                                    color: colors.inkMute,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                SizedBox(height: space.xl),
+                                ElevatedButton.icon(
+                                  onPressed: _initConversation,
+                                  icon: const Icon(Icons.refresh, size: 18),
+                                  label: const Text('ხელახლა ცდა'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: colors.actionPrimaryBg,
+                                    foregroundColor: colors.actionPrimaryFg,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   );
                 }
 
                 if (state.messages.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.psychology,
-                          size: 64,
-                          color: colors.inkFaint,
+                  return // 🔴 M14b. A centred state panel is NOT free of layout risk: this one
+                  // overflowed the viewport by up to 268 px on the BOTTOM under the
+                  // stress pack (`case_chat_section.dart:300` fired at 1.0 AND 1.3) — a
+                  // 64 px glyph, two texts and a button simply do not fit once the pack
+                  // inflates type and spacing, and a `Center` has nothing to give.
+                  //
+                  // Scroll it, but keep it centred while it still fits: the
+                  // `ConstrainedBox(minHeight: viewport)` preserves the existing look
+                  // exactly — without it the panel jumps to the top of every screen it
+                  // appears on. Same class as T-0257 (feedback_sheet), one screen over.
+                  LayoutBuilder(
+                    builder: (context, viewport) => SingleChildScrollView(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: viewport.maxHeight,
                         ),
-                        SizedBox(height: space.l),
-                        Text(
-                          'დამხმარე კონსულტაცია',
-                          style: type.titleM.copyWith(color: colors.ink),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.psychology,
+                                size: 64,
+                                color: colors.inkFaint,
+                              ),
+                              SizedBox(height: space.l),
+                              Text(
+                                'დამხმარე კონსულტაცია',
+                                style: type.titleM.copyWith(color: colors.ink),
+                              ),
+                              SizedBox(height: space.s),
+                              Text(
+                                'აღწერეთ თქვენი სიტუაცია და დამხმარე დაგისვამთ\nდამაზუსტებელ კითხვებს.',
+                                style: type.body.copyWith(
+                                  color: colors.inkMute,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
                         ),
-                        SizedBox(height: space.s),
-                        Text(
-                          'აღწერეთ თქვენი სიტუაცია და დამხმარე დაგისვამთ\nდამაზუსტებელ კითხვებს.',
-                          style: type.body.copyWith(color: colors.inkMute),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
+                      ),
                     ),
                   );
                 }
