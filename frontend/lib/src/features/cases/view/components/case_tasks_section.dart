@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 import 'package:themasteroflaw/src/src.dart';
-import 'package:ui_kit/ui_kit.dart';
 
 /// Combined tasks + clarifications section for the case workspace.
 class CaseTasksSection extends StatelessWidget {
@@ -10,8 +10,11 @@ class CaseTasksSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
     final cubit = context.read<CaseDetailCubit>();
 
     return BlocBuilder<CaseDetailCubit, CaseDetailState>(
@@ -19,7 +22,7 @@ class CaseTasksSection extends StatelessWidget {
         final data = state.caseData ?? caseData;
 
         return ListView(
-          padding: const EdgeInsets.all(16),
+          padding: density.screen,
           children: [
             // ── Clarifications ──
             if (data.clarifications.isNotEmpty) ...[
@@ -27,20 +30,16 @@ class CaseTasksSection extends StatelessWidget {
                 icon: Icons.help_outline,
                 title: 'დასაზუსტებელი ინფორმაცია',
                 count: data.clarifications.where((c) => !c.isResolved).length,
-                uiColors: uiColors,
-                uiTextStyles: uiTextStyles,
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: space.s),
               ...data.clarifications.map(
                 (item) => _ClarificationTile(
                   item: item,
-                  uiColors: uiColors,
-                  uiTextStyles: uiTextStyles,
                   onToggle: () => cubit.toggleClarification(item.id),
                   onDelete: () => cubit.deleteClarification(item.id),
                 ),
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: space.xl),
             ],
 
             // ── Action Items (Tasks) ──
@@ -48,21 +47,12 @@ class CaseTasksSection extends StatelessWidget {
               icon: Icons.checklist,
               title: 'დავალებები',
               count: data.actionItems.where((i) => !i.isCompleted).length,
-              uiColors: uiColors,
-              uiTextStyles: uiTextStyles,
             ),
-            const SizedBox(height: 8),
-            if (data.actionItems.isEmpty)
-              _EmptyState(
-                text: 'დავალებები ჯერ არ არის',
-                uiColors: uiColors,
-                uiTextStyles: uiTextStyles,
-              ),
+            SizedBox(height: space.s),
+            if (data.actionItems.isEmpty) const _EmptyState(text: 'დავალებები ჯერ არ არის'),
             ...data.actionItems.map(
               (item) => _ActionItemTile(
                 item: item,
-                uiColors: uiColors,
-                uiTextStyles: uiTextStyles,
                 onToggle: () => cubit.toggleActionItem(item.id),
                 onDelete: () => cubit.deleteActionItem(item.id),
                 onEdit: (newText) {
@@ -71,18 +61,20 @@ class CaseTasksSection extends StatelessWidget {
                 },
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: space.l),
 
             // ── Add Task Button ──
             OutlinedButton.icon(
-              onPressed: () => _showAddTaskDialog(context, cubit, uiColors, uiTextStyles),
+              onPressed: () => _showAddTaskDialog(context, cubit),
               icon: const Icon(Icons.add, size: 18),
               label: const Text('დავალების დამატება'),
+              // `FuzzzyButton.secondary`: `ink` label on a `lineStrong` outline.
               style: OutlinedButton.styleFrom(
-                foregroundColor: uiColors.accentColor,
-                side: BorderSide(color: uiColors.accentColor.withValues(alpha: 0.3)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                foregroundColor: colors.ink,
+                side: BorderSide(color: colors.lineStrong),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius.m)),
+                padding: density.snug,
+                textStyle: type.control,
               ),
             ),
           ],
@@ -91,46 +83,56 @@ class CaseTasksSection extends StatelessWidget {
     );
   }
 
-  void _showAddTaskDialog(BuildContext context, CaseDetailCubit cubit, UiColors uiColors, UiTextStyles uiTextStyles) {
+  void _showAddTaskDialog(BuildContext context, CaseDetailCubit cubit) {
     final controller = TextEditingController();
-    showDialog(
+    showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: uiColors.backgroundPrimaryColor,
-        title: Text('ახალი დავალება', style: uiTextStyles.bodyBold16.copyWith(color: uiColors.primaryTextColor)),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLines: 3,
-          style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor),
-          decoration: InputDecoration(
-            hintText: 'რა უნდა გაკეთდეს...',
-            hintStyle: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
+      builder: (ctx) {
+        final colors = ctx.fuzzzyColors;
+        final type = ctx.fuzzzyTextStyles;
+        final radius = ctx.fuzzzyRadius;
+        return AlertDialog(
+          // Overlay rung: `raised` + `lineStrong`. The fork used
+          // `backgroundPrimaryColor` here — the PAGE colour — so the dialog was
+          // indistinguishable from what it floated over (MAPPING §2.5's trap).
+          backgroundColor: colors.raised,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radius.l),
+            side: BorderSide(color: colors.lineStrong),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('გაუქმება', style: TextStyle(color: uiColors.secondaryTextColor)),
+          title: Text('ახალი დავალება', style: type.titleS.copyWith(color: colors.ink)),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            maxLines: 3,
+            style: type.body.copyWith(color: colors.fieldText),
+            // Box + hint come from M1's inputDecorationTheme.
+            decoration: const InputDecoration(hintText: 'რა უნდა გაკეთდეს...'),
           ),
-          TextButton(
-            onPressed: () {
-              final text = controller.text.trim();
-              if (text.isNotEmpty) {
-                cubit.addActionItem(
-                  ActionItemData(
-                    id: 'user_task_${DateTime.now().millisecondsSinceEpoch}',
-                    task: text,
-                    priorityIndex: ActionPriority.medium.index,
-                  ),
-                );
-              }
-              Navigator.pop(ctx);
-            },
-            child: Text('დამატება', style: TextStyle(color: uiColors.accentColor)),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('გაუქმება', style: type.control.copyWith(color: colors.inkMute)),
+            ),
+            TextButton(
+              onPressed: () {
+                final text = controller.text.trim();
+                if (text.isNotEmpty) {
+                  cubit.addActionItem(
+                    ActionItemData(
+                      id: 'user_task_${DateTime.now().millisecondsSinceEpoch}',
+                      task: text,
+                      priorityIndex: ActionPriority.medium.index,
+                    ),
+                  );
+                }
+                Navigator.pop(ctx);
+              },
+              child: Text('დამატება', style: type.control.copyWith(color: colors.ink)),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -140,31 +142,36 @@ class _SectionHeader extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.count,
-    required this.uiColors,
-    required this.uiTextStyles,
   });
   final IconData icon;
   final String title;
   final int count;
-  final UiColors uiColors;
-  final UiTextStyles uiTextStyles;
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+
     return Row(
       children: [
-        Icon(icon, size: 20, color: uiColors.accentColor),
-        const SizedBox(width: 8),
-        Text(title, style: uiTextStyles.bodyBold16.copyWith(color: uiColors.primaryTextColor)),
-        const SizedBox(width: 8),
+        Icon(icon, size: 20, color: colors.ink),
+        SizedBox(width: space.s),
+        Text(title, style: type.titleS.copyWith(color: colors.ink)),
+        SizedBox(width: space.s),
         if (count > 0)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            padding: context.fuzzzyDensity.chip,
             decoration: BoxDecoration(
-              color: uiColors.accentColor.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(10),
+              // A count badge is a discrete marker, so it takes the action
+              // pair — the fork's gold-at-alpha-0.15 pill is the tinted-panel
+              // row USING §2.4 forbids.
+              color: colors.actionPrimaryBg,
+              borderRadius: BorderRadius.circular(radius.s),
             ),
-            child: Text('$count', style: uiTextStyles.labelBold12.copyWith(color: uiColors.accentColor)),
+            // A bare integer is Latin-only, so it can take the mono `dataS`.
+            child: Text('$count', style: type.dataS.copyWith(color: colors.actionPrimaryFg)),
           ),
       ],
     );
@@ -174,72 +181,85 @@ class _SectionHeader extends StatelessWidget {
 class _ClarificationTile extends StatelessWidget {
   const _ClarificationTile({
     required this.item,
-    required this.uiColors,
-    required this.uiTextStyles,
     required this.onToggle,
     required this.onDelete,
   });
   final ClarificationData item;
-  final UiColors uiColors;
-  final UiTextStyles uiTextStyles;
   final VoidCallback onToggle;
   final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      margin: EdgeInsets.only(bottom: space.s),
+      padding: context.fuzzzyDensity.tile,
       decoration: BoxDecoration(
-        color: item.isResolved
-            ? uiColors.backgroundSecondaryColor.withValues(alpha: 0.5)
-            : uiColors.warningColor.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: item.isResolved
-              ? uiColors.secondaryTextColor.withValues(alpha: 0.1)
-              : uiColors.warningColor.withValues(alpha: 0.2),
+        // Both states are ONE box now. The fork gave the open state a
+        // warning-tinted panel and the resolved state a half-alpha panel —
+        // two alpha tints doing what a rule and a strikethrough already say.
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(radius.m),
+        // The open state keeps its `warning` voice, as a 3px left rule
+        // (FuzzzyBanner's shape); resolved drops back to the plain hairline.
+        border: Border(
+          left: BorderSide(color: item.isResolved ? colors.line : colors.warning, width: 3),
+          top: BorderSide(color: colors.line),
+          right: BorderSide(color: colors.line),
+          bottom: BorderSide(color: colors.line),
         ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          GestureDetector(
-            onTap: onToggle,
-            child: Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Icon(
-                item.isResolved ? Icons.check_circle : Icons.radio_button_unchecked,
-                size: 22,
-                color: item.isResolved ? uiColors.successColor : uiColors.warningColor,
+          FuzzzyHitTarget(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onToggle,
+              child: Padding(
+                padding: EdgeInsets.only(top: space.xs),
+                child: Icon(
+                  item.isResolved ? Icons.check_circle : Icons.radio_button_unchecked,
+                  size: 22,
+                  color: item.isResolved ? colors.success : colors.warning,
+                ),
               ),
             ),
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: space.m),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   item.question,
-                  style: uiTextStyles.body14.copyWith(
-                    color: item.isResolved ? uiColors.secondaryTextColor : uiColors.primaryTextColor,
+                  style: type.body.copyWith(
+                    color: item.isResolved ? colors.inkMute : colors.ink,
                     decoration: item.isResolved ? TextDecoration.lineThrough : null,
+                    decorationColor: colors.inkMute,
                   ),
                 ),
                 if (item.resolution != null && item.resolution!.isNotEmpty) ...[
-                  const SizedBox(height: 4),
+                  SizedBox(height: space.xs),
                   Text(
                     '→ ${item.resolution}',
-                    style: uiTextStyles.label12.copyWith(color: uiColors.successColor),
+                    style: type.bodyS.copyWith(color: colors.success),
                   ),
                 ],
               ],
             ),
           ),
-          GestureDetector(
-            onTap: onDelete,
-            child: Icon(Icons.close, size: 16, color: uiColors.secondaryTextColor.withValues(alpha: 0.5)),
+          FuzzzyHitTarget(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onDelete,
+              // Alpha 0.5 deleted: `inkFaint` IS the de-emphasised rung.
+              child: Icon(Icons.close, size: 16, color: colors.inkFaint),
+            ),
           ),
         ],
       ),
@@ -250,67 +270,80 @@ class _ClarificationTile extends StatelessWidget {
 class _ActionItemTile extends StatelessWidget {
   const _ActionItemTile({
     required this.item,
-    required this.uiColors,
-    required this.uiTextStyles,
     required this.onToggle,
     required this.onDelete,
     required this.onEdit,
   });
   final ActionItemData item;
-  final UiColors uiColors;
-  final UiTextStyles uiTextStyles;
   final VoidCallback onToggle;
   final VoidCallback onDelete;
   final ValueChanged<String> onEdit;
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      margin: EdgeInsets.only(bottom: space.s),
+      padding: context.fuzzzyDensity.tile,
       decoration: BoxDecoration(
-        color: uiColors.backgroundSecondaryColor,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: uiColors.secondaryTextColor.withValues(alpha: 0.1)),
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(radius.m),
+        border: Border.all(color: colors.line),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          GestureDetector(
-            onTap: onToggle,
-            child: Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Icon(
-                item.isCompleted ? Icons.check_circle : Icons.radio_button_unchecked,
-                size: 22,
-                color: item.isCompleted ? uiColors.successColor : uiColors.accentColor,
+          FuzzzyHitTarget(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onToggle,
+              child: Padding(
+                padding: EdgeInsets.only(top: space.xs),
+                child: Icon(
+                  item.isCompleted ? Icons.check_circle : Icons.radio_button_unchecked,
+                  size: 22,
+                  // Done keeps `success`; the OPEN state is `ink`, not a
+                  // semantic role — an unticked checkbox is not a status.
+                  color: item.isCompleted ? colors.success : colors.ink,
+                ),
               ),
             ),
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: space.m),
           Expanded(
             child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onDoubleTap: () => _showEditDialog(context),
               child: Text(
                 item.task,
-                style: uiTextStyles.body14.copyWith(
-                  color: item.isCompleted ? uiColors.secondaryTextColor : uiColors.primaryTextColor,
+                style: type.body.copyWith(
+                  color: item.isCompleted ? colors.inkMute : colors.ink,
                   decoration: item.isCompleted ? TextDecoration.lineThrough : null,
+                  decorationColor: colors.inkMute,
                 ),
               ),
             ),
           ),
           if (item.deadline != null) ...[
-            const SizedBox(width: 8),
+            SizedBox(width: space.s),
             Text(
               _formatDeadline(item.deadline!),
-              style: uiTextStyles.label12.copyWith(color: uiColors.secondaryTextColor),
+              // A deadline countdown is meta. It carries Georgian, so it is
+              // `bodyS`, never the mono `dataS` (JOURNAL M6b judgement 4).
+              style: type.bodyS.copyWith(color: colors.inkFaint),
             ),
           ],
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: onDelete,
-            child: Icon(Icons.close, size: 16, color: uiColors.secondaryTextColor.withValues(alpha: 0.5)),
+          SizedBox(width: space.s),
+          FuzzzyHitTarget(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onDelete,
+              child: Icon(Icons.close, size: 16, color: colors.inkFaint),
+            ),
           ),
         ],
       ),
@@ -327,38 +360,58 @@ class _ActionItemTile extends StatelessWidget {
 
   void _showEditDialog(BuildContext context) {
     final controller = TextEditingController(text: item.task);
-    showDialog(
+    showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('რედაქტირება'),
-        content: TextField(controller: controller, autofocus: true, maxLines: 3),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('გაუქმება')),
-          TextButton(
-            onPressed: () {
-              onEdit(controller.text.trim());
-              Navigator.pop(ctx);
-            },
-            child: const Text('შენახვა'),
+      builder: (ctx) {
+        final colors = ctx.fuzzzyColors;
+        final type = ctx.fuzzzyTextStyles;
+        final radius = ctx.fuzzzyRadius;
+        return AlertDialog(
+          backgroundColor: colors.raised,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radius.l),
+            side: BorderSide(color: colors.lineStrong),
           ),
-        ],
-      ),
+          title: Text('რედაქტირება', style: type.titleS.copyWith(color: colors.ink)),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            maxLines: 3,
+            style: type.body.copyWith(color: colors.fieldText),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('გაუქმება', style: type.control.copyWith(color: colors.inkMute)),
+            ),
+            TextButton(
+              onPressed: () {
+                onEdit(controller.text.trim());
+                Navigator.pop(ctx);
+              },
+              child: Text('შენახვა', style: type.control.copyWith(color: colors.ink)),
+            ),
+          ],
+        );
+      },
     );
   }
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.text, required this.uiColors, required this.uiTextStyles});
+  const _EmptyState({required this.text});
   final String text;
-  final UiColors uiColors;
-  final UiTextStyles uiTextStyles;
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.fuzzzyColors;
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: context.fuzzzyDensity.screen,
       alignment: Alignment.center,
-      child: Text(text, style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor)),
+      child: Text(
+        text,
+        style: context.fuzzzyTextStyles.body.copyWith(color: colors.inkMute),
+      ),
     );
   }
 }
