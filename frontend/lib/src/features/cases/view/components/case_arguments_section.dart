@@ -365,10 +365,12 @@ class _ArgumentCard extends StatelessWidget {
         children: [
           Row(
             children: [
+              // M11b: ⚖️ → `Icons.balance`, the same glyph M8 gave the
+              // "არგუმენტები" stat card and M11b gave the tab.
+              Icon(Icons.balance, size: 20, color: colors.inkMute),
+              SizedBox(width: space.s),
               Text(
-                // The ⚖️ is an emoji inside a plain string with no `fontSize`
-                // literal, so it is owed at M11, not this slice.
-                '⚖️ არგუმენტი #$index',
+                'არგუმენტი #$index',
                 style: type.titleS.copyWith(color: colors.ink),
               ),
               const Spacer(),

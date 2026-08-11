@@ -27,24 +27,32 @@ class _CaseWorkspacePageState extends State<CaseWorkspacePage>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
-  static const _tabLabels = [
-    '📊 მიმოხილვა',
-    '💬 AI',
-    '✅ დავალებები',
-    '📋 ფაქტები',
-    '⚖️ არგუმენტები',
-    '📎 მტკიცებ.',
-    '🛡️ სტრატეგია',
-    '📅 ვადები',
-    '⚠️ რისკები',
-    '📚 კანონები',
+  /// The ten tabs, as (glyph, label) pairs. The fork prefixed a full-colour
+  /// emoji into each label STRING, so the strip carried ten unrelated hues and
+  /// ten platform-decided glyph metrics that `textScaler` moved independently
+  /// of `type.control`. Now a monochrome Material glyph that inherits the
+  /// TabBar's own `labelColor`/`unselectedLabelColor`, so the selected state
+  /// is still the ONE thing that changes colour. Glyphs deliberately match the
+  /// ones M8 chose for the same concepts on the overview dashboard — the tab
+  /// and the stat card for "ფაქტები" must not be two different pictures.
+  static const _tabs = <(IconData, String)>[
+    (Icons.dashboard_outlined, 'მიმოხილვა'),
+    (Icons.forum_outlined, 'AI'),
+    (Icons.checklist, 'დავალებები'),
+    (Icons.fact_check_outlined, 'ფაქტები'),
+    (Icons.balance, 'არგუმენტები'),
+    (Icons.attach_file, 'მტკიცებ.'),
+    (Icons.shield_outlined, 'სტრატეგია'),
+    (Icons.timeline, 'ვადები'),
+    (Icons.warning_amber_outlined, 'რისკები'),
+    (Icons.menu_book_outlined, 'კანონები'),
   ];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: _tabLabels.length,
+      length: _tabs.length,
       vsync: this,
       initialIndex: widget.initialTab,
     );
@@ -197,8 +205,25 @@ class _CaseWorkspacePageState extends State<CaseWorkspacePage>
                           unselectedLabelStyle: type.control,
                           dividerColor: colors.line,
                           padding: EdgeInsets.symmetric(horizontal: space.s),
-                          tabs: _tabLabels
-                              .map((label) => Tab(text: label))
+                          // `Tab(child:)` rather than `Tab(icon:, text:)`:
+                          // the icon+text form stacks and takes the tab from
+                          // 46 to 72px, which would blow the 80px
+                          // PreferredSize this AppBar reserves. The Row keeps
+                          // the strip's height byte-identical and only grows
+                          // it horizontally, where it already scrolls.
+                          tabs: _tabs
+                              .map(
+                                (t) => Tab(
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(t.$1, size: 16),
+                                      SizedBox(width: space.xs),
+                                      Text(t.$2),
+                                    ],
+                                  ),
+                                ),
+                              )
                               .toList(),
                         ),
                       ],

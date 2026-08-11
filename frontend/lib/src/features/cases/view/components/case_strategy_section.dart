@@ -51,17 +51,19 @@ class CaseStrategySection extends StatelessWidget {
     return ListView(
       padding: density.screen,
       children: [
-        // The 🛡️ / 🔄 / 🏁 / 💪 are emoji inside plain strings with no
-        // `fontSize` literal, so they are owed at M11, not this slice.
+        // M11b: the 🛡️/🔄/🏁/💪 emoji came OUT of the label strings and became
+        // a real `icon` slot on the card — see the JOURNAL M11b table.
         _StrategyCard(
-          title: '🛡️ ძირითადი სტრატეგია',
+          icon: Icons.shield_outlined,
+          title: 'ძირითადი სტრატეგია',
           text: strategy.primaryStrategy,
         ),
         if (strategy.backupStrategy != null &&
             strategy.backupStrategy!.isNotEmpty) ...[
           SizedBox(height: space.m),
           _StrategyCard(
-            title: '🔄 სარეზერვო სტრატეგია',
+            icon: Icons.alt_route,
+            title: 'სარეზერვო სტრატეგია',
             text: strategy.backupStrategy!,
           ),
         ],
@@ -69,7 +71,8 @@ class CaseStrategySection extends StatelessWidget {
             strategy.fallbackPosition!.isNotEmpty) ...[
           SizedBox(height: space.m),
           _StrategyCard(
-            title: '🏁 ფოლბეკ პოზიცია',
+            icon: Icons.flag_outlined,
+            title: 'ფოლბეკ პოზიცია',
             text: strategy.fallbackPosition!,
           ),
         ],
@@ -85,10 +88,9 @@ class CaseStrategySection extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Text(
-                '💪 ნდობა:',
-                style: type.titleS.copyWith(color: colors.ink),
-              ),
+              Icon(Icons.speed, size: 20, color: colors.inkMute),
+              SizedBox(width: space.s),
+              Text('ნდობა:', style: type.titleS.copyWith(color: colors.ink)),
               SizedBox(width: space.m),
               Expanded(
                 child: ClipRRect(
@@ -350,7 +352,16 @@ class CaseStrategySection extends StatelessWidget {
 }
 
 class _StrategyCard extends StatelessWidget {
-  const _StrategyCard({required this.title, required this.text});
+  const _StrategyCard({
+    required this.icon,
+    required this.title,
+    required this.text,
+  });
+
+  /// Monochrome Material glyph. It replaces the emoji the fork interpolated
+  /// into [title] itself — a picture living inside a translated string, which
+  /// no `type` role could size and no colour role could tint.
+  final IconData icon;
   final String title;
   final String text;
 
@@ -373,7 +384,18 @@ class _StrategyCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: type.titleS.copyWith(color: colors.ink)),
+          Row(
+            children: [
+              Icon(icon, size: 20, color: colors.inkMute),
+              SizedBox(width: space.s),
+              Expanded(
+                child: Text(
+                  title,
+                  style: type.titleS.copyWith(color: colors.ink),
+                ),
+              ),
+            ],
+          ),
           SizedBox(height: space.s),
           Text(text, style: type.body.copyWith(color: colors.inkMute)),
         ],

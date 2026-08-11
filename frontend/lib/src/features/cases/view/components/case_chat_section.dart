@@ -666,14 +666,31 @@ class _BuildCaseCtaState extends State<_BuildCaseCta> {
               // headline stays optically centred between them.
               if (widget.isRegenerate) const SizedBox(width: 24),
               Expanded(
-                child: Text(
-                  // The 🔄 / ✅ are emoji inside plain strings with no
-                  // `fontSize` literal — owed at M11, not this slice.
-                  widget.isRegenerate
-                      ? '🔄 განახლებული ინფორმაცია ხელმისაწვდომია'
-                      : '✅ დამხმარემ საკმარისი ინფორმაცია შეაგროვა',
-                  style: type.titleS.copyWith(color: colors.ink),
-                  textAlign: TextAlign.center,
+                // M11b: the 🔄/✅ became a real glyph, centred WITH the text
+                // as one unit rather than prefixed into the string. The outer
+                // Row's 24px mirror is untouched, so the optical centring the
+                // M6b comment describes still holds. `Flexible` around the
+                // Text is deliberate: the Georgian headline may wrap, and a
+                // bare Text beside an Icon in a Row would overflow at 1.3.
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      widget.isRegenerate ? Icons.autorenew : Icons.task_alt,
+                      size: 20,
+                      color: colors.ink,
+                    ),
+                    SizedBox(width: space.s),
+                    Flexible(
+                      child: Text(
+                        widget.isRegenerate
+                            ? 'განახლებული ინფორმაცია ხელმისაწვდომია'
+                            : 'დამხმარემ საკმარისი ინფორმაცია შეაგროვა',
+                        style: type.titleS.copyWith(color: colors.ink),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               if (widget.isRegenerate)
@@ -697,11 +714,17 @@ class _BuildCaseCtaState extends State<_BuildCaseCta> {
             height: 48,
             child: ElevatedButton.icon(
               onPressed: widget.isBuilding ? null : widget.onBuild,
-              icon: const Icon(Icons.auto_awesome, size: 18),
+              // M11b: the label's 🔄/📁 folded INTO the button's existing icon
+              // slot, which now switches with the state instead of showing
+              // `auto_awesome` beside a second, contradicting emoji.
+              icon: Icon(
+                widget.isRegenerate ? Icons.autorenew : Icons.auto_awesome,
+                size: 18,
+              ),
               label: Text(
                 widget.isRegenerate
-                    ? '🔄 საქმის ხელახლა გენერაცია'
-                    : '📁 საქმის ანალიზის გენერაცია',
+                    ? 'საქმის ხელახლა გენერაცია'
+                    : 'საქმის ანალიზის გენერაცია',
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: colors.actionPrimaryBg,

@@ -7,24 +7,29 @@ import 'package:themasteroflaw/src/src.dart';
 class LawsHomePage extends StatelessWidget {
   const LawsHomePage({super.key});
 
-  static const _codeIcons = <String, String>{
-    'სამოქალაქო': '🏛️',
-    'სისხლის': '⚖️',
-    'ადმინისტრაციულ': '📋',
-    'შრომის': '👷',
-    'საგადასახადო': '💰',
-    'ოჯახის': '👨‍👩‍👧',
-    'საკუთრების': '🏠',
-    'კონსტიტუცია': '📜',
-    'საპროცესო': '📄',
-    'სამეწარმეო': '🏢',
+  /// The ten legal codes, as monochrome Material glyphs (owner directive,
+  /// 2026-08-11). The fork keyed this map to full-colour emoji rendered as
+  /// TEXT at `type.titleL` — ten unrelated hues on an otherwise Ink screen,
+  /// and ten different glyph metrics because the platform emoji font, not the
+  /// kit, decided the size. The emoji→icon table is in JOURNAL M11b.
+  static const _codeIcons = <String, IconData>{
+    'სამოქალაქო': Icons.account_balance_outlined,
+    'სისხლის': Icons.gavel_outlined,
+    'ადმინისტრაციულ': Icons.assignment_outlined,
+    'შრომის': Icons.engineering_outlined,
+    'საგადასახადო': Icons.payments_outlined,
+    'ოჯახის': Icons.family_restroom_outlined,
+    'საკუთრების': Icons.home_work_outlined,
+    'კონსტიტუცია': Icons.history_edu_outlined,
+    'საპროცესო': Icons.description_outlined,
+    'სამეწარმეო': Icons.business_outlined,
   };
 
-  String _iconForCode(String codeName) {
+  IconData _iconForCode(String codeName) {
     for (final entry in _codeIcons.entries) {
       if (codeName.contains(entry.key)) return entry.value;
     }
-    return '📚';
+    return Icons.menu_book_outlined;
   }
 
   @override
@@ -122,43 +127,51 @@ class LawsHomePage extends StatelessWidget {
         SizedBox(height: space.xl),
         Text('კოდექსები', style: type.titleS.copyWith(color: colors.ink)),
         SizedBox(height: space.m),
-        ...state.codes.map((code) => Padding(
-              padding: EdgeInsets.only(bottom: space.s),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: colors.surface,
-                  border: Border.all(color: colors.line),
+        ...state.codes.map(
+          (code) => Padding(
+            padding: EdgeInsets.only(bottom: space.s),
+            child: Container(
+              decoration: BoxDecoration(
+                color: colors.surface,
+                border: Border.all(color: colors.line),
+                borderRadius: BorderRadius.circular(radius.l),
+              ),
+              child: ListTile(
+                // A glyph, not text: the size is now a component DIMENSION
+                // the kit's roles colour, instead of a type role standing in
+                // for one because the emoji happened to be a character.
+                leading: Icon(
+                  _iconForCode(code.name),
+                  size: 28,
+                  color: colors.ink,
+                ),
+                title: Text(
+                  code.name,
+                  style: type.titleS.copyWith(color: colors.ink),
+                ),
+                subtitle: Text(
+                  '${code.articleCount} მუხლი',
+                  style: type.bodyS.copyWith(color: colors.inkMute),
+                ),
+                trailing: Icon(Icons.chevron_right, color: colors.inkMute),
+                shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(radius.l),
                 ),
-                child: ListTile(
-                  // The emoji IS text, so it takes a type role rather than a
-                  // literal fontSize (guard: literal-font-size is BLOCKING).
-                  leading: Text(_iconForCode(code.name), style: type.titleL),
-                  title: Text(
-                    code.name,
-                    style: type.titleS.copyWith(color: colors.ink),
-                  ),
-                  subtitle: Text(
-                    '${code.articleCount} მუხლი',
-                    style: type.bodyS.copyWith(color: colors.inkMute),
-                  ),
-                  trailing: Icon(Icons.chevron_right, color: colors.inkMute),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(radius.l),
-                  ),
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => BlocProvider.value(
-                          value: context.read<LawsCubit>()..loadCodeStructure(code.id),
-                          child: LawCodeDetailPage(code: code),
-                        ),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => BlocProvider.value(
+                        value: context.read<LawsCubit>()
+                          ..loadCodeStructure(code.id),
+                        child: LawCodeDetailPage(code: code),
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  );
+                },
               ),
-            )),
+            ),
+          ),
+        ),
       ],
     );
   }

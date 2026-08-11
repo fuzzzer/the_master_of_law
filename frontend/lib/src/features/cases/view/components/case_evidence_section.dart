@@ -112,9 +112,11 @@ class CaseEvidenceSection extends StatelessWidget {
             child: OutlinedButton.icon(
               onPressed: () => _showAddEvidence(context),
               icon: const Icon(Icons.add),
-              // The 📎 is an emoji inside a plain string with no `fontSize`
-              // literal, so it is owed at M11, not this slice.
-              label: const Text('📎 დაამატეთ'),
+              // M11b: the 📎 is DROPPED rather than re-iconified — this button
+              // already has an icon slot, and "attach" plus "add" in the same
+              // control is one signal drawn twice. `Icons.attach_file` carries
+              // evidence on the tab and the overview stat card.
+              label: const Text('დაამატეთ'),
               // `FuzzzyButton.secondary`'s shape (M8 judgement 9).
               style: OutlinedButton.styleFrom(
                 foregroundColor: colors.ink,

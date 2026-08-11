@@ -536,7 +536,7 @@ class _ConsultationPageState extends State<ConsultationPage>
               // appearance; the icon and the label carry the difference.
               _ActionChip(
                 icon: Icons.quiz_outlined,
-                label: '🔍 დამაზუსტე',
+                label: 'დამაზუსტე',
                 onTap: () {
                   setState(() => _actionChipsDismissed = true);
                   context.read<ConsultationCubit>().sendMessage(
@@ -546,7 +546,7 @@ class _ConsultationPageState extends State<ConsultationPage>
               ),
               _ActionChip(
                 icon: Icons.auto_awesome,
-                label: '📊 სრული ანალიზი',
+                label: 'სრული ანალიზი',
                 onTap: () {
                   setState(() => _actionChipsDismissed = true);
                   context.read<ConsultationCubit>().sendMessage(
@@ -556,7 +556,7 @@ class _ConsultationPageState extends State<ConsultationPage>
               ),
               _ActionChip(
                 icon: Icons.chat_bubble_outline,
-                label: '💬 გავაგრძელო',
+                label: 'გავაგრძელო',
                 onTap: () {
                   setState(() => _actionChipsDismissed = true);
                 },
@@ -732,19 +732,19 @@ class _ConsultationPageState extends State<ConsultationPage>
     // The switch used to also carry a Color per tool (green / purple / grey).
     // Three literal hues for three flavours of "a tool ran" is decoration, not
     // meaning — the icon already names the tool. Colour dropped from the tuple.
+    // M11b: the 📁/✨/✅ prefixes are DROPPED, not re-iconified — this chip
+    // already renders `icon` to the left of `label`, so the emoji was a second
+    // glyph competing with the Material one three pixels away.
     final (IconData icon, String label) = switch (tool.toolName) {
       'create_case' => (
         Icons.create_new_folder_outlined,
-        '📁 ${_toolNameKaStatic(tool.toolName)}: ${tool.result['title'] ?? ''}',
+        '${_toolNameKaStatic(tool.toolName)}: ${tool.result['title'] ?? ''}',
       ),
       'build_case_analysis' => (
         Icons.auto_awesome,
-        '✨ ${_toolNameKaStatic(tool.toolName)}',
+        _toolNameKaStatic(tool.toolName),
       ),
-      _ => (
-        Icons.build_circle_outlined,
-        '✅ ${_toolNameKaStatic(tool.toolName)}',
-      ),
+      _ => (Icons.build_circle_outlined, _toolNameKaStatic(tool.toolName)),
     };
 
     return Container(
@@ -1002,7 +1002,8 @@ class _ConsultationPageState extends State<ConsultationPage>
       icon: Icons.folder_special,
       // Tools are wired and working — the affirmative rung of FuzzzyBanner.
       tint: _BannerTint.success,
-      message: '📂 საქმე დაკავშირებულია — AI ინსტრუმენტები აქტიურია',
+      // M11b: the 📂 is DROPPED — `_Banner` already renders `icon`.
+      message: 'საქმე დაკავშირებულია — AI ინსტრუმენტები აქტიურია',
       onDismiss: () => context.read<ConsultationCubit>().exitAgentMode(),
     );
   }
@@ -1015,7 +1016,7 @@ class _ConsultationPageState extends State<ConsultationPage>
       icon: Icons.folder,
       // A statement of WHAT is attached, not a success — `info`.
       tint: _BannerTint.info,
-      message: '📁 ${state.attachedCaseTitle ?? 'საქმე'}',
+      message: state.attachedCaseTitle ?? 'საქმე',
       onDismiss: () => context.read<ConsultationCubit>().detachCase(),
     );
   }

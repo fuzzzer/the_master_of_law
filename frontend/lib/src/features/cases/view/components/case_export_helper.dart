@@ -27,7 +27,7 @@ class CaseExportHelper {
             .where((f) => f.classificationIndex == fc.index)
             .toList();
         if (group.isNotEmpty) {
-          buffer.writeln('\n${fc.emoji} ${fc.displayNameKa}:');
+          buffer.writeln('\n${fc.exportGlyph} ${fc.displayNameKa}:');
           for (final f in group) {
             buffer.writeln('  • ${f.text}');
           }
@@ -72,7 +72,9 @@ class CaseExportHelper {
     if (caseData.timeline.isNotEmpty) {
       buffer.writeln('━━━ ვადები ━━━');
       for (final ev in caseData.timeline) {
-        buffer.writeln('  ${ev.type.icon} ${_fmt(ev.date)} — ${ev.title}');
+        buffer.writeln(
+          '  ${ev.type.exportGlyph} ${_fmt(ev.date)} — ${ev.title}',
+        );
       }
       buffer.writeln();
     }
