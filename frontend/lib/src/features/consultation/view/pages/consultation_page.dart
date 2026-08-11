@@ -13,7 +13,8 @@ class ConsultationPage extends StatefulWidget {
   State<ConsultationPage> createState() => _ConsultationPageState();
 }
 
-class _ConsultationPageState extends State<ConsultationPage> with TickerProviderStateMixin {
+class _ConsultationPageState extends State<ConsultationPage>
+    with TickerProviderStateMixin {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
   bool _actionChipsDismissed = false;
@@ -105,7 +106,9 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
         actions: [
           BlocBuilder<ConsultationCubit, ConsultationState>(
             builder: (context, state) {
-              if (state.status == StateStatus.initial) return const SizedBox.shrink();
+              if (state.status == StateStatus.initial) {
+                return const SizedBox.shrink();
+              }
               return IconButton(
                 icon: const Icon(Icons.add_comment_outlined),
                 tooltip: 'ახალი საუბარი',
@@ -116,11 +119,16 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
           BlocBuilder<ConsultationCubit, ConsultationState>(
             builder: (context, state) {
               //TODO enable sooner if needed
-              if (state.status == StateStatus.initial || state.messages.length < 6) return const SizedBox.shrink();
+              if (state.status == StateStatus.initial ||
+                  state.messages.length < 6) {
+                return const SizedBox.shrink();
+              }
               return IconButton(
                 icon: const Icon(Icons.description_outlined),
                 tooltip: 'საქმის გენერაცია',
-                onPressed: state.isBuildingCase ? null : () => _triggerCaseBuild(context),
+                onPressed: state.isBuildingCase
+                    ? null
+                    : () => _triggerCaseBuild(context),
               );
             },
           ),
@@ -172,9 +180,15 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
           if (prev.messages.length != curr.messages.length) return true;
           if (prev.streamingStatus != curr.streamingStatus) return true;
           if (curr.streamingMessageId != null && curr.messages.isNotEmpty) {
-            final prevMsg = prev.messages.where((m) => m.id == curr.streamingMessageId).firstOrNull;
-            final currMsg = curr.messages.where((m) => m.id == curr.streamingMessageId).firstOrNull;
-            if (prevMsg != null && currMsg != null && prevMsg.text.length != currMsg.text.length) {
+            final prevMsg = prev.messages
+                .where((m) => m.id == curr.streamingMessageId)
+                .firstOrNull;
+            final currMsg = curr.messages
+                .where((m) => m.id == curr.streamingMessageId)
+                .firstOrNull;
+            if (prevMsg != null &&
+                currMsg != null &&
+                prevMsg.text.length != currMsg.text.length) {
               return true;
             }
           }
@@ -182,7 +196,9 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
         },
         listener: (context, state) => _scrollToBottom(),
         builder: (context, state) {
-          if (state.status == StateStatus.initial) return _buildWelcome(context, state);
+          if (state.status == StateStatus.initial) {
+            return _buildWelcome(context, state);
+          }
           if (state.status == StateStatus.loading && state.messages.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -195,9 +211,12 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
                 children: [
                   Expanded(child: _buildMessageList(context, state)),
                   if (state.isAgentMode) _buildAgentModeBanner(context, state),
-                  if (state.caseAnalysisReady && !state.hasCaseAttached && !state.isAgentMode)
+                  if (state.caseAnalysisReady &&
+                      !state.hasCaseAttached &&
+                      !state.isAgentMode)
                     _buildCaseReadyBanner(context, state),
-                  if (state.hasCaseAttached) _buildAttachedCaseBanner(context, state),
+                  if (state.hasCaseAttached)
+                    _buildAttachedCaseBanner(context, state),
                   _buildInputBar(context, state),
                 ],
               ),
@@ -299,7 +318,10 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
             // Oversized decorative state glyph → `inkFaint`, alpha deleted.
             Icon(Icons.psychology, size: 64, color: colors.inkFaint),
             SizedBox(height: space.xl),
-            Text('AI კონსულტაცია', style: type.titleM.copyWith(color: colors.ink)),
+            Text(
+              'AI კონსულტაცია',
+              style: type.titleM.copyWith(color: colors.ink),
+            ),
             SizedBox(height: space.s),
             Text(
               'დაუსვით იურიდიული კითხვა',
@@ -318,7 +340,8 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
             SizedBox(height: space.xxl),
             // `FuzzzyButton.primary`: actionPrimary pair, radius.m, `snug`.
             ElevatedButton.icon(
-              onPressed: () => context.read<ConsultationCubit>().startConversation(),
+              onPressed: () =>
+                  context.read<ConsultationCubit>().startConversation(),
               icon: const Icon(Icons.chat),
               label: const Text('დაწყება'),
               style: ElevatedButton.styleFrom(
@@ -365,7 +388,8 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
             ),
             SizedBox(height: space.xl),
             ElevatedButton.icon(
-              onPressed: () => context.read<ConsultationCubit>().startConversation(),
+              onPressed: () =>
+                  context.read<ConsultationCubit>().startConversation(),
               icon: const Icon(Icons.refresh, size: 18),
               label: const Text('ხელახლა ცდა'),
               style: ElevatedButton.styleFrom(
@@ -383,7 +407,11 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
     );
   }
 
-  Widget _buildModeButton(BuildContext context, ChatMode mode, ChatMode currentMode) {
+  Widget _buildModeButton(
+    BuildContext context,
+    ChatMode mode,
+    ChatMode currentMode,
+  ) {
     final colors = context.fuzzzyColors;
     final type = context.fuzzzyTextStyles;
     final space = context.fuzzzySpace;
@@ -431,16 +459,24 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
 
     // Show action chips after first AI response (2 messages: user + AI)
     final showChips =
-        !_actionChipsDismissed && state.messages.length >= 2 && !state.isSending && state.messages.last.isUser == false;
+        !_actionChipsDismissed &&
+        state.messages.length >= 2 &&
+        !state.isSending &&
+        state.messages.last.isUser == false;
 
     // We only show the typing indicator if we're sending and haven't received any text yet
     final streamingMsg = state.streamingMessageId != null
-        ? state.messages.where((m) => m.id == state.streamingMessageId).firstOrNull
+        ? state.messages
+              .where((m) => m.id == state.streamingMessageId)
+              .firstOrNull
         : null;
-    final showTypingIndicator = state.isSending && (streamingMsg == null || streamingMsg.text.isEmpty);
+    final showTypingIndicator =
+        state.isSending && (streamingMsg == null || streamingMsg.text.isEmpty);
 
     // Filter out the empty streaming message if we're showing the typing indicator instead
-    final displayMessages = state.messages.where((m) => !(m.id == state.streamingMessageId && m.text.isEmpty)).toList();
+    final displayMessages = state.messages
+        .where((m) => !(m.id == state.streamingMessageId && m.text.isEmpty))
+        .toList();
 
     return ListView.builder(
       controller: _scrollController,
@@ -451,7 +487,10 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
       //   [0]           typing indicator (if active)
       //   [1..N]        messages newest-first
       //   [N+1]         action chips (if visible)
-      itemCount: displayMessages.length + (showTypingIndicator ? 1 : 0) + (showChips ? 1 : 0),
+      itemCount:
+          displayMessages.length +
+          (showTypingIndicator ? 1 : 0) +
+          (showChips ? 1 : 0),
       itemBuilder: (context, index) {
         // Typing indicator at the very bottom (index 0 in reversed list)
         if (showTypingIndicator && index == 0) {
@@ -566,22 +605,20 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
     }
 
     final screenWidth = MediaQuery.of(context).size.width;
-    final maxBubbleWidth = message.isUser ? screenWidth * 0.82 : screenWidth * 0.92;
+    final maxBubbleWidth = message.isUser
+        ? screenWidth * 0.82
+        : screenWidth * 0.92;
 
     return Align(
       alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: GestureDetector(
         onLongPress: () {
           Clipboard.setData(ClipboardData(text: message.text));
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('გადაკოპირებულია'),
-              // REVIEWED literal-motion: a toast DWELL is not animation
-              // timing, and `motion.*` tops out at 420ms. Dies at M11 with
-              // FuzzzyToast, which owns its own dwell.
-              duration: Duration(seconds: 1),
-              behavior: SnackBarBehavior.floating,
-            ),
+          FuzzzyToast.show(
+            context,
+            message: 'გადაკოპირებულია',
+            kind: FuzzzyToastKind.success,
+            qaId: 'consultation.copied',
           );
         },
         child: Container(
@@ -600,7 +637,9 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
               topLeft: Radius.circular(radius.l),
               topRight: Radius.circular(radius.l),
               bottomLeft: Radius.circular(message.isUser ? radius.l : radius.s),
-              bottomRight: Radius.circular(message.isUser ? radius.s : radius.l),
+              bottomRight: Radius.circular(
+                message.isUser ? radius.s : radius.l,
+              ),
             ),
             border: message.isUser ? null : Border.all(color: colors.line),
           ),
@@ -614,16 +653,22 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
                   color: message.isUser ? colors.actionPrimaryFg : colors.ink,
                 ),
               ),
-              if (message.toolResults != null && message.toolResults!.isNotEmpty) ...[
+              if (message.toolResults != null &&
+                  message.toolResults!.isNotEmpty) ...[
                 SizedBox(height: space.s),
-                ...message.toolResults!.map((t) => _buildToolResultChip(context, t)),
+                ...message.toolResults!.map(
+                  (t) => _buildToolResultChip(context, t),
+                ),
               ],
-              if (message.citations != null && message.citations!.isNotEmpty) ...[
+              if (message.citations != null &&
+                  message.citations!.isNotEmpty) ...[
                 SizedBox(height: space.m),
                 // Colour and thickness come from dividerTheme (line, 1px).
                 const Divider(),
                 SizedBox(height: space.s),
-                ...message.citations!.map((c) => _buildCitationChip(context, c)),
+                ...message.citations!.map(
+                  (c) => _buildCitationChip(context, c),
+                ),
               ],
             ],
           ),
@@ -659,7 +704,9 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
             SizedBox(width: space.xs),
             Flexible(
               child: Text(
-                citation.articleTitle.isNotEmpty ? citation.articleTitle : 'მუხლი ${citation.articleId}',
+                citation.articleTitle.isNotEmpty
+                    ? citation.articleTitle
+                    : 'მუხლი ${citation.articleId}',
                 style: type.bodyS.copyWith(
                   color: colors.ink,
                   decoration: TextDecoration.underline,
@@ -755,11 +802,15 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
       MaterialPageRoute<void>(
         builder: (_) => BlocProvider(
           create: (_) => LawsCubit(
-            repository: LawsRepository(remoteDataSource: LawsRemoteDataSource()),
+            repository: LawsRepository(
+              remoteDataSource: LawsRemoteDataSource(),
+            ),
           )..loadArticle(citation.articleId),
           child: LawArticlePage(
             articleId: citation.articleId,
-            articleTitle: citation.articleTitle.isNotEmpty ? citation.articleTitle : 'მუხლი ${citation.articleId}',
+            articleTitle: citation.articleTitle.isNotEmpty
+                ? citation.articleTitle
+                : 'მუხლი ${citation.articleId}',
             codeName: citation.codeTitle,
           ),
         ),
@@ -800,7 +851,10 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
                   animation: _dotAnimController,
                   builder: (_, child) {
                     final delay = i * 0.2;
-                    final t = (_dotAnimController.value - delay).clamp(0.0, 1.0);
+                    final t = (_dotAnimController.value - delay).clamp(
+                      0.0,
+                      1.0,
+                    );
                     final bounce = (t < 0.5) ? (t * 2) : (2 - t * 2);
                     return Transform.translate(
                       offset: Offset(0, -3 * bounce),
@@ -852,7 +906,12 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
       // Docked bar idiom (M6): safe-area bottom + a `space` rung. The
       // horizontal inset stays at `space.s`, NOT `density.screen`, because the
       // two flanking IconButtons already carry Material's own 8px inset.
-      padding: EdgeInsets.fromLTRB(space.s, space.m, space.s, bottomPadding + space.m),
+      padding: EdgeInsets.fromLTRB(
+        space.s,
+        space.m,
+        space.s,
+        bottomPadding + space.m,
+      ),
       decoration: BoxDecoration(
         color: colors.surface,
         border: Border(top: BorderSide(color: colors.line)),
@@ -865,7 +924,9 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
             padding: EdgeInsets.only(bottom: space.xs),
             child: IconButton(
               icon: Icon(
-                state.hasCaseAttached ? Icons.folder : Icons.folder_open_outlined,
+                state.hasCaseAttached
+                    ? Icons.folder
+                    : Icons.folder_open_outlined,
                 color: state.hasCaseAttached ? colors.ink : colors.inkMute,
                 size: 22,
               ),
@@ -887,7 +948,9 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
                 // The fork wrapped this field in a Container just to fake a
                 // fill and a 22px radius; that wrapper is gone (RUN_BRIEF §4:
                 // never re-declare field decoration locally).
-                decoration: const InputDecoration(hintText: 'დაწერეთ კითხვა...'),
+                decoration: const InputDecoration(
+                  hintText: 'დაწერეთ კითხვა...',
+                ),
                 maxLines: 5,
                 minLines: 1,
                 textInputAction: TextInputAction.send,
@@ -907,7 +970,9 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
                 enabled: !state.isSending,
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: state.isSending ? null : () => _sendMessage(context, state),
+                  onTap: state.isSending
+                      ? null
+                      : () => _sendMessage(context, state),
                   child: Container(
                     // Dimension: the send affordance's own footprint. The 44×44
                     // touch minimum is met by FuzzzyHitTarget without growing it.
@@ -942,7 +1007,10 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
     );
   }
 
-  Widget _buildAttachedCaseBanner(BuildContext context, ConsultationState state) {
+  Widget _buildAttachedCaseBanner(
+    BuildContext context,
+    ConsultationState state,
+  ) {
     return _Banner(
       icon: Icons.folder,
       // A statement of WHAT is attached, not a success — `info`.
@@ -978,7 +1046,11 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
                 padding: density.notice,
                 child: Row(
                   children: [
-                    Icon(Icons.check_circle_outline, color: colors.success, size: 24),
+                    Icon(
+                      Icons.check_circle_outline,
+                      color: colors.success,
+                      size: 24,
+                    ),
                     SizedBox(width: space.m),
                     Expanded(
                       child: Column(
@@ -1000,7 +1072,9 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
                     Opacity(
                       opacity: state.isBuildingCase ? 0.42 : 1.0,
                       child: ElevatedButton(
-                        onPressed: state.isBuildingCase ? null : () => _triggerCaseBuild(context),
+                        onPressed: state.isBuildingCase
+                            ? null
+                            : () => _triggerCaseBuild(context),
                         style: ElevatedButton.styleFrom(
                           // The CTA is the screen's primary action, so it takes
                           // the action pair — not the banner's semantic tint.
@@ -1041,7 +1115,9 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
       context: context,
       builder: (dialogCtx) => AlertDialog(
         title: const Text('საქმის გენერაცია'),
-        content: const Text('საქმის სრული ანალიზის გენერაციას სჭირდება 3 კრედიტი. გსურთ გაგრძელება?'),
+        content: const Text(
+          'საქმის სრული ანალიზის გენერაციას სჭირდება 3 კრედიტი. გსურთ გაგრძელება?',
+        ),
         // Overlay rung (USING §3 / MAPPING §2.4): a dialog is `raised`, not
         // `surface` — the fork used one field for both rungs.
         backgroundColor: colors.raised,
@@ -1053,7 +1129,10 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx, false),
             // `FuzzzyButton.ghost` idle foreground.
-            child: Text('გაუქმება', style: type.control.copyWith(color: colors.inkMute)),
+            child: Text(
+              'გაუქმება',
+              style: type.control.copyWith(color: colors.inkMute),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(dialogCtx, true),
@@ -1084,8 +1163,11 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
       if (newCase != null && mounted) {
         router.go('/cases/${newCase.id}');
       } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('საქმის ლოკალურად შენახვა ვერ მოხერხდა')),
+        FuzzzyToast.show(
+          context,
+          message: 'საქმის ლოკალურად შენახვა ვერ მოხერხდა',
+          kind: FuzzzyToastKind.error,
+          qaId: 'consultation.saveFailed',
         );
       }
     } else {
@@ -1105,7 +1187,12 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
           errMsg = 'საქმის შექმნა ვერ მოხერხდა';
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errMsg)));
+        FuzzzyToast.show(
+          context,
+          message: errMsg,
+          kind: FuzzzyToastKind.error,
+          qaId: 'consultation.buildFailed',
+        );
       }
     }
   }
@@ -1116,7 +1203,10 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
     _messageController.clear();
     final creditsCubit = context.read<CreditsCubit>();
     // Refresh the balance once the (billable) turn finishes.
-    context.read<ConsultationCubit>().sendMessage(text).whenComplete(creditsCubit.load);
+    context
+        .read<ConsultationCubit>()
+        .sendMessage(text)
+        .whenComplete(creditsCubit.load);
   }
 
   void _showModeSelector(BuildContext context) {
@@ -1134,7 +1224,10 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('წყაროს არჩევა', style: type.titleM.copyWith(color: colors.ink)),
+              Text(
+                'წყაროს არჩევა',
+                style: type.titleM.copyWith(color: colors.ink),
+              ),
               SizedBox(height: space.l),
               _buildModeOption(
                 context,
@@ -1178,7 +1271,10 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
         title,
         style: type.titleS.copyWith(color: colors.ink),
       ),
-      subtitle: Text(subtitle, style: type.bodyS.copyWith(color: colors.inkMute)),
+      subtitle: Text(
+        subtitle,
+        style: type.bodyS.copyWith(color: colors.inkMute),
+      ),
       trailing: isSelected ? Icon(Icons.check_circle, color: colors.ink) : null,
       // CONSTANT 1px side; only its colour changes with selection. Fill stays
       // `surface` in both states — the check mark and the ink/inkMute icon are
@@ -1213,7 +1309,10 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('საქმის მიმაგრება', style: type.titleM.copyWith(color: colors.ink)),
+              Text(
+                'საქმის მიმაგრება',
+                style: type.titleM.copyWith(color: colors.ink),
+              ),
               SizedBox(height: space.xs),
               Text(
                 'AI მიიღებს საქმის სრულ კონტექსტს',
@@ -1224,7 +1323,10 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
               if (cubit.state.hasCaseAttached)
                 ListTile(
                   leading: Icon(Icons.link_off, color: colors.destructiveText),
-                  title: Text('საქმის მოხსნა', style: type.titleS.copyWith(color: colors.destructiveText)),
+                  title: Text(
+                    'საქმის მოხსნა',
+                    style: type.titleS.copyWith(color: colors.destructiveText),
+                  ),
                   // USING §6 duty 4: the IDLE destructive action is
                   // destructiveText + a destructiveLine outline, never a fill
                   // (the fork tinted the whole tile red at alpha 0.05).
@@ -1265,7 +1367,8 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
                   return Column(
                     mainAxisSize: MainAxisSize.min,
                     children: cases.map((caseData) {
-                      final isAttached = cubit.state.attachedCaseId == caseData.id;
+                      final isAttached =
+                          cubit.state.attachedCaseId == caseData.id;
                       return Padding(
                         padding: EdgeInsets.only(bottom: space.xs),
                         child: ListTile(
@@ -1281,10 +1384,20 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
                             caseData.domain.displayNameKa,
                             style: type.bodyS.copyWith(color: colors.inkMute),
                           ),
-                          trailing: isAttached ? Icon(Icons.check_circle, color: colors.ink, size: 20) : null,
+                          trailing: isAttached
+                              ? Icon(
+                                  Icons.check_circle,
+                                  color: colors.ink,
+                                  size: 20,
+                                )
+                              : null,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(radius.m),
-                            side: BorderSide(color: isAttached ? colors.lineStrong : colors.line),
+                            side: BorderSide(
+                              color: isAttached
+                                  ? colors.lineStrong
+                                  : colors.line,
+                            ),
                           ),
                           tileColor: colors.surface,
                           onTap: () {
@@ -1317,16 +1430,22 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
       parts.add('ფაქტები: ${caseData.facts.map((f) => f.text).join("; ")}');
     }
     if (caseData.arguments.isNotEmpty) {
-      parts.add('არგუმენტები: ${caseData.arguments.map((a) => a.title).join("; ")}');
+      parts.add(
+        'არგუმენტები: ${caseData.arguments.map((a) => a.title).join("; ")}',
+      );
     }
     if (caseData.linkedArticles.isNotEmpty) {
-      parts.add('დაკავშირებული მუხლები: ${caseData.linkedArticles.map((a) => a.title).join("; ")}');
+      parts.add(
+        'დაკავშირებული მუხლები: ${caseData.linkedArticles.map((a) => a.title).join("; ")}',
+      );
     }
     if (caseData.strategy != null) {
       parts.add('სტრატეგია: ${caseData.strategy!.primaryStrategy}');
     }
     if (caseData.risks.isNotEmpty) {
-      parts.add('რისკები: ${caseData.risks.map((r) => r.description).join("; ")}');
+      parts.add(
+        'რისკები: ${caseData.risks.map((r) => r.description).join("; ")}',
+      );
     }
     return parts.join('\n');
   }
@@ -1358,7 +1477,8 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
     ConsultationFailureType.network => 'ინტერნეტთან კავშირი ვერ მოხერხდა',
     ConsultationFailureType.unauthorized => 'ავტორიზაცია საჭიროა',
     ConsultationFailureType.noCredits => 'კრედიტები ამოიწურა',
-    ConsultationFailureType.rateLimited => 'მოთხოვნების ლიმიტი ამოიწურა, სცადეთ მოგვიანებით',
+    ConsultationFailureType.rateLimited =>
+      'მოთხოვნების ლიმიტი ამოიწურა, სცადეთ მოგვიანებით',
     ConsultationFailureType.notFound => 'საუბარი ვერ მოიძებნა',
     ConsultationFailureType.serverError => 'სერვერის შეცდომა, სცადეთ ხელახლა',
     ConsultationFailureType.unknown || null => 'უცნობი შეცდომა',
@@ -1436,7 +1556,11 @@ class _Banner extends StatelessWidget {
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTap: onDismiss,
-                        child: Icon(Icons.close, size: 16, color: colors.inkFaint),
+                        child: Icon(
+                          Icons.close,
+                          size: 16,
+                          color: colors.inkFaint,
+                        ),
                       ),
                     ),
                   ],
@@ -1589,7 +1713,8 @@ class _HistorySheetState extends State<_HistorySheet> {
                     ),
                   );
                 }
-                final result = snapshot.data! as ConsultationSuccess<List<dynamic>>;
+                final result =
+                    snapshot.data! as ConsultationSuccess<List<dynamic>>;
                 final items = result.data;
                 if (items.isEmpty) {
                   return Center(
@@ -1606,12 +1731,21 @@ class _HistorySheetState extends State<_HistorySheet> {
                     final item = items[index] as Map<String, dynamic>;
                     final title = item['title']?.toString() ?? 'ახალი საუბარი';
                     final phase = item['phase']?.toString() ?? '';
-                    final dateStr = item['updated_at']?.toString() ?? item['created_at']?.toString() ?? '';
+                    final dateStr =
+                        item['updated_at']?.toString() ??
+                        item['created_at']?.toString() ??
+                        '';
                     final date = DateTime.tryParse(dateStr) ?? DateTime.now();
 
                     return ListTile(
-                      leading: Icon(Icons.chat_bubble_outline, color: colors.ink),
-                      title: Text(title, style: type.titleS.copyWith(color: colors.ink)),
+                      leading: Icon(
+                        Icons.chat_bubble_outline,
+                        color: colors.ink,
+                      ),
+                      title: Text(
+                        title,
+                        style: type.titleS.copyWith(color: colors.ink),
+                      ),
                       subtitle: Text(
                         '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} • $phase',
                         // Metadata → `inkFaint` (USING §2.2: timestamps/meta).

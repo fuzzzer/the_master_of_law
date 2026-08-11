@@ -23,7 +23,8 @@ class CaseWorkspacePage extends StatefulWidget {
   State<CaseWorkspacePage> createState() => _CaseWorkspacePageState();
 }
 
-class _CaseWorkspacePageState extends State<CaseWorkspacePage> with SingleTickerProviderStateMixin {
+class _CaseWorkspacePageState extends State<CaseWorkspacePage>
+    with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
   static const _tabLabels = [
@@ -66,17 +67,11 @@ class _CaseWorkspacePageState extends State<CaseWorkspacePage> with SingleTicker
     return BlocConsumer<CaseDetailCubit, CaseDetailState>(
       listenWhen: (prev, curr) => !prev.saveFailed && curr.saveFailed,
       listener: (context, state) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            // `FuzzzyToast`'s shape: a `raised` sheet, with the semantic
-            // colour carried by the CONTENT rather than as a solid fill.
-            content: Text(
-              'ცვლილების შენახვა ვერ მოხერხდა',
-              style: type.body.copyWith(color: colors.destructiveText),
-            ),
-            backgroundColor: colors.raised,
-            behavior: SnackBarBehavior.floating,
-          ),
+        FuzzzyToast.show(
+          context,
+          message: 'ცვლილების შენახვა ვერ მოხერხდა',
+          kind: FuzzzyToastKind.error,
+          qaId: 'caseWorkspace.saveFailed',
         );
       },
       builder: (context, state) {
@@ -89,7 +84,13 @@ class _CaseWorkspacePageState extends State<CaseWorkspacePage> with SingleTicker
               onPressed: () => context.go('/cases'),
             ),
             // Title style and icon colours come from appBarTheme.
-            title: caseData != null ? Text(caseData.title, maxLines: 1, overflow: TextOverflow.ellipsis) : null,
+            title: caseData != null
+                ? Text(
+                    caseData.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  )
+                : null,
             actions: [
               if (caseData != null)
                 PopupMenuButton<String>(
@@ -117,15 +118,31 @@ class _CaseWorkspacePageState extends State<CaseWorkspacePage> with SingleTicker
                     }
                   },
                   itemBuilder: (_) => [
-                    _menuItem(context, 'review', Icons.rate_review_outlined, 'შეფასება'),
+                    _menuItem(
+                      context,
+                      'review',
+                      Icons.rate_review_outlined,
+                      'შეფასება',
+                    ),
                     _menuItem(context, 'export', Icons.share, 'ექსპორტი'),
-                    _menuItem(context, 'archive', Icons.archive_outlined, 'დაარქივება'),
+                    _menuItem(
+                      context,
+                      'archive',
+                      Icons.archive_outlined,
+                      'დაარქივება',
+                    ),
                     // The screen's ONE red voice besides the tab rail is a
                     // deliberate exception the MAPPING pre-decided: the tab
                     // indicator is `live` (navigational spine) and delete stays
                     // TEXT-only in `destructiveText` — duty 4's idle form, no
                     // fill (MAPPING §2.2 judgement 3).
-                    _menuItem(context, 'delete', Icons.delete_outline, 'წაშლა', destructive: true),
+                    _menuItem(
+                      context,
+                      'delete',
+                      Icons.delete_outline,
+                      'წაშლა',
+                      destructive: true,
+                    ),
                   ],
                 ),
             ],
@@ -139,7 +156,9 @@ class _CaseWorkspacePageState extends State<CaseWorkspacePage> with SingleTicker
                       children: [
                         // Status + domain row
                         Padding(
-                          padding: EdgeInsets.symmetric(horizontal: density.screen.left),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: density.screen.left,
+                          ),
                           child: Row(
                             children: [
                               _StatusChip(status: caseData.status),
@@ -178,7 +197,9 @@ class _CaseWorkspacePageState extends State<CaseWorkspacePage> with SingleTicker
                           unselectedLabelStyle: type.control,
                           dividerColor: colors.line,
                           padding: EdgeInsets.symmetric(horizontal: space.s),
-                          tabs: _tabLabels.map((label) => Tab(text: label)).toList(),
+                          tabs: _tabLabels
+                              .map((label) => Tab(text: label))
+                              .toList(),
                         ),
                       ],
                     ),
@@ -197,7 +218,10 @@ class _CaseWorkspacePageState extends State<CaseWorkspacePage> with SingleTicker
               : TabBarView(
                   controller: _tabController,
                   children: [
-                    CaseOverviewSection(caseData: caseData, onTabSwitch: _switchToTab),
+                    CaseOverviewSection(
+                      caseData: caseData,
+                      onTabSwitch: _switchToTab,
+                    ),
                     CaseChatSection(caseId: widget.caseId),
                     CaseTasksSection(caseData: caseData),
                     CaseFactsSection(caseData: caseData),
@@ -272,7 +296,10 @@ class _CaseWorkspacePageState extends State<CaseWorkspacePage> with SingleTicker
             borderRadius: BorderRadius.circular(radius.l),
             side: BorderSide(color: colors.lineStrong),
           ),
-          title: Text('საქმის წაშლა', style: type.titleS.copyWith(color: colors.ink)),
+          title: Text(
+            'საქმის წაშლა',
+            style: type.titleS.copyWith(color: colors.ink),
+          ),
           content: Text(
             'ნამდვილად გსურთ „${caseData.title}" საქმის წაშლა?',
             style: type.body.copyWith(color: colors.inkMute),
@@ -281,7 +308,10 @@ class _CaseWorkspacePageState extends State<CaseWorkspacePage> with SingleTicker
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
               // `FuzzzyButton.ghost` idle foreground.
-              child: Text('გაუქმება', style: type.control.copyWith(color: colors.inkMute)),
+              child: Text(
+                'გაუქმება',
+                style: type.control.copyWith(color: colors.inkMute),
+              ),
             ),
             TextButton(
               onPressed: () {
@@ -293,7 +323,10 @@ class _CaseWorkspacePageState extends State<CaseWorkspacePage> with SingleTicker
               // so it is allowed a fill — but the surrounding dialog already
               // names the action, so it stays the legible `destructiveText` on
               // the overlay rather than shouting a red block at the user.
-              child: Text('წაშლა', style: type.control.copyWith(color: colors.destructiveText)),
+              child: Text(
+                'წაშლა',
+                style: type.control.copyWith(color: colors.destructiveText),
+              ),
             ),
           ],
         );
@@ -385,7 +418,10 @@ class _DomainChip extends StatelessWidget {
             ),
           ),
           SizedBox(width: space.s),
-          Text(domain.shortLabelKa, style: type.control.copyWith(color: colors.inkMute)),
+          Text(
+            domain.shortLabelKa,
+            style: type.control.copyWith(color: colors.inkMute),
+          ),
         ],
       ),
     );

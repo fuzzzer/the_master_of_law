@@ -37,8 +37,10 @@ class LogsScreen extends StatelessWidget {
               builder: (context, state) {
                 return StatusBuilder.buildByStatus(
                   status: state.status,
-                  onInitial: () => const Center(child: CircularProgressIndicator()),
-                  onLoading: () => const Center(child: CircularProgressIndicator()),
+                  onInitial: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  onLoading: () =>
+                      const Center(child: CircularProgressIndicator()),
 
                   onSuccess: () => _LogsListWithSearch(
                     logs: state.logRecordList!,
@@ -80,7 +82,9 @@ class _LogsListWithSearchState extends State<_LogsListWithSearch> {
     final type = context.fuzzzyTextStyles;
     final filtered = _query.isEmpty
         ? widget.logs
-        : widget.logs.where((e) => e.toLowerCase().contains(_query.toLowerCase())).toList();
+        : widget.logs
+              .where((e) => e.toLowerCase().contains(_query.toLowerCase()))
+              .toList();
 
     return Column(
       children: [
@@ -105,14 +109,17 @@ class _LogsListWithSearchState extends State<_LogsListWithSearch> {
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onLongPress: () {
-                        final scaffoldMessenger = ScaffoldMessenger.of(context);
-                        Clipboard.setData(ClipboardData(text: logRecord)).then((_) {
-                          scaffoldMessenger.showSnackBar(
-                            const SnackBar(
-                              content: Text('Copied to the clipboard'),
-                            ),
-                          );
-                        });
+                        // M11: the messenger-capture + `.then` dance existed
+                        // only to survive the async gap. Showing the toast
+                        // synchronously (as the app's three other copy sites
+                        // already do) removes the gap instead of guarding it.
+                        Clipboard.setData(ClipboardData(text: logRecord));
+                        FuzzzyToast.show(
+                          context,
+                          message: 'Copied to the clipboard',
+                          kind: FuzzzyToastKind.success,
+                          qaId: 'devPanel.logCopied',
+                        );
                       },
                       child: SelectableText(
                         logRecord,

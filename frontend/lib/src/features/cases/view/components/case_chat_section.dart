@@ -114,7 +114,6 @@ class _CaseChatSectionState extends State<CaseChatSection> {
   }
 
   Future<void> _buildCase() async {
-    final messenger = ScaffoldMessenger.of(context);
     final caseFileData = await _cubit.buildCaseFile();
     if (caseFileData != null && mounted) {
       context.read<CaseDetailCubit>().populateFromAiAnalysis(caseFileData);
@@ -136,13 +135,14 @@ class _CaseChatSectionState extends State<CaseChatSection> {
         setState(() {});
       }
       if (mounted) {
-        messenger.showSnackBar(
-          // The ✅ is an emoji inside a plain string with no `fontSize`
-          // literal, so it survives this slice and is owed at M11 (the
-          // owner's emoji→monochrome-icon directive). See the journal table.
-          const SnackBar(
-            content: Text('✅ საქმის სექციები შეივსო დამხმარის ანალიზით'),
-          ),
+        // M11: the leading '✅' is DROPPED rather than re-iconified — the
+        // toast's `success` kind already carries that exact meaning in its
+        // 3px left rule, so the emoji was a second copy of one signal.
+        FuzzzyToast.show(
+          context,
+          message: 'საქმის სექციები შეივსო დამხმარის ანალიზით',
+          kind: FuzzzyToastKind.success,
+          qaId: 'caseChat.sectionsFilled',
         );
         _scrollToBottom();
       }

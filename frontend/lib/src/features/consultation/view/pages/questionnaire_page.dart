@@ -89,7 +89,8 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
       ),
       body: BlocConsumer<QuestionnaireCubit, QuestionnaireState>(
         listenWhen: (prev, curr) =>
-            prev.currentIndex != curr.currentIndex || prev.isComplete != curr.isComplete,
+            prev.currentIndex != curr.currentIndex ||
+            prev.isComplete != curr.isComplete,
         listener: (context, state) {
           if (state.isComplete) {
             _showReviewPage(context, state);
@@ -179,11 +180,12 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
             ),
             SizedBox(height: space.xl),
             ElevatedButton(
-              onPressed: () => context.read<QuestionnaireCubit>().generateQuestionnaire(
-                conversationId: widget.conversationId,
-                domain: widget.domain,
-                userDescription: widget.userDescription,
-              ),
+              onPressed: () =>
+                  context.read<QuestionnaireCubit>().generateQuestionnaire(
+                    conversationId: widget.conversationId,
+                    domain: widget.domain,
+                    userDescription: widget.userDescription,
+                  ),
               child: const Text('ხელახლა ცდა'),
             ),
           ],
@@ -198,7 +200,9 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
     final space = context.fuzzzySpace;
     final radius = context.fuzzzyRadius;
     final density = context.fuzzzyDensity;
-    final progress = state.questions.isEmpty ? 0.0 : (state.currentIndex + 1) / state.questions.length;
+    final progress = state.questions.isEmpty
+        ? 0.0
+        : (state.currentIndex + 1) / state.questions.length;
 
     return Container(
       padding: EdgeInsets.fromLTRB(
@@ -298,7 +302,10 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
     );
   }
 
-  Widget _buildInputWidget(BuildContext context, QuestionnaireQuestionModel question) {
+  Widget _buildInputWidget(
+    BuildContext context,
+    QuestionnaireQuestionModel question,
+  ) {
     return switch (question.questionType) {
       'text' => _buildTextInput(context),
       'boolean' => _buildBooleanInput(context),
@@ -367,7 +374,10 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
     );
   }
 
-  Widget _buildChoiceInput(BuildContext context, QuestionnaireQuestionModel question) {
+  Widget _buildChoiceInput(
+    BuildContext context,
+    QuestionnaireQuestionModel question,
+  ) {
     final colors = context.fuzzzyColors;
     final type = context.fuzzzyTextStyles;
     final space = context.fuzzzySpace;
@@ -435,7 +445,9 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
           color: colors.fill,
           borderRadius: BorderRadius.circular(form.radius),
           border: Border.all(
-            color: _selectedDate != null ? colors.lineStrong : colors.idleBorder,
+            color: _selectedDate != null
+                ? colors.lineStrong
+                : colors.idleBorder,
             width: form.borderWidth,
           ),
         ),
@@ -512,7 +524,9 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
               const Spacer(),
               if (question != null && !question.required)
                 TextButton(
-                  onPressed: state.isSubmitting ? null : () => _submitCurrentAnswer(context, state, skip: true),
+                  onPressed: state.isSubmitting
+                      ? null
+                      : () => _submitCurrentAnswer(context, state, skip: true),
                   child: Text(
                     'გამოტოვება',
                     // `FuzzzyButton.ghost` idle foreground.
@@ -525,7 +539,9 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
               Opacity(
                 opacity: state.isSubmitting ? 0.42 : 1.0,
                 child: ElevatedButton(
-                  onPressed: state.isSubmitting ? null : () => _submitCurrentAnswer(context, state),
+                  onPressed: state.isSubmitting
+                      ? null
+                      : () => _submitCurrentAnswer(context, state),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colors.actionPrimaryBg,
                     foregroundColor: colors.actionPrimaryFg,
@@ -548,8 +564,9 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
                         )
                       : Text(
                           state.isLastQuestion ? 'დასრულება' : 'შემდეგი',
-                          style: type.control
-                              .copyWith(color: colors.actionPrimaryFg),
+                          style: type.control.copyWith(
+                            color: colors.actionPrimaryFg,
+                          ),
                         ),
                 ),
               ),
@@ -558,7 +575,9 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
           if (_hasRemainingOptionalQuestions(state)) ...[
             SizedBox(height: space.s),
             TextButton(
-              onPressed: state.isSubmitting ? null : () => context.read<QuestionnaireCubit>().skipRemaining(),
+              onPressed: state.isSubmitting
+                  ? null
+                  : () => context.read<QuestionnaireCubit>().skipRemaining(),
               child: Text(
                 'არასავალდებულოების გამოტოვება',
                 style: type.bodyS.copyWith(
@@ -599,7 +618,11 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
     );
   }
 
-  void _submitCurrentAnswer(BuildContext context, QuestionnaireState state, {bool skip = false}) {
+  void _submitCurrentAnswer(
+    BuildContext context,
+    QuestionnaireState state, {
+    bool skip = false,
+  }) {
     final question = state.currentQuestion;
     if (question == null) return;
 
@@ -611,9 +634,13 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
     final answer = _getAnswerValue(question);
     final validationError = _validateAnswer(answer, question);
     if (validationError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        // Dwell time, not animation — see JOURNAL M3.
-        SnackBar(content: Text(validationError), duration: const Duration(seconds: 2)),
+      // A field-validation failure is red's sanctioned error duty, and the
+      // toast is the only red on the screen while it is up.
+      FuzzzyToast.show(
+        context,
+        message: validationError,
+        kind: FuzzzyToastKind.error,
+        qaId: 'questionnaire.validation',
       );
       return;
     }
@@ -626,7 +653,9 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
       if (question.required) return 'ეს ველი სავალდებულოა';
       return null;
     }
-    if (question.questionType == 'text' && question.required && answer.length < 5) {
+    if (question.questionType == 'text' &&
+        question.required &&
+        answer.length < 5) {
       return 'მინიმუმ 5 სიმბოლო აუცილებელია';
     }
     return null;
@@ -636,7 +665,8 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
     return switch (question.questionType) {
       'text' => _textController.text.trim(),
       'number' => _numberController.text.trim(),
-      'boolean' => _booleanAnswer != null ? (_booleanAnswer! ? 'დიახ' : 'არა') : null,
+      'boolean' =>
+        _booleanAnswer != null ? (_booleanAnswer! ? 'დიახ' : 'არა') : null,
       'choice' => _selectedChoice,
       'date' => _selectedDate?.toIso8601String(),
       _ => _textController.text.trim(),

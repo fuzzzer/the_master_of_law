@@ -23,7 +23,9 @@ class CaseExportHelper {
     if (caseData.facts.isNotEmpty) {
       buffer.writeln('━━━ ფაქტები (${caseData.facts.length}) ━━━');
       for (final fc in FactClassification.values) {
-        final group = caseData.facts.where((f) => f.classificationIndex == fc.index).toList();
+        final group = caseData.facts
+            .where((f) => f.classificationIndex == fc.index)
+            .toList();
         if (group.isNotEmpty) {
           buffer.writeln('\n${fc.emoji} ${fc.displayNameKa}:');
           for (final f in group) {
@@ -104,25 +106,16 @@ class CaseExportHelper {
 
     Clipboard.setData(ClipboardData(text: buffer.toString()));
 
-    final colors = context.fuzzzyColors;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        // `FuzzzyToast`'s shape: a `raised` sheet with the semantic colour
-        // carried by the CONTENT. The fork filled the whole bar with
-        // `successColor` and left the label on Material's default foreground —
-        // and the kit ships no `onSuccess` role to fix that with (JOURNAL M5).
-        content: Text(
-          'საქმე კოპირებულია ბუფერში',
-          style: context.fuzzzyTextStyles.body.copyWith(color: colors.success),
-        ),
-        backgroundColor: colors.raised,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(context.fuzzzyRadius.m),
-        ),
-      ),
+    // M11: the raised/lineStrong/radius.m sheet M5 rebuilt by hand IS
+    // FuzzzyToast — the real widget replaces the approximation.
+    FuzzzyToast.show(
+      context,
+      message: 'საქმე კოპირებულია ბუფერში',
+      kind: FuzzzyToastKind.success,
+      qaId: 'case.exported',
     );
   }
 
-  static String _fmt(DateTime d) => '${d.day}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+  static String _fmt(DateTime d) =>
+      '${d.day}.${d.month.toString().padLeft(2, '0')}.${d.year}';
 }

@@ -82,7 +82,9 @@ class LawArticlePage extends StatelessWidget {
           ),
           SizedBox(height: space.m),
           Text(
-            article.articleTitle.isNotEmpty ? article.articleTitle : articleTitle,
+            article.articleTitle.isNotEmpty
+                ? article.articleTitle
+                : articleTitle,
             style: type.titleM.copyWith(color: colors.ink),
           ),
           if (article.articleNumber.isNotEmpty) ...[
@@ -118,9 +120,12 @@ class LawArticlePage extends StatelessWidget {
     final article = context.read<LawsCubit>().state.selectedArticle;
     if (article == null) return;
     Clipboard.setData(ClipboardData(text: article.combinedContent));
-    ScaffoldMessenger.of(context).showSnackBar(
-      // Dwell time, not animation — see JOURNAL M3. Becomes FuzzzyToast at M11.
-      const SnackBar(content: Text('ტექსტი დაკოპირდა'), duration: Duration(seconds: 2)),
+    // M11: the dwell is no longer ours to state — FuzzzyToast owns it.
+    FuzzzyToast.show(
+      context,
+      message: 'ტექსტი დაკოპირდა',
+      kind: FuzzzyToastKind.success,
+      qaId: 'law.article.copied',
     );
   }
 
@@ -143,7 +148,10 @@ class LawArticlePage extends StatelessWidget {
             if (casesState.status == StateStatus.loading) {
               // Dimension, not a gap: the sheet's reserved loading height, so
               // it does not collapse and re-expand around the spinner.
-              return const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()));
+              return const SizedBox(
+                height: 200,
+                child: Center(child: CircularProgressIndicator()),
+              );
             }
 
             final cases = casesState.cases;
@@ -155,29 +163,42 @@ class LawArticlePage extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('შეინახეთ საქმეში',
-                        style: type.titleM.copyWith(color: colors.ink)),
+                    Text(
+                      'შეინახეთ საქმეში',
+                      style: type.titleM.copyWith(color: colors.ink),
+                    ),
                     SizedBox(height: space.l),
                     if (cases.isEmpty)
                       Padding(
                         padding: EdgeInsets.symmetric(vertical: space.xl),
                         child: Center(
-                          child: Text('საქმეები ვერ მოიძებნა',
-                              style: type.body.copyWith(color: colors.inkMute)),
+                          child: Text(
+                            'საქმეები ვერ მოიძებნა',
+                            style: type.body.copyWith(color: colors.inkMute),
+                          ),
                         ),
                       )
                     else
-                      ...cases.map((caseData) => ListTile(
-                            leading: Icon(Icons.folder_special, color: colors.ink),
-                            title: Text(caseData.title,
-                                style: type.titleS.copyWith(color: colors.ink)),
-                            subtitle: Text('${caseData.linkedArticles.length} მუხლი შენახული',
-                                style: type.bodyS.copyWith(color: colors.inkMute)),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(radius.m),
-                            ),
-                            onTap: () => _saveToCase(context, caseData, article),
-                          )),
+                      ...cases.map(
+                        (caseData) => ListTile(
+                          leading: Icon(
+                            Icons.folder_special,
+                            color: colors.ink,
+                          ),
+                          title: Text(
+                            caseData.title,
+                            style: type.titleS.copyWith(color: colors.ink),
+                          ),
+                          subtitle: Text(
+                            '${caseData.linkedArticles.length} მუხლი შენახული',
+                            style: type.bodyS.copyWith(color: colors.inkMute),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(radius.m),
+                          ),
+                          onTap: () => _saveToCase(context, caseData, article),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -188,14 +209,20 @@ class LawArticlePage extends StatelessWidget {
     );
   }
 
-  void _saveToCase(BuildContext context, CaseData caseData, LawArticleDetail? article) {
+  void _saveToCase(
+    BuildContext context,
+    CaseData caseData,
+    LawArticleDetail? article,
+  ) {
     final snippet = article != null && article.combinedContent.length > 100
         ? '${article.combinedContent.substring(0, 100)}…'
         : article?.combinedContent ?? '';
 
     final linkedArticle = LinkedArticleData(
       articleId: articleId,
-      title: article?.articleTitle.isNotEmpty == true ? article!.articleTitle : articleTitle,
+      title: article?.articleTitle.isNotEmpty == true
+          ? article!.articleTitle
+          : articleTitle,
       codeName: codeName.isNotEmpty ? codeName : (article?.codeName ?? ''),
       snippet: snippet,
       savedAt: DateTime.now(),
@@ -210,12 +237,11 @@ class LawArticlePage extends StatelessWidget {
         cubit.close();
         if (!context.mounted) return;
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('შენახულია: ${caseData.title}'),
-            // Dwell time, not animation — see JOURNAL M3.
-            duration: const Duration(seconds: 2),
-          ),
+        FuzzzyToast.show(
+          context,
+          message: 'შენახულია: ${caseData.title}',
+          kind: FuzzzyToastKind.success,
+          qaId: 'law.article.saved',
         );
       });
     });
@@ -231,8 +257,10 @@ class LawArticlePage extends StatelessWidget {
         children: [
           Icon(Icons.error_outline, size: 48, color: colors.inkFaint),
           SizedBox(height: space.l),
-          Text('მუხლის ჩატვირთვა ვერ მოხერხდა',
-              style: type.titleS.copyWith(color: colors.ink)),
+          Text(
+            'მუხლის ჩატვირთვა ვერ მოხერხდა',
+            style: type.titleS.copyWith(color: colors.ink),
+          ),
           SizedBox(height: space.l),
           ElevatedButton(
             onPressed: () => context.read<LawsCubit>().loadArticle(articleId),

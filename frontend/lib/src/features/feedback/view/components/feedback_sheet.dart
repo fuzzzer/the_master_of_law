@@ -71,33 +71,21 @@ class _FeedbackSheetState extends State<FeedbackSheet> {
       listener: (context, state) {
         if (state.status.isSuccess) {
           Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              // `FuzzzyToast`'s shape: a `raised` sheet with the semantic
-              // colour carried by the CONTENT, not as a solid fill. The kit
-              // ships no `onSuccess` foreground, and needs none — see
-              // JOURNAL M5.
-              content: Text(
-                'მადლობა უკუკავშირისთვის!',
-                style: type.body.copyWith(color: colors.success),
-              ),
-              backgroundColor: colors.raised,
-              behavior: SnackBarBehavior.floating,
-              // Dwell time, not animation — see JOURNAL M3.
-              duration: const Duration(seconds: 2),
-            ),
+          // M11: the hand-built `raised`-sheet shape M5 approximated IS
+          // FuzzzyToast — now the real thing, dwell included.
+          FuzzzyToast.show(
+            context,
+            message: 'მადლობა უკუკავშირისთვის!',
+            kind: FuzzzyToastKind.success,
+            qaId: 'feedback.sent',
           );
         }
         if (state.status.isFailed) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'შეცდომა. სცადეთ თავიდან.',
-                style: type.body.copyWith(color: colors.destructiveText),
-              ),
-              backgroundColor: colors.raised,
-              behavior: SnackBarBehavior.floating,
-            ),
+          FuzzzyToast.show(
+            context,
+            message: 'შეცდომა. სცადეთ თავიდან.',
+            kind: FuzzzyToastKind.error,
+            qaId: 'feedback.failed',
           );
         }
       },
@@ -110,7 +98,9 @@ class _FeedbackSheetState extends State<FeedbackSheet> {
             borderRadius: BorderRadius.vertical(top: Radius.circular(radius.l)),
           ),
           padding: density.dialog.copyWith(
-            bottom: density.dialog.bottom + MediaQuery.of(context).viewInsets.bottom,
+            bottom:
+                density.dialog.bottom +
+                MediaQuery.of(context).viewInsets.bottom,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -146,7 +136,10 @@ class _FeedbackSheetState extends State<FeedbackSheet> {
               SizedBox(height: space.xl),
 
               // Category chips
-              Text('კატეგორია', style: type.control.copyWith(color: colors.ink)),
+              Text(
+                'კატეგორია',
+                style: type.control.copyWith(color: colors.ink),
+              ),
               SizedBox(height: space.s),
               Wrap(
                 spacing: space.s,
@@ -251,8 +244,9 @@ class _FeedbackSheetState extends State<FeedbackSheet> {
                 child: SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed:
-                        _canSubmit && !state.status.isLoading ? _submit : null,
+                    onPressed: _canSubmit && !state.status.isLoading
+                        ? _submit
+                        : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colors.actionPrimaryBg,
                       foregroundColor: colors.actionPrimaryFg,
@@ -275,8 +269,9 @@ class _FeedbackSheetState extends State<FeedbackSheet> {
                           )
                         : Text(
                             'გაგზავნა',
-                            style: type.control
-                                .copyWith(color: colors.actionPrimaryFg),
+                            style: type.control.copyWith(
+                              color: colors.actionPrimaryFg,
+                            ),
                           ),
                   ),
                 ),
@@ -291,14 +286,14 @@ class _FeedbackSheetState extends State<FeedbackSheet> {
   void _submit() {
     final comment = _commentController.text.trim();
     context.read<FeedbackCubit>().submitFeedback(
-          FeedbackSubmitRequestParameters(
-            targetType: widget.targetType,
-            targetId: widget.targetId,
-            category: _selectedCategory,
-            rating: _rating,
-            comment: comment.isEmpty ? null : comment,
-            specificSection: widget.specificSection,
-          ),
-        );
+      FeedbackSubmitRequestParameters(
+        targetType: widget.targetType,
+        targetId: widget.targetId,
+        category: _selectedCategory,
+        rating: _rating,
+        comment: comment.isEmpty ? null : comment,
+        specificSection: widget.specificSection,
+      ),
+    );
   }
 }

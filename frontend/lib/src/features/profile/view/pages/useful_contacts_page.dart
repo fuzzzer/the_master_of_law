@@ -79,14 +79,12 @@ class UsefulContactsPage extends StatelessWidget {
                   onTap: () => launchUrl(Uri(scheme: 'tel', path: dialNumber)),
                   onLongPress: () {
                     Clipboard.setData(ClipboardData(text: phone));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('$phone დაკოპირებულია'),
-                        // Dwell time, not animation: the kit's longest motion
-                        // role is `pulse` at 1600ms. Becomes FuzzzyToast's own
-                        // dwell at M11 — see JOURNAL M3.
-                        duration: const Duration(seconds: 2),
-                      ),
+                    // M11: FuzzzyToast owns the dwell, so the app states none.
+                    FuzzzyToast.show(
+                      context,
+                      message: '$phone დაკოპირებულია',
+                      kind: FuzzzyToastKind.success,
+                      qaId: 'contacts.copied',
                     );
                   },
                   child: Row(

@@ -70,8 +70,11 @@ class _AdminPanelFloatingHeadState extends State<AdminPanelFloatingHead> {
                   onPressed: () {
                     Clipboard.setData(ClipboardData(text: newKey));
                     Navigator.of(ctx).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Copied to clipboard')),
+                    FuzzzyToast.show(
+                      context,
+                      message: 'Copied to clipboard',
+                      kind: FuzzzyToastKind.success,
+                      qaId: 'admin.keyCopied',
                     );
                   },
                   child: const Text('Copy & Close'),
@@ -83,8 +86,11 @@ class _AdminPanelFloatingHeadState extends State<AdminPanelFloatingHead> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to generate key: $e')),
+        FuzzzyToast.show(
+          context,
+          message: 'Failed to generate key: $e',
+          kind: FuzzzyToastKind.error,
+          qaId: 'admin.keyFailed',
         );
       }
     }
