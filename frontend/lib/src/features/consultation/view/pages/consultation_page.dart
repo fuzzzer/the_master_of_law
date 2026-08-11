@@ -678,46 +678,20 @@ class _ConsultationPageState extends State<ConsultationPage>
   }
 
   Widget _buildCitationChip(BuildContext context, CitationData citation) {
-    final colors = context.fuzzzyColors;
-    final type = context.fuzzzyTextStyles;
-    final space = context.fuzzzySpace;
-    final radius = context.fuzzzyRadius;
-    final density = context.fuzzzyDensity;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => _navigateToArticle(context, citation),
-      child: Container(
-        margin: EdgeInsets.only(bottom: space.xs),
-        padding: density.chip,
-        // The fork painted citations #1565C0 "link blue". Blue is not a role
-        // in this house; the tappability is carried by the underline, which
-        // survives. M11 swaps this whole chip for FuzzzyCitationChip.
-        decoration: BoxDecoration(
-          color: colors.surface,
-          borderRadius: BorderRadius.circular(radius.s),
-          border: Border.all(color: colors.line),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.article_outlined, size: 14, color: colors.ink),
-            SizedBox(width: space.xs),
-            Flexible(
-              child: Text(
-                citation.articleTitle.isNotEmpty
-                    ? citation.articleTitle
-                    : 'მუხლი ${citation.articleId}',
-                style: type.bodyS.copyWith(
-                  color: colors.ink,
-                  decoration: TextDecoration.underline,
-                  decorationColor: colors.ink,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
+    // M11d: one of four identical hand-rolled citation chips, now
+    // `AppCitationChip`. This one is the only one that navigates IN-app, so it
+    // takes no `open_in_new` trailing glyph. It sits on the message column's
+    // `ground`, hence `AppCitationParent.ground` → a `surface` box.
+    return Padding(
+      padding: EdgeInsets.only(bottom: context.fuzzzySpace.xs),
+      child: AppCitationChip(
+        label: citation.articleTitle.isNotEmpty
+            ? citation.articleTitle
+            : 'მუხლი ${citation.articleId}',
+        parent: AppCitationParent.ground,
+        leading: const Icon(Icons.article_outlined),
+        onTap: () => _navigateToArticle(context, citation),
+        qaId: citation.articleId,
       ),
     );
   }

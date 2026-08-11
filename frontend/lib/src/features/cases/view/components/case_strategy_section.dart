@@ -143,46 +143,19 @@ class CaseStrategySection extends StatelessWidget {
               if (article == null) return const SizedBox.shrink();
               final hasUrl = article.url != null && article.url!.isNotEmpty;
 
-              final chip = Container(
-                padding: density.chip,
-                // The SAME citation chip the chat surfaces and the argument
-                // card draw (M6b / M8b / M9), so M11 swaps all four onto
-                // `FuzzzyCitationChip` at once. This one sits directly on the
-                // list's `ground`, so its recessed rung IS `surface` — the
-                // parent-aware rule running the other way.
-                decoration: BoxDecoration(
-                  color: colors.surface,
-                  borderRadius: BorderRadius.circular(radius.s),
-                  border: Border.all(color: colors.line),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.gavel, size: 12, color: colors.ink),
-                    SizedBox(width: space.xs),
-                    Text(
-                      article.title,
-                      style: type.bodyS.copyWith(
-                        color: colors.ink,
-                        decoration: hasUrl ? TextDecoration.underline : null,
-                        decorationColor: hasUrl ? colors.ink : null,
-                      ),
-                    ),
-                    if (hasUrl) ...[
-                      SizedBox(width: space.xs),
-                      Icon(Icons.open_in_new, size: 12, color: colors.inkMute),
-                    ],
-                  ],
-                ),
-              );
-
-              if (!hasUrl) return chip;
-              // `InkWell` → `GestureDetector(opaque)`: the kit is
-              // GestureDetector-only (guard rule `material-ink`, blocking).
-              return GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => launchUrl(Uri.parse(article.url!)),
-                child: chip,
+              // M11d: the third of four hand-rolled citation chips, now
+              // `AppCitationChip`. This one sits directly on the list's
+              // `ground`, so `parent: ground` gives it a `surface` box — the
+              // parent-aware rule running the other way from the two chat
+              // surfaces, which is exactly why it is an argument and not a
+              // constant.
+              return AppCitationChip(
+                label: article.title,
+                parent: AppCitationParent.ground,
+                leading: const Icon(Icons.gavel),
+                trailing: hasUrl ? const Icon(Icons.open_in_new) : null,
+                onTap: hasUrl ? () => launchUrl(Uri.parse(article.url!)) : null,
+                qaId: article.articleId,
               );
             }).toList(),
           ),

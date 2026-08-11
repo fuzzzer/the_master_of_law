@@ -820,72 +820,35 @@ class _MessageBubble extends StatelessWidget {
             ),
             if (message.citations != null && message.citations!.isNotEmpty) ...[
               SizedBox(height: space.m),
-              ...message.citations!.map(
-                (c) {
-                  final hasUrl = c.url != null && c.url!.isNotEmpty;
-                  final content = Container(
-                    margin: EdgeInsets.only(bottom: space.xs),
-                    padding: density.chip,
-                    // Parent-aware surface rule: this chip sits INSIDE a
-                    // `surface` bubble, so its recessed rung is `ground`, not
-                    // another `surface`. The fork's gold gavel + gold label
-                    // go monochrome; the tappability is carried by the
-                    // underline, which survives. M11 swaps this whole chip for
-                    // `FuzzzyCitationChip`.
-                    decoration: BoxDecoration(
-                      color: colors.ground,
-                      borderRadius: BorderRadius.circular(radius.s),
-                      border: Border.all(color: colors.line),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.gavel, size: 12, color: colors.ink),
-                        SizedBox(width: space.xs),
-                        Expanded(
-                          child: Text(
-                            c.articleTitle,
-                            style: type.bodyS.copyWith(
-                              color: colors.ink,
-                              decoration: hasUrl
-                                  ? TextDecoration.underline
-                                  : null,
-                              // Without this the rule is drawn in the
-                              // INHERITED colour, which after the role swap is
-                              // not always the text's (M8 judgement 1).
-                              decorationColor: hasUrl ? colors.ink : null,
-                            ),
-                          ),
-                        ),
-                        if (hasUrl) ...[
-                          SizedBox(width: space.xs),
-                          Icon(
-                            Icons.open_in_new,
-                            size: 12,
-                            color: colors.inkMute,
-                          ),
-                        ],
-                      ],
-                    ),
-                  );
-
-                  if (hasUrl) {
-                    return GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () async {
-                        final uri = Uri.parse(c.url!);
-                        if (await canLaunchUrl(uri)) {
-                          await launchUrl(uri);
-                        }
-                      },
-                      child: MouseRegion(
-                        cursor: SystemMouseCursors.click,
-                        child: content,
-                      ),
-                    );
-                  }
-                  return content;
-                },
-              ),
+              ...message.citations!.map((c) {
+                final hasUrl = c.url != null && c.url!.isNotEmpty;
+                // M11d: the second of four hand-rolled citation chips, now
+                // `AppCitationChip`. The parent-aware rule that used to live
+                // in a comment here is now the `parent:` argument: this chip
+                // sits INSIDE a `surface` bubble, so its box is `ground`.
+                // `hasUrl` no longer has to be threaded through three separate
+                // decisions (underline, trailing glyph, tap wrapper) — passing
+                // `onTap` null-or-not drives all three at once.
+                return Padding(
+                  padding: EdgeInsets.only(bottom: space.xs),
+                  child: AppCitationChip(
+                    label: c.articleTitle,
+                    parent: AppCitationParent.surface,
+                    leading: const Icon(Icons.gavel),
+                    trailing: hasUrl ? const Icon(Icons.open_in_new) : null,
+                    maxLines: 2,
+                    onTap: hasUrl
+                        ? () async {
+                            final uri = Uri.parse(c.url!);
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(uri);
+                            }
+                          }
+                        : null,
+                    qaId: c.articleId,
+                  ),
+                );
+              }),
             ],
           ],
         ),

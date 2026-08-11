@@ -424,55 +424,18 @@ class _ArgumentCard extends StatelessWidget {
                 if (article == null) return const SizedBox.shrink();
                 final hasUrl = article.url != null && article.url!.isNotEmpty;
 
-                final chip = Container(
-                  padding: density.chip,
-                  // The SAME citation chip the two chat surfaces draw (M6b /
-                  // M8b), so M11 can swap all three onto `FuzzzyCitationChip`
-                  // in one move. Parent-aware surface rule: this sits inside a
-                  // `surface` card, so its recessed rung is `ground`. The gold
-                  // fill, gold border and gold label all go monochrome; the
-                  // tappability is carried by the underline, which survives.
-                  decoration: BoxDecoration(
-                    color: colors.ground,
-                    borderRadius: BorderRadius.circular(radius.s),
-                    border: Border.all(color: colors.line),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.gavel, size: 12, color: colors.ink),
-                      SizedBox(width: space.xs),
-                      Text(
-                        article.title,
-                        style: type.bodyS.copyWith(
-                          color: colors.ink,
-                          decoration: hasUrl ? TextDecoration.underline : null,
-                          // Without this the rule draws in the INHERITED
-                          // colour, which after the role swap is not always
-                          // the text's (M8 judgement 1).
-                          decorationColor: hasUrl ? colors.ink : null,
-                        ),
-                      ),
-                      if (hasUrl) ...[
-                        SizedBox(width: space.xs),
-                        Icon(
-                          Icons.open_in_new,
-                          size: 12,
-                          color: colors.inkMute,
-                        ),
-                      ],
-                    ],
-                  ),
-                );
-
-                if (!hasUrl) return chip;
-                // `InkWell` → `GestureDetector(opaque)`: the kit is
-                // GestureDetector-only, with zero Material ink (guard rule
-                // `material-ink`, blocking).
-                return GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => launchUrl(Uri.parse(article.url!)),
-                  child: chip,
+                // M11d: the fourth and last hand-rolled citation chip, now
+                // `AppCitationChip`. Sits inside a `surface` argument card, so
+                // `parent: surface` gives it a `ground` box.
+                return AppCitationChip(
+                  label: article.title,
+                  parent: AppCitationParent.surface,
+                  leading: const Icon(Icons.gavel),
+                  trailing: hasUrl ? const Icon(Icons.open_in_new) : null,
+                  onTap: hasUrl
+                      ? () => launchUrl(Uri.parse(article.url!))
+                      : null,
+                  qaId: article.articleId,
                 );
               }).toList(),
             ),
