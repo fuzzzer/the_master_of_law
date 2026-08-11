@@ -106,6 +106,43 @@ class _CaseFactsSectionState extends State<CaseFactsSection> {
                           ),
                         ),
                         SizedBox(height: space.xs),
+                        // 🔴 BOUNDED at M20b. This `Column` sits above an
+                        // `Expanded` facts list, so whatever height it takes is
+                        // taken FROM that list — and with three tiles sharing
+                        // 360 dp there is only ~60 dp of inner width per label.
+                        // Under the stress pack at `textScaler` 1.3 a word like
+                        // `ხელსაყრელი` wrapped to five ~3-glyph lines, the
+                        // control grew to ~230 px, the `Expanded` was handed
+                        // negative space and the section overflowed by 3.5 px
+                        // (found by the M20 device re-run, cell
+                        // `m20-stress-night-1.3-360`, 6 gate hits).
+                        //
+                        // `maxLines` bounds it deterministically — and the
+                        // BOUND IS MEASURED, not picked. The shipped ink pack
+                        // needs exactly **three** lines at `textScaler` 1.3
+                        // (`ხელსაყ / რელი / (2)`), so 3 is the smallest value
+                        // that is a genuine no-op there.
+                        //
+                        // 🔴 `maxLines: 2` was tried first and REJECTED on
+                        // device evidence: it cut ink at 1.3 to
+                        // `ხელსაყ / რელი (…`, i.e. it fixed the stress pack by
+                        // truncating the SHIPPED one — trading a defect the
+                        // gate can see for one it cannot, which is the whole
+                        // failure mode `T-0264` is about. Compare
+                        // `harness/shots/m20-ink-night-1.3-360/step27_0.png`
+                        // (3 lines, full) against the 2-line attempt.
+                        //
+                        // Under the stress pack 3 lines still bounds the
+                        // control well below the height that overflowed, so the
+                        // trade is paid only by the deliberately-hostile probe
+                        // pack — and a `RenderFlex` overflow is a plan §4
+                        // defect while the stress pack is not a shipping
+                        // configuration.
+                        //
+                        // NOT the whole answer: a 3-up segmented control that
+                        // cannot fit its labels wants to scroll or stack, not
+                        // ellipse. That is a redesign with no product mandate,
+                        // so it is recorded in `T-0264` rather than done here.
                         Text(
                           '${fc.displayNameKa} ($count)',
                           style: type.control.copyWith(
@@ -114,6 +151,8 @@ class _CaseFactsSectionState extends State<CaseFactsSection> {
                                 : colors.inkMute,
                           ),
                           textAlign: TextAlign.center,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
