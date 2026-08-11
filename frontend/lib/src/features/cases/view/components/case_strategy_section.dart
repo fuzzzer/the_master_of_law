@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 import 'package:themasteroflaw/src/src.dart';
-import 'package:ui_kit/ui_kit.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Strategy section: primary + backup + fallback strategies with confidence.
@@ -11,8 +11,11 @@ class CaseStrategySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
     final strategy = caseData.strategy;
 
     if (strategy == null) {
@@ -20,17 +23,24 @@ class CaseStrategySection extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.shield, size: 48, color: uiColors.accentColor.withValues(alpha: 0.5)),
-            const SizedBox(height: 16),
-            Text('სტრატეგია ჯერ არ არის', style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor)),
-            const SizedBox(height: 16),
+            // Dimension: the oversized empty-state glyph, on M4's `inkFaint`.
+            Icon(Icons.shield, size: 48, color: colors.inkFaint),
+            SizedBox(height: space.l),
+            Text(
+              'სტრატეგია ჯერ არ არის',
+              style: type.body.copyWith(color: colors.inkMute),
+            ),
+            SizedBox(height: space.l),
             ElevatedButton.icon(
               onPressed: () => _showStrategyEditor(context, null),
               icon: const Icon(Icons.add),
               label: const Text('შექმნა'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: uiColors.accentColor, foregroundColor: uiColors.backgroundPrimaryColor,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                backgroundColor: colors.actionPrimaryBg,
+                foregroundColor: colors.actionPrimaryFg,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(radius.m),
+                ),
               ),
             ),
           ],
@@ -39,94 +49,158 @@ class CaseStrategySection extends StatelessWidget {
     }
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: density.screen,
       children: [
-        _StrategyCard(title: '🛡️ ძირითადი სტრატეგია', text: strategy.primaryStrategy, uiColors: uiColors, uiTextStyles: uiTextStyles),
-        if (strategy.backupStrategy != null && strategy.backupStrategy!.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          _StrategyCard(title: '🔄 სარეზერვო სტრატეგია', text: strategy.backupStrategy!, uiColors: uiColors, uiTextStyles: uiTextStyles),
+        // The 🛡️ / 🔄 / 🏁 / 💪 are emoji inside plain strings with no
+        // `fontSize` literal, so they are owed at M11, not this slice.
+        _StrategyCard(
+          title: '🛡️ ძირითადი სტრატეგია',
+          text: strategy.primaryStrategy,
+        ),
+        if (strategy.backupStrategy != null &&
+            strategy.backupStrategy!.isNotEmpty) ...[
+          SizedBox(height: space.m),
+          _StrategyCard(
+            title: '🔄 სარეზერვო სტრატეგია',
+            text: strategy.backupStrategy!,
+          ),
         ],
-        if (strategy.fallbackPosition != null && strategy.fallbackPosition!.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          _StrategyCard(title: '🏁 ფოლბეკ პოზიცია', text: strategy.fallbackPosition!, uiColors: uiColors, uiTextStyles: uiTextStyles),
+        if (strategy.fallbackPosition != null &&
+            strategy.fallbackPosition!.isNotEmpty) ...[
+          SizedBox(height: space.m),
+          _StrategyCard(
+            title: '🏁 ფოლბეკ პოზიცია',
+            text: strategy.fallbackPosition!,
+          ),
         ],
-        const SizedBox(height: 16),
+        SizedBox(height: space.l),
         // Confidence
         Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: uiColors.backgroundSecondaryColor, borderRadius: BorderRadius.circular(12)),
+          padding: density.card,
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(radius.m),
+            // The card GAINS the `line` hairline the fork never drew.
+            border: Border.all(color: colors.line),
+          ),
           child: Row(
             children: [
-              Text('💪 ნდობა:', style: uiTextStyles.bodyBold14.copyWith(color: uiColors.primaryTextColor)),
-              const SizedBox(width: 12),
+              Text(
+                '💪 ნდობა:',
+                style: type.titleS.copyWith(color: colors.ink),
+              ),
+              SizedBox(width: space.m),
               Expanded(
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(radius.l),
                   child: LinearProgressIndicator(
                     value: strategy.confidenceScore / 100,
-                    backgroundColor: uiColors.surfaceColor,
-                    valueColor: AlwaysStoppedAnimation(
-                      strategy.confidenceScore > 60 ? uiColors.successColor : strategy.confidenceScore > 30 ? uiColors.warningColor : uiColors.errorColor,
-                    ),
+                    // MAPPING §2.7: the EMPTY progress track is `track`, the
+                    // role the recipe thought the fork had no field for. It
+                    // had one; it called it `surfaceColor`.
+                    backgroundColor: colors.track,
+                    // 🔴 THE THIRD TRAFFIC LIGHT, DEMOTED. The fork ran a
+                    // red/amber/green ramp on `confidenceScore` (>60 / >30 /
+                    // else) — the identical shape M8 §B demoted on the strength
+                    // ring and M7 demoted on the completeness bar. A confidence
+                    // score is an ASSESSMENT, not an error: painting a case at
+                    // 29% in `destructive` tells the user their case is broken.
+                    // **The bar's LENGTH is the signal**, and the numeral beside
+                    // it says the rest.
+                    valueColor: AlwaysStoppedAnimation(colors.ink),
+                    // Dimension: the bar's own thickness, matching M8's
+                    // completeness bar.
                     minHeight: 8,
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              Text('${strategy.confidenceScore}%', style: uiTextStyles.labelBold14.copyWith(color: uiColors.primaryTextColor)),
+              SizedBox(width: space.s),
+              Text(
+                '${strategy.confidenceScore}%',
+                // Latin-only and tabular, so it CAN take the mono role — the
+                // M6b/M7/M8 test is the STRING, not the datum.
+                style: type.data.copyWith(color: colors.ink),
+              ),
             ],
           ),
         ),
         if (strategy.supportingArticleIds.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          Text('სამართლებრივი საფუძვლები:', style: uiTextStyles.labelBold12.copyWith(color: uiColors.secondaryTextColor)),
-          const SizedBox(height: 8),
+          SizedBox(height: space.l),
+          Text(
+            'სამართლებრივი საფუძვლები:',
+            style: type.control.copyWith(color: colors.inkMute),
+          ),
+          SizedBox(height: space.s),
           Wrap(
-            spacing: 6,
-            runSpacing: 6,
+            spacing: space.s,
+            runSpacing: space.s,
             children: strategy.supportingArticleIds.map((articleId) {
-              final article = caseData.linkedArticles.where((a) => a.articleId == articleId).firstOrNull;
+              final article = caseData.linkedArticles
+                  .where((a) => a.articleId == articleId)
+                  .firstOrNull;
               if (article == null) return const SizedBox.shrink();
-              
-              return InkWell(
-                onTap: article.url != null && article.url!.isNotEmpty 
-                    ? () => launchUrl(Uri.parse(article.url!)) 
-                    : null,
-                borderRadius: BorderRadius.circular(6),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: uiColors.accentColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: uiColors.accentColor.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.gavel, size: 12, color: uiColors.accentColor),
-                      const SizedBox(width: 4),
-                      Text(article.title, style: uiTextStyles.labelBold12.copyWith(color: uiColors.accentColor)),
-                      if (article.url != null && article.url!.isNotEmpty) ...[
-                        const SizedBox(width: 4),
-                        Icon(Icons.open_in_new, size: 12, color: uiColors.accentColor),
-                      ],
-                    ],
-                  ),
+              final hasUrl = article.url != null && article.url!.isNotEmpty;
+
+              final chip = Container(
+                padding: density.chip,
+                // The SAME citation chip the chat surfaces and the argument
+                // card draw (M6b / M8b / M9), so M11 swaps all four onto
+                // `FuzzzyCitationChip` at once. This one sits directly on the
+                // list's `ground`, so its recessed rung IS `surface` — the
+                // parent-aware rule running the other way.
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(radius.s),
+                  border: Border.all(color: colors.line),
                 ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.gavel, size: 12, color: colors.ink),
+                    SizedBox(width: space.xs),
+                    Text(
+                      article.title,
+                      style: type.bodyS.copyWith(
+                        color: colors.ink,
+                        decoration: hasUrl ? TextDecoration.underline : null,
+                        decorationColor: hasUrl ? colors.ink : null,
+                      ),
+                    ),
+                    if (hasUrl) ...[
+                      SizedBox(width: space.xs),
+                      Icon(Icons.open_in_new, size: 12, color: colors.inkMute),
+                    ],
+                  ],
+                ),
+              );
+
+              if (!hasUrl) return chip;
+              // `InkWell` → `GestureDetector(opaque)`: the kit is
+              // GestureDetector-only (guard rule `material-ink`, blocking).
+              return GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => launchUrl(Uri.parse(article.url!)),
+                child: chip,
               );
             }).toList(),
           ),
         ],
-        const SizedBox(height: 16),
-        OutlinedButton.icon(
-          onPressed: () => _showStrategyEditor(context, strategy),
-          icon: const Icon(Icons.edit),
-          label: const Text('რედაქტირება'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: uiColors.accentColor,
-            side: BorderSide(color: uiColors.accentColor.withValues(alpha: 0.3)),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            padding: const EdgeInsets.symmetric(vertical: 14),
+        SizedBox(height: space.l),
+        SizedBox(
+          // Dimension: the full-width CTA height (M8's add-fact button).
+          height: 48,
+          child: OutlinedButton.icon(
+            onPressed: () => _showStrategyEditor(context, strategy),
+            icon: const Icon(Icons.edit),
+            label: const Text('რედაქტირება'),
+            // `FuzzzyButton.secondary`'s shape (M8 judgement 9).
+            style: OutlinedButton.styleFrom(
+              foregroundColor: colors.ink,
+              side: BorderSide(color: colors.lineStrong),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(radius.m),
+              ),
+            ),
           ),
         ),
       ],
@@ -134,97 +208,174 @@ class CaseStrategySection extends StatelessWidget {
   }
 
   void _showStrategyEditor(BuildContext parentContext, StrategyData? existing) {
-    final primaryController = TextEditingController(text: existing?.primaryStrategy ?? '');
-    final backupController = TextEditingController(text: existing?.backupStrategy ?? '');
-    final fallbackController = TextEditingController(text: existing?.fallbackPosition ?? '');
+    final primaryController = TextEditingController(
+      text: existing?.primaryStrategy ?? '',
+    );
+    final backupController = TextEditingController(
+      text: existing?.backupStrategy ?? '',
+    );
+    final fallbackController = TextEditingController(
+      text: existing?.fallbackPosition ?? '',
+    );
     var confidence = existing?.confidenceScore ?? 50;
-    final uiColors = parentContext.uiColors;
-    final uiTextStyles = parentContext.uiTextStyles;
 
     showModalBottomSheet<void>(
       context: parentContext,
       isScrollControlled: true,
-      backgroundColor: uiColors.backgroundSecondaryColor,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setState) => Padding(
-          padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('სტრატეგია', style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor)),
-                const SizedBox(height: 16),
-                Text('ძირითადი სტრატეგია:', style: uiTextStyles.bodyBold14.copyWith(color: uiColors.accentColor)),
-                const SizedBox(height: 8),
-                TextField(controller: primaryController, maxLines: 3, style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor)),
-                const SizedBox(height: 12),
-                Text('სარეზერვო:', style: uiTextStyles.bodyBold14.copyWith(color: uiColors.secondaryTextColor)),
-                const SizedBox(height: 8),
-                TextField(controller: backupController, maxLines: 2, style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor)),
-                const SizedBox(height: 12),
-                Text('ფოლბეკ:', style: uiTextStyles.bodyBold14.copyWith(color: uiColors.secondaryTextColor)),
-                const SizedBox(height: 8),
-                TextField(controller: fallbackController, maxLines: 2, style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor)),
-                const SizedBox(height: 16),
-                Text('ნდობა: $confidence%', style: uiTextStyles.bodyBold14.copyWith(color: uiColors.secondaryTextColor)),
-                Slider(
-                  value: confidence.toDouble(), max: 100,
-                  activeColor: uiColors.accentColor,
-                  onChanged: (v) => setState(() => confidence = v.round()),
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity, height: 48,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      if (primaryController.text.trim().isEmpty) return;
-                      parentContext.read<CaseDetailCubit>().updateStrategy(StrategyData(
-                        primaryStrategy: primaryController.text.trim(),
-                        backupStrategy: backupController.text.trim().isEmpty ? null : backupController.text.trim(),
-                        fallbackPosition: fallbackController.text.trim().isEmpty ? null : fallbackController.text.trim(),
-                        confidenceScore: confidence,
-                      ));
-                      Navigator.pop(ctx);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: uiColors.accentColor, foregroundColor: uiColors.backgroundPrimaryColor,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: Text('შენახვა', style: uiTextStyles.bodyBold14),
+      // The sheet draws its own `raised` + `lineStrong` box (M5's
+      // feedback_sheet idiom), so the route must not paint a second one.
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final colors = ctx.fuzzzyColors;
+        final type = ctx.fuzzzyTextStyles;
+        final space = ctx.fuzzzySpace;
+        final radius = ctx.fuzzzyRadius;
+        final density = ctx.fuzzzyDensity;
+
+        return StatefulBuilder(
+          builder: (ctx, setState) => Container(
+            decoration: BoxDecoration(
+              color: colors.raised,
+              border: Border(top: BorderSide(color: colors.lineStrong)),
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(radius.l),
+              ),
+            ),
+            padding: density.dialog.copyWith(
+              bottom:
+                  density.dialog.bottom + MediaQuery.of(ctx).viewInsets.bottom,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'სტრატეგია',
+                    style: type.titleM.copyWith(color: colors.ink),
                   ),
-                ),
-              ],
+                  SizedBox(height: space.l),
+                  // The fork gave the primary label gold and the other two
+                  // grey. That hierarchy survives as an INK RUNG (`ink` vs
+                  // `inkMute`) rather than a hue — MAPPING §2.2 judgement 1.
+                  Text(
+                    'ძირითადი სტრატეგია:',
+                    style: type.control.copyWith(color: colors.ink),
+                  ),
+                  SizedBox(height: space.s),
+                  TextField(
+                    controller: primaryController,
+                    maxLines: 3,
+                    style: type.body.copyWith(color: colors.fieldText),
+                  ),
+                  SizedBox(height: space.m),
+                  Text(
+                    'სარეზერვო:',
+                    style: type.control.copyWith(color: colors.inkMute),
+                  ),
+                  SizedBox(height: space.s),
+                  TextField(
+                    controller: backupController,
+                    maxLines: 2,
+                    style: type.body.copyWith(color: colors.fieldText),
+                  ),
+                  SizedBox(height: space.m),
+                  Text(
+                    'ფოლბეკ:',
+                    style: type.control.copyWith(color: colors.inkMute),
+                  ),
+                  SizedBox(height: space.s),
+                  TextField(
+                    controller: fallbackController,
+                    maxLines: 2,
+                    style: type.body.copyWith(color: colors.fieldText),
+                  ),
+                  SizedBox(height: space.l),
+                  Text(
+                    'ნდობა: $confidence%',
+                    style: type.control.copyWith(color: colors.inkMute),
+                  ),
+                  Slider(
+                    value: confidence.toDouble(),
+                    max: 100,
+                    // MAPPING §2.2: `Slider.activeColor` is the FILL of a
+                    // primary action → `actionPrimaryBg`. The inactive half
+                    // is the empty `track`.
+                    activeColor: colors.actionPrimaryBg,
+                    inactiveColor: colors.track,
+                    onChanged: (v) => setState(() => confidence = v.round()),
+                  ),
+                  SizedBox(height: space.l),
+                  SizedBox(
+                    width: double.infinity,
+                    // Dimension: the sheet's commit CTA.
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        if (primaryController.text.trim().isEmpty) return;
+                        parentContext.read<CaseDetailCubit>().updateStrategy(
+                          StrategyData(
+                            primaryStrategy: primaryController.text.trim(),
+                            backupStrategy: backupController.text.trim().isEmpty
+                                ? null
+                                : backupController.text.trim(),
+                            fallbackPosition:
+                                fallbackController.text.trim().isEmpty
+                                ? null
+                                : fallbackController.text.trim(),
+                            confidenceScore: confidence,
+                          ),
+                        );
+                        Navigator.pop(ctx);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colors.actionPrimaryBg,
+                        foregroundColor: colors.actionPrimaryFg,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(radius.m),
+                        ),
+                      ),
+                      // A button label is `control`, always.
+                      child: Text('შენახვა', style: type.control),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
 
 class _StrategyCard extends StatelessWidget {
-  const _StrategyCard({required this.title, required this.text, required this.uiColors, required this.uiTextStyles});
+  const _StrategyCard({required this.title, required this.text});
   final String title;
   final String text;
-  final UiColors uiColors;
-  final UiTextStyles uiTextStyles;
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: density.card,
       decoration: BoxDecoration(
-        color: uiColors.backgroundSecondaryColor,
-        borderRadius: BorderRadius.circular(12),
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(radius.m),
+        // The card GAINS the `line` hairline the fork never drew.
+        border: Border.all(color: colors.line),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: uiTextStyles.bodyBold14.copyWith(color: uiColors.primaryTextColor)),
-          const SizedBox(height: 8),
-          Text(text, style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor)),
+          Text(title, style: type.titleS.copyWith(color: colors.ink)),
+          SizedBox(height: space.s),
+          Text(text, style: type.body.copyWith(color: colors.inkMute)),
         ],
       ),
     );
