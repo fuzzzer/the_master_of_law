@@ -21,11 +21,13 @@ import 'package:themasteroflaw/src/src.dart';
 /// mechanism, and it keeps every screen monochrome apart from one small
 /// identifying mark.
 ///
-/// The values are lifted verbatim from the fork's
+/// The values were lifted verbatim at M7 from the fork's
 /// `packages/ui_kit/lib/src/colors/ui_kit_colors.dart` (`*ColorDark` → [dark],
-/// the plain names → [light]) so the taxonomy survives the fork's deletion at
-/// M12 unchanged. Registered as a [ThemeExtension] rather than a static map so
-/// it follows the skin, exactly as the fork's two palettes did.
+/// the plain names → [light]). **That file no longer exists** — M12 deleted
+/// `packages/ui_kit` — so this class is now the only surviving copy of the
+/// taxonomy and the hexes here cannot be re-derived from anything in the repo.
+/// Registered as a [ThemeExtension] rather than a static map so it follows the
+/// skin, exactly as the fork's two palettes did.
 @immutable
 class LegalDomainColors extends ThemeExtension<LegalDomainColors> {
   const LegalDomainColors({
@@ -128,5 +130,6 @@ class LegalDomainColors extends ThemeExtension<LegalDomainColors> {
 /// `context.legalDomainColors` — same shape as the kit's `context.fuzzzy*`
 /// accessors, so a call site reads the taxonomy the same way it reads a role.
 extension LegalDomainColorsContext on BuildContext {
-  LegalDomainColors get legalDomainColors => Theme.of(this).extension<LegalDomainColors>()!;
+  LegalDomainColors get legalDomainColors =>
+      Theme.of(this).extension<LegalDomainColors>()!;
 }

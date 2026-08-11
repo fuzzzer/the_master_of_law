@@ -190,9 +190,19 @@ Every directory MUST have a barrel file (`<dir_name>.dart`) that exports its chi
 -   **Service Locator (`sl.get<T>()`) is ONLY permitted** in the `data_sources/` layer (for `HttpClient`) and at the top level when providing a BLoC. It is forbidden in Widgets, Repositories, and Cubits.
 
 ### 4.3. UI Kit & Theming
--   **NEVER** use `Color()`, `Colors.`, `TextStyle()`, or hardcoded numbers for spacing/padding.
--   **ALWAYS** use theme extensions from the `BuildContext`: `context.uiColors`, `context.uiTextStyles`, `context.uiFormStyles`.
--   **ALWAYS** prefer widgets from the `ui_kit` package (`PrimaryScaffold`, `PrimaryButton`) over native Flutter widgets.
+
+> **Updated Phase M · M12 (2026-08-11).** The forked `packages/ui_kit` **no longer
+> exists**. The app consumes the shared design system `fuzzzy_ui_kit`
+> (`path: ../../fuzzy_design`) through its single barrel
+> `package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart`. `fuzzy_design` is **read-only** to app
+> agents: never fork it, never edit it. Its consumer law is `design/USING.md`, and
+> `fvm dart run fuzzzy_ui_kit:guard lib --allow=.fuzzzy_guard_allow` enforces it.
+
+-   **NEVER** use `Color()`, `Colors.`, `TextStyle()`, or hardcoded numbers for spacing/padding/radii/durations. Every one of them is a **role**.
+-   **ALWAYS** read roles from the `BuildContext` at the point of use: `context.fuzzzyColors`, `context.fuzzzyTextStyles`, `context.fuzzzySpace`, `context.fuzzzyRadius`, `context.fuzzzyDensity`, `context.fuzzzyMotion`, `context.fuzzzyFormStyles`. The old `context.uiColors` / `uiTextStyles` / `uiFormStyles` getters were deleted at M10 and do not exist.
+-   **ALWAYS** prefer a `Fuzzzy*` widget from the kit (`FuzzzyButton`, `FuzzzyCard`, `FuzzzyTextField`, `FuzzzyToast`, …) over a native Flutter widget. `PrimaryScaffold` / `PrimaryButton` / `PrimaryTextField` and the rest of the fork's widgets are **gone**.
+-   If no kit widget fits, **build it app-side on roles** (`design/RECIPE_NEW_WIDGET.md`) — see `lib/src/features/cases/view/components/app_status_chip.dart` for the worked example. Never add a literal, never fork the kit.
+-   `lib/src/app/theme/themasteroflaw_theme.dart` is the **one** bridge from kit roles to `ThemeData`, including the Georgian `fontFamilyFallback` every type role carries (the Ink pack's families have no Georgian block).
 
 ### 4.4. Error Handling Protocol
 1.  **HTTP Client Level:** The `FuzzyHttpClient` and its `RestApiExceptionTranslator` automatically convert `DioException`s into a rich hierarchy of typed `HttpClientException`s.
@@ -210,7 +220,7 @@ The AI should prefer using scripts over manual creation.
 -   **`./gen.sh <brick_name>`**: Use Mason to scaffold entire features (`remote_feature_template_brick`), pages (`form_page_brick`), etc.
 -   **`./exp.sh`**: Mandatory after creating any new file.
 -   **`./loc.sh "Text||lang||Translation"`**: Add localizations. No hardcoded user-facing strings.
--   **`./add_icon.sh path/to/icon.svg icon_name`**: Add SVG icons to the `ui_kit`.
+-   ~~`./add_icon.sh path/to/icon.svg icon_name`~~: **Removed.** It wrote into the forked `packages/ui_kit`, which was deleted at M12, and the script itself is not present in this repo. Icons now come from the kit or from Material's own icon set.
 
 ---
 

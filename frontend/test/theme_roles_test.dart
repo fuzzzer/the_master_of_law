@@ -181,29 +181,9 @@ void main() {
     });
   });
 
-  // ── DELETE THIS GROUP AT M12, WITH `packages/ui_kit` ──────────────────────
-  //
-  // The transitional bridge (the `legacy.extensions.values` spread in
-  // `ThemasteroflawTheme._build`) attaches the FORK's extensions alongside the
-  // kit's, so a surviving `Theme.of(context).extension<UiColors>()!` resolves.
-  //
-  // As of M10 it has **zero readers** — the three `context.uiColors` /
-  // `uiTextStyles` / `uiFormStyles` getters were deleted and `analyze` named no
-  // survivors. The bridge is therefore provably dead weight, and M12 removes it
-  // together with the fork. This test is the tripwire that makes that removal
-  // deliberate rather than accidental: when M12 deletes the bridge, THIS TEST
-  // MUST BE DELETED IN THE SAME COMMIT, not "fixed".
-  group('transitional fork bridge (dies at M12)', () {
-    test('is still attached, and still has zero readers', () {
-      // Both extension families coexist because Flutter keys
-      // `ThemeData.extensions` by runtime type.
-      expect(
-        ThemasteroflawTheme.dark().extensions.length,
-        greaterThan(7),
-        reason:
-            'the fork extensions are no longer attached — if that was '
-            'intentional, delete this whole group and the bridge together',
-      );
-    });
-  });
+  // The `transitional fork bridge (dies at M12)` group that used to sit here
+  // was DELETED at M12, in the same commit as `packages/ui_kit` and the
+  // `legacy.extensions.values` spread it guarded — which is exactly what it
+  // was written to force. It was a tripwire, never an assertion about correct
+  // behaviour, so it was removed rather than "fixed to pass".
 }

@@ -22,22 +22,30 @@
 # app-side at M7 so the taxonomy survives the fork's deletion at M12. They are
 # the ONLY correct `Color(0x…)` in this app, they appear on screen only as a
 # 4px rule or an 8px dot, and every other pixel stays role-driven.
-src/app/theme/legal_domain_colors.dart:53   # night · criminal
-src/app/theme/legal_domain_colors.dart:54   # night · civil
-src/app/theme/legal_domain_colors.dart:55   # night · administrative
-src/app/theme/legal_domain_colors.dart:56   # night · labor
-src/app/theme/legal_domain_colors.dart:57   # night · tax
-src/app/theme/legal_domain_colors.dart:58   # night · family
-src/app/theme/legal_domain_colors.dart:59   # night · property
-src/app/theme/legal_domain_colors.dart:60   # night · other
-src/app/theme/legal_domain_colors.dart:65   # paper · criminal
-src/app/theme/legal_domain_colors.dart:66   # paper · civil
-src/app/theme/legal_domain_colors.dart:67   # paper · administrative
-src/app/theme/legal_domain_colors.dart:68   # paper · labor
-src/app/theme/legal_domain_colors.dart:69   # paper · tax
-src/app/theme/legal_domain_colors.dart:70   # paper · family
-src/app/theme/legal_domain_colors.dart:71   # paper · property
-src/app/theme/legal_domain_colors.dart:72   # paper · other
+#
+# 🔴 RE-PINNED AT M12 (53–60/65–72 → 55–62/67–74). A two-line doc edit at the
+# top of that file moved all 16 literals down by two, and the guard immediately
+# reported 4 blocking + 16 "pinned" — i.e. 12 pins still matched by luck and 4
+# had silently stopped matching. THAT is what warning 2 above looks like in
+# practice: a pin that stops matching does not warn, it just quietly re-fails
+# somewhere else. Re-run the guard after ANY edit to a pinned file, including a
+# comment-only one.
+src/app/theme/legal_domain_colors.dart:55   # night · criminal
+src/app/theme/legal_domain_colors.dart:56   # night · civil
+src/app/theme/legal_domain_colors.dart:57   # night · administrative
+src/app/theme/legal_domain_colors.dart:58   # night · labor
+src/app/theme/legal_domain_colors.dart:59   # night · tax
+src/app/theme/legal_domain_colors.dart:60   # night · family
+src/app/theme/legal_domain_colors.dart:61   # night · property
+src/app/theme/legal_domain_colors.dart:62   # night · other
+src/app/theme/legal_domain_colors.dart:67   # paper · criminal
+src/app/theme/legal_domain_colors.dart:68   # paper · civil
+src/app/theme/legal_domain_colors.dart:69   # paper · administrative
+src/app/theme/legal_domain_colors.dart:70   # paper · labor
+src/app/theme/legal_domain_colors.dart:71   # paper · tax
+src/app/theme/legal_domain_colors.dart:72   # paper · family
+src/app/theme/legal_domain_colors.dart:73   # paper · property
+src/app/theme/legal_domain_colors.dart:74   # paper · other
 #
 # ── literal-motion · snackbar dwell times ───────────────────────────────────
 # NOT YET PINNED. Six SnackBar `duration:` sites are reviewed and annotated in

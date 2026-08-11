@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:themasteroflaw/src/src.dart';
-import 'package:ui_kit/ui_kit.dart';
 
 /// The Master of Law — the ONE bridge from `fuzzzy_ui_kit` to Flutter's
 /// [ThemeData].
@@ -30,20 +29,21 @@ import 'package:ui_kit/ui_kit.dart';
 ///    surfaces correct while the widget swap (M11) is in flight. See
 ///    [_appBar] … [_bottomNav].
 ///
-/// **Transitional, and deliberately so.** Until M12 deletes `packages/ui_kit`,
-/// the fork's own extensions are ALSO attached (the `legacy.extensions.values`
-/// spread in [_build]) so that not-yet-migrated `context.uiColors` /
-/// `context.uiTextStyles` reads keep resolving instead of throwing. Both
-/// extension families can coexist: Flutter keys `ThemeData.extensions` by
-/// runtime type. **As of M10 that spread has zero readers** and dies at M12.
+/// **No longer transitional.** M1–M11 kept the fork's own `UiColors` /
+/// `UiTextStyles` / `UiFormStyles` extensions attached alongside the kit's, so
+/// that a not-yet-migrated `context.uiColors` read would still resolve instead
+/// of throwing mid-swap. **M12 deleted `packages/ui_kit` and that bridge with
+/// it** (together with its tripwire group in `test/theme_roles_test.dart`).
+/// This class is now the app's only source of `ThemeData`, and every value in
+/// it comes from `fuzzzy_ui_kit` or from [LegalDomainColors].
 abstract final class ThemasteroflawTheme {
   /// Ink · night skin. The app's default (the fork's dark mode).
-  static ThemeData dark() => _build(FuzzzySkin.night, UiKitTheme.dark());
+  static ThemeData dark() => _build(FuzzzySkin.night);
 
   /// Ink · paper skin.
-  static ThemeData light() => _build(FuzzzySkin.paper, UiKitTheme.light());
+  static ThemeData light() => _build(FuzzzySkin.paper);
 
-  static ThemeData _build(FuzzzySkin skin, ThemeData legacy) {
+  static ThemeData _build(FuzzzySkin skin) {
     final base = FuzzzyTheme.build(inkPack, skin);
 
     final colors = base.extension<FuzzzyColors>()!;
@@ -78,21 +78,6 @@ abstract final class ThemasteroflawTheme {
           LegalDomainColors.dark
         else
           LegalDomainColors.light,
-        // The forked `UiColors` / `UiTextStyles` / `UiFormStyles`, taken
-        // straight off the fork's own ThemeData so no fork value is restated
-        // here. Both families coexist because Flutter keys
-        // `ThemeData.extensions` by runtime type.
-        //
-        // TRANSITIONAL — DELETE WITH `packages/ui_kit` AT M12. As of M10 it has
-        // **zero readers**: the three `context.uiColors` / `uiTextStyles` /
-        // `uiFormStyles` getters are gone and `analyze` named no survivors.
-        // `test/theme_roles_test.dart` holds a tripwire group that must be
-        // deleted in the same commit as this line.
-        //
-        // Inlined at M10 (was `_legacyExtensions(legacy)`): the helper's
-        // `Iterable<ThemeExtension<dynamic>>` return annotation hit the exact
-        // same F-bound normalisation described above.
-        ...legacy.extensions.values,
       ],
     );
   }

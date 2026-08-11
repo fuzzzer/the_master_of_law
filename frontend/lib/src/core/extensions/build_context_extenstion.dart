@@ -5,7 +5,10 @@ import 'package:themasteroflaw/src/src.dart';
 ///
 /// **Phase M · M10.** The three fork role getters that used to live here —
 /// `uiColors`, `uiTextStyles`, `uiFormStyles` — were deleted at this
-/// checkpoint, together with the `package:ui_kit` import that typed them.
+/// checkpoint, together with the forked ui_kit import that typed them. (The
+/// fork package itself was deleted at M12; this file is the last place that
+/// still names it, and it does so only as history — a repo-wide grep for the
+/// fork's import URI is now genuinely empty.)
 /// Deleting them is the migration's completeness check: after M2–M9b swapped
 /// 963 role reads across 32 files, `analyze` had to name every site that still
 /// wanted the fork, and it named **none**.

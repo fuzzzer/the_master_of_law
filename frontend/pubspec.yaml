@@ -35,8 +35,6 @@ dependencies:
   shake: 3.0.0
   shared_preferences: 2.3.2
   shimmer: 3.0.0
-  ui_kit:
-    path: packages/ui_kit
   url_launcher: 6.3.1
   web_socket_channel: ^3.0.3
 
