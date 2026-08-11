@@ -283,6 +283,57 @@ abstract final class ThemasteroflawTheme {
 
   /// 1 stock `BottomNavigationBar` site (`main_shell`). Selected item uses
   /// `ink` rather than a brand accent — Ink keeps navigation monochrome.
+  ///
+  /// **`control` / `bodyS`, NOT `label` (corrected at M16, `T-0259`).** The
+  /// first cut of this method set *both* label styles to `t.label`, and that
+  /// was wrong twice over:
+  ///
+  /// 1. **It broke `USING.md:354` rule 5b** — *"a bold control label — a
+  ///    button, tab, chip, segment or **nav item** — uses `control`"* — and the
+  ///    role's own doc-comment names `nav item` too. `label` is the *uppercase
+  ///    wide-tracked mono eyebrow*: Space Mono, 11 pt, `letterSpacing: 1.76`,
+  ///    and **Space Mono has no Georgian block**. All four labels here are
+  ///    Georgian (`საქმეები` · `ჩატი` · `კანონები` · `პროფილი`), so they fell
+  ///    to `fontFamilyFallback` with 1.76 px of tracking bolted onto every
+  ///    Mkhedruli glyph. This is the *same* defect that justified building
+  ///    [AppStatusChip] instead of adopting `FuzzzyStatusChip`, and
+  ///    `test/app_status_chip_test.dart` already locks it for one chip — while
+  ///    it was being violated app-wide, on the primary navigation.
+  /// 2. **It flattened the selection state to colour alone.** The fork
+  ///    (`782c4e7:packages/ui_kit/…/ui_kit_theme.dart:64-73,138-147`) used
+  ///    `w600` selected against `w400` unselected; both were `t.label`, i.e.
+  ///    `w400`, so tapping a tab changed no type weight at all. Under
+  ///    `PLAN_PHASE_M` §4 *"a state losing distinct feedback"* is a **defect**,
+  ///    not an expected change. `control` and `bodyS` share `bodyS` metrics and
+  ///    differ **only** in weight — which is exactly the fork's step, restored
+  ///    on roles.
+  ///
+  /// 🔴 **Why there is deliberately no `selectedFontSize`/`unselectedFontSize`
+  /// here.** They would be dead configuration. Flutter 3.32.0
+  /// `bottom_navigation_bar.dart:900-906` `_effectiveTextStyle` only falls back
+  /// to those parameters when the style's own `fontSize` is **null**, and every
+  /// kit type role carries a `fontSize`. So Material's 14/12 defaults never
+  /// apply, `_Label:711-712` reads the *style* sizes, and the built-in
+  /// selection **scale** animation is inert at ratio 1.0. That is not a
+  /// shortfall against the fork: the fork pinned `fontSize: 12` on *both*
+  /// states, so its scale animation was equally inert and the size step never
+  /// existed on this app. Restoring one would be a new behaviour, and a 26 %
+  /// type jump on four Georgian labels inside a 90 dp tile at `textScaler 1.3`
+  /// is the last place to introduce one. Selection reads as **weight + colour +
+  /// the filled `activeIcon`** — three signals, one more than the fork's two.
+  ///
+  /// Locked by `test/bottom_nav_roles_test.dart` — seen red on all three role
+  /// and state assertions before the fix.
+  ///
+  /// 🔴 **What that lock does NOT cover, and where the answer lives.** 11 pt →
+  /// 13.5 pt is a permanent ~23 % width increase on four Georgian labels in
+  /// ~90 dp tiles at 360 dp. No widget test can say whether that truncates:
+  /// a `BottomNavigationBar` label is clipped silently rather than overflowing
+  /// (negative control at M16 — `titleL`, 24 pt, produced **zero** layout
+  /// errors in all six matrix cells), and the fixed-advance test font
+  /// over-predicts width badly enough that it calls both the defect and the
+  /// fix too wide. **The device matrix at M20 is the authority for this one**,
+  /// by eye, on a screenshot.
   static BottomNavigationBarThemeData _bottomNav(
     FuzzzyColors c,
     FuzzzyTextStyles t,
@@ -290,8 +341,8 @@ abstract final class ThemasteroflawTheme {
     backgroundColor: c.surface,
     selectedItemColor: c.ink,
     unselectedItemColor: c.inkMute,
-    selectedLabelStyle: t.label.copyWith(color: c.ink),
-    unselectedLabelStyle: t.label.copyWith(color: c.inkMute),
+    selectedLabelStyle: t.control.copyWith(color: c.ink),
+    unselectedLabelStyle: t.bodyS.copyWith(color: c.inkMute),
     type: BottomNavigationBarType.fixed,
     elevation: 0,
   );
