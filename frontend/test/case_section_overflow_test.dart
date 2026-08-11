@@ -231,21 +231,15 @@ void main() {
     final layoutErrors = <String>[];
     final previousOnError = FlutterError.onError;
     FlutterError.onError = (details) {
-      // 🔴 `details.toString()` does NOT carry the error-causing widget's
-      // source location. That location is produced by
-      // `debugTransformDebugCreator`, which `FlutterErrorDetails` runs only
-      // when it is rendered as a diagnostics node
-      // (`assertions.dart:1298-1325`, SDK 3.32.0). So go through
-      // `toDiagnosticsNode()`, or every failure reports a pixel count with no
-      // address and the next reader has to re-run the whole matrix by hand.
-      final info = details.toDiagnosticsNode().toStringDeep();
-      final where = RegExp(
-        r'lib/src/[^\s:]+\.dart:\d+:\d+',
-      ).firstMatch(info)?.group(0);
-      layoutErrors.add(
-        '${details.exception}'
-        '${where == null ? '' : '  ← $where'}',
-      );
+      // 🔴 The error-causing widget's `file:line` is NOT reachable from the
+      // details object here. It is synthesised by `debugTransformDebugCreator`
+      // inside `FlutterError.presentError`'s own rendering path; neither
+      // `details.toString()` nor `details.toDiagnosticsNode().toStringDeep()`
+      // carries it (both were tried). So print the real banner — which does —
+      // and let the collected list carry the exception text. On a green run
+      // this never fires, so the noise costs nothing.
+      FlutterError.dumpErrorToConsole(details, forceReport: true);
+      layoutErrors.add('${details.exception}');
       // 🔴 CHAIN, never replace. `flutter_test`'s own handler is what
       // completes the test's error pipeline; swallowing it deadlocks the run
       // (seen: the first version of this file hung `flutter test` for 10
