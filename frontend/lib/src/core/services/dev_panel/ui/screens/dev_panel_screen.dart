@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 import 'package:logger/web.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:themasteroflaw/src/src.dart';
@@ -34,11 +35,9 @@ class DevPanelScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final uiColors = theme.extension<UiColors>()!;
+    final colors = context.fuzzzyColors;
 
     return Scaffold(
-      backgroundColor: uiColors.backgroundPrimaryColor,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(
@@ -55,9 +54,9 @@ class DevPanelScreen extends StatelessWidget {
                         builder: (BuildContext context) => const LogsScreen(),
                       ),
                     ),
-                    leadingIcon: const Icon(
+                    leadingIcon: Icon(
                       Icons.text_fields,
-                      color: Colors.white,
+                      color: colors.ink,
                       size: 46,
                     ),
                     title: 'Logs',
@@ -69,7 +68,7 @@ class DevPanelScreen extends StatelessWidget {
                       return DevPanelTile(
                         leadingIcon: Icon(
                           savingAllLogs ? Icons.all_out : Icons.wifi,
-                          color: Colors.white,
+                          color: colors.ink,
                           size: 46,
                         ),
                         title: AppLogger.savingAllLogsWithOutputIntercepting.value
@@ -102,9 +101,9 @@ class DevPanelScreen extends StatelessWidget {
                     builder: (context, Level logLevel, _) {
                       if (AppLogger.loggerLevelThreshold.value.index == Level.error.index) {
                         return DevPanelTile(
-                          leadingIcon: const Icon(
+                          leadingIcon: Icon(
                             Icons.error_outline,
-                            color: Colors.white,
+                            color: colors.ink,
                             size: 46,
                           ),
                           title: 'Logger Level: Error',
@@ -119,9 +118,9 @@ class DevPanelScreen extends StatelessWidget {
                         );
                       } else {
                         return DevPanelTile(
-                          leadingIcon: const Icon(
+                          leadingIcon: Icon(
                             Icons.all_inbox,
-                            color: Colors.white,
+                            color: colors.ink,
                             size: 46,
                           ),
                           title: AppLogger.loggerLevelThreshold.value.index == Level.debug.index
@@ -141,9 +140,9 @@ class DevPanelScreen extends StatelessWidget {
                   ),
 
                   DevPanelTile(
-                    leadingIcon: const Icon(
+                    leadingIcon: Icon(
                       Icons.delete,
-                      color: Colors.white,
+                      color: colors.ink,
                       size: 46,
                     ),
                     title: 'Clear Logs',
@@ -166,9 +165,9 @@ class DevPanelScreen extends StatelessWidget {
                         builder: (BuildContext context) => const WorkInProgressFeaturesDisplayScreen(),
                       ),
                     ),
-                    leadingIcon: const Icon(
+                    leadingIcon: Icon(
                       Icons.construction,
-                      color: Colors.white,
+                      color: colors.ink,
                       size: 46,
                     ),
                     title: 'WIP Features',
@@ -178,9 +177,9 @@ class DevPanelScreen extends StatelessWidget {
                     future: PackageInfo.fromPlatform(),
                     builder: (context, snapshot) {
                       return DevPanelTile(
-                        leadingIcon: const Icon(
+                        leadingIcon: Icon(
                           Icons.info_outline,
-                          color: Colors.white,
+                          color: colors.ink,
                           size: 46,
                         ),
                         title: 'App Version',
