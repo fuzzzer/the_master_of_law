@@ -31,10 +31,11 @@ import 'package:ui_kit/ui_kit.dart';
 ///    [_appBar] … [_bottomNav].
 ///
 /// **Transitional, and deliberately so.** Until M12 deletes `packages/ui_kit`,
-/// the fork's own extensions are ALSO attached (see [_legacyExtensions]) so
-/// that not-yet-migrated `context.uiColors` / `context.uiTextStyles` reads keep
-/// resolving instead of throwing. Both extension families can coexist: Flutter
-/// keys `ThemeData.extensions` by runtime type.
+/// the fork's own extensions are ALSO attached (the `legacy.extensions.values`
+/// spread in [_build]) so that not-yet-migrated `context.uiColors` /
+/// `context.uiTextStyles` reads keep resolving instead of throwing. Both
+/// extension families can coexist: Flutter keys `ThemeData.extensions` by
+/// runtime type. **As of M10 that spread has zero readers** and dies at M12.
 abstract final class ThemasteroflawTheme {
   /// Ink · night skin. The app's default (the fork's dark mode).
   static ThemeData dark() => _build(FuzzzySkin.night, UiKitTheme.dark());
@@ -58,13 +59,40 @@ abstract final class ThemasteroflawTheme {
       inputDecorationTheme: _input(colors, type, form),
       chipTheme: _chip(colors, radius, type),
       bottomNavigationBarTheme: _bottomNav(colors, type),
-      extensions: <ThemeExtension<dynamic>>[
+      // 🔴 DO NOT write an explicit `<ThemeExtension<dynamic>>` type argument
+      // on this list. `ThemeExtension` is F-bounded
+      // (`class ThemeExtension<T extends ThemeExtension<T>>`), so a type
+      // argument written HERE gets bound-normalised by the compiler front end
+      // to `ThemeExtension<ThemeExtension<dynamic>>`, which then refuses every
+      // spread of Flutter's own `Map<Object, ThemeExtension<dynamic>>.values`.
+      // **`flutter analyze` does not report this; `flutter test`, `flutter run`
+      // and `flutter build` all do** — see JOURNAL M10 §A. Leave the literal
+      // untyped and let it infer from `copyWith`'s parameter, which Flutter
+      // declares correctly.
+      extensions: [
         ...base.extensions.values.where((e) => e is! FuzzzyTextStyles),
         type,
         // The app's own taxonomy palette — NOT a kit role, by owner ruling
         // (harvest/mol.md §3, MAPPING §2.1). Skin-bound like the fork's was.
-        if (skin == FuzzzySkin.night) LegalDomainColors.dark else LegalDomainColors.light,
-        ..._legacyExtensions(legacy),
+        if (skin == FuzzzySkin.night)
+          LegalDomainColors.dark
+        else
+          LegalDomainColors.light,
+        // The forked `UiColors` / `UiTextStyles` / `UiFormStyles`, taken
+        // straight off the fork's own ThemeData so no fork value is restated
+        // here. Both families coexist because Flutter keys
+        // `ThemeData.extensions` by runtime type.
+        //
+        // TRANSITIONAL — DELETE WITH `packages/ui_kit` AT M12. As of M10 it has
+        // **zero readers**: the three `context.uiColors` / `uiTextStyles` /
+        // `uiFormStyles` getters are gone and `analyze` named no survivors.
+        // `test/theme_roles_test.dart` holds a tripwire group that must be
+        // deleted in the same commit as this line.
+        //
+        // Inlined at M10 (was `_legacyExtensions(legacy)`): the helper's
+        // `Iterable<ThemeExtension<dynamic>>` return annotation hit the exact
+        // same F-bound normalisation described above.
+        ...legacy.extensions.values,
       ],
     );
   }
@@ -259,21 +287,4 @@ abstract final class ThemasteroflawTheme {
     type: BottomNavigationBarType.fixed,
     elevation: 0,
   );
-
-  // ---------------------------------------------------------------------------
-  // Transitional bridge — DELETE WITH `packages/ui_kit` AT M12
-  // ---------------------------------------------------------------------------
-
-  /// The forked `UiColors` / `UiTextStyles` / `UiFormStyles` extensions, taken
-  /// straight off the fork's own [ThemeData] so no fork value is restated here.
-  ///
-  /// Without this, the instant this file replaces `UiKitTheme`, every
-  /// not-yet-migrated `Theme.of(context).extension<UiColors>()!` in the app
-  /// would resolve to null and throw — the app would compile and then be dead
-  /// on every screen for the whole M2→M10 role swap, which is precisely the
-  /// window in which it most needs to be runnable and QA-able.
-  ///
-  /// This list becomes empty by construction at M12, when `packages/ui_kit` is
-  /// deleted and this method and its import go with it.
-  static Iterable<ThemeExtension<dynamic>> _legacyExtensions(ThemeData fork) => fork.extensions.values;
 }

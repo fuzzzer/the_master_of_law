@@ -1,0 +1,209 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:themasteroflaw/src/src.dart';
+
+/// Phase M · Unit A · **the first test in this repo.**
+///
+/// `frontend/` had no `test/` directory at all, so `fvm flutter test` exited 1
+/// with *"Test directory not found"* — the M10 gate (`analyze+test`) could
+/// never have passed as ledgered. This file makes the gate real rather than
+/// weakening it; M10's own definition is *"0 errors, tests green"*.
+///
+/// It locks the four invariants **this migration created**, each of which
+/// fails silently or catastrophically and none of which `analyze` can see:
+///
+/// 1. Every kit extension the app reads is attached to BOTH skins. A missing
+///    one turns every `context.fuzzzy*` — hundreds of sites — into a null-bang
+///    crash on the first frame.
+/// 2. Every type role carries the Georgian `fontFamilyFallback`. The Ink pack's
+///    families have no Georgian block; losing the fallback drops every Georgian
+///    glyph to a *platform* font with *platform* metrics, which would silently
+///    invalidate the M14 overflow gate (RUN_BRIEF §4's red note).
+/// 3. The six Material sub-themes MAPPING §7 identified are set. `FuzzzyTheme
+///    .build` deliberately sets none of them, and ~80 stock-Material widgets in
+///    this app inherit them.
+/// 4. Ink's radii really did collapse to the 2/3/4 ramp — the single most
+///    visible expected change, and the one a wrong pack argument would undo.
+///
+/// The kit consumer guard test (`design/GUARD_TEMPLATE.md`) lands beside this
+/// one at **M13**, once M10b/M11/M12 have cleared the 14 remaining blocking
+/// literals. Until then this file is the whole `test` gate — say so honestly.
+void main() {
+  // 🔴 Required, and not optional boilerplate. `ThemasteroflawTheme` resolves
+  // the Georgian fallback through `GoogleFonts.notoSansGeorgian`, and that call
+  // reaches `ServicesBinding.instance` to read the asset manifest. Building a
+  // theme before the binding exists throws `checkInstance` from every test at
+  // once. The theme must also be built INSIDE the test bodies, not at the top
+  // level, because top-level initialisers run before this line.
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  // 🔴 Also required, and it is a genuine finding about the app, not test
+  // plumbing. Neither Ink's families nor Noto Sans Georgian is bundled as an
+  // asset: `GoogleFonts` fetches them over HTTP on first use and caches them on
+  // the device. Under `flutter test` that fetch fails and THROWS out of
+  // `ThemasteroflawTheme.dark()`. Turning runtime fetching off makes the
+  // resolver fall back instead of throwing, which is exactly what happens on a
+  // cold, offline device — see JOURNAL M10 §B for what M14 must check.
+  GoogleFonts.config.allowRuntimeFetching = false;
+
+  // `GoogleFonts` registers a font as a FIRE-AND-FORGET async side effect of
+  // returning the (synchronous) TextStyle, so with fetching off it throws into
+  // the zone AFTER the theme has already been built correctly. Unhandled zone
+  // errors fail whichever test happens to be running.
+  //
+  // This absorbs THAT ONE failure and nothing else: any other error is kept and
+  // asserted on inside every test, so the gate is not weakened — a real problem
+  // still fails the run, it just fails with a useful message instead of a font
+  // download.
+  final unexpectedZoneErrors = <Object>[];
+  bool isFontLoaderNoise(Object e) {
+    final s = e.toString();
+    return s.contains('allowRuntimeFetching') ||
+        s.contains('Failed to load font');
+  }
+
+  ThemeData buildTheme(ThemeData Function() build) {
+    late ThemeData built;
+    runZonedGuarded(
+      () => built = build(),
+      (e, _) {
+        if (!isFontLoaderNoise(e)) unexpectedZoneErrors.add(e);
+      },
+    );
+    return built;
+  }
+
+  final builders = <String, ThemeData Function()>{
+    'dark (night)': ThemasteroflawTheme.dark,
+    'light (paper)': ThemasteroflawTheme.light,
+  };
+
+  builders.forEach((name, build) {
+    group(name, () {
+      late ThemeData theme;
+      setUp(() {
+        unexpectedZoneErrors.clear();
+        theme = buildTheme(build);
+      });
+      tearDown(() => expect(unexpectedZoneErrors, isEmpty));
+
+      test('carries every kit extension the app reads', () {
+        // The seven `context.fuzzzy*` getters used across lib/.
+        expect(
+          theme.extension<FuzzzyColors>(),
+          isNotNull,
+          reason: 'context.fuzzzyColors',
+        );
+        expect(
+          theme.extension<FuzzzyTextStyles>(),
+          isNotNull,
+          reason: 'context.fuzzzyTextStyles',
+        );
+        expect(
+          theme.extension<FuzzzySpace>(),
+          isNotNull,
+          reason: 'context.fuzzzySpace',
+        );
+        expect(
+          theme.extension<FuzzzyRadius>(),
+          isNotNull,
+          reason: 'context.fuzzzyRadius',
+        );
+        expect(
+          theme.extension<FuzzzyDensity>(),
+          isNotNull,
+          reason: 'context.fuzzzyDensity',
+        );
+        expect(
+          theme.extension<FuzzzyMotion>(),
+          isNotNull,
+          reason: 'context.fuzzzyMotion',
+        );
+        expect(
+          theme.extension<FuzzzyFormStyles>(),
+          isNotNull,
+          reason: 'context.fuzzzyFormStyles',
+        );
+      });
+
+      test('every type role can render Georgian', () {
+        final t = theme.extension<FuzzzyTextStyles>()!;
+        final roles = <String, TextStyle>{
+          'displayXl': t.displayXl,
+          'displayL': t.displayL,
+          'titleL': t.titleL,
+          'titleM': t.titleM,
+          'titleS': t.titleS,
+          'body': t.body,
+          'bodyS': t.bodyS,
+          'control': t.control,
+          'label': t.label,
+          'data': t.data,
+          'dataS': t.dataS,
+          'dataL': t.dataL,
+        };
+        roles.forEach((role, style) {
+          expect(
+            style.fontFamilyFallback,
+            isNotEmpty,
+            reason:
+                'type.$role has no fontFamilyFallback — Georgian would fall '
+                'through to a platform font with platform metrics, and the '
+                'M14 overflow gate would be certifying a typeface the kit '
+                'does not control.',
+          );
+        });
+      });
+
+      test('the six Material sub-themes the fork used to set are set', () {
+        // MAPPING §7: FuzzzyTheme.build sets none of these, and ~80 stock
+        // widgets in this app inherit them. Losing any one is invisible to
+        // `analyze` and to every role count.
+        expect(theme.appBarTheme.backgroundColor, isNotNull);
+        expect(theme.cardTheme.color, isNotNull);
+        expect(theme.dividerTheme.color, isNotNull);
+        expect(theme.inputDecorationTheme.fillColor, isNotNull);
+        expect(theme.chipTheme.backgroundColor, isNotNull);
+        expect(theme.bottomNavigationBarTheme.selectedItemColor, isNotNull);
+      });
+
+      test("radii are Ink's 2/3/4 ramp, not the fork's 8/12/16", () {
+        final r = theme.extension<FuzzzyRadius>()!;
+        expect(r.s, 2.0);
+        expect(r.m, 3.0);
+        expect(r.l, 4.0);
+        expect(r.circle, greaterThan(100));
+      });
+    });
+  });
+
+  // ── DELETE THIS GROUP AT M12, WITH `packages/ui_kit` ──────────────────────
+  //
+  // The transitional bridge (the `legacy.extensions.values` spread in
+  // `ThemasteroflawTheme._build`) attaches the FORK's extensions alongside the
+  // kit's, so a surviving `Theme.of(context).extension<UiColors>()!` resolves.
+  //
+  // As of M10 it has **zero readers** — the three `context.uiColors` /
+  // `uiTextStyles` / `uiFormStyles` getters were deleted and `analyze` named no
+  // survivors. The bridge is therefore provably dead weight, and M12 removes it
+  // together with the fork. This test is the tripwire that makes that removal
+  // deliberate rather than accidental: when M12 deletes the bridge, THIS TEST
+  // MUST BE DELETED IN THE SAME COMMIT, not "fixed".
+  group('transitional fork bridge (dies at M12)', () {
+    test('is still attached, and still has zero readers', () {
+      // Both extension families coexist because Flutter keys
+      // `ThemeData.extensions` by runtime type.
+      expect(
+        ThemasteroflawTheme.dark().extensions.length,
+        greaterThan(7),
+        reason:
+            'the fork extensions are no longer attached — if that was '
+            'intentional, delete this whole group and the bridge together',
+      );
+    });
+  });
+}
