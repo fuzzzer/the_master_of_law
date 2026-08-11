@@ -43,8 +43,31 @@ abstract final class ThemasteroflawTheme {
   /// Ink · paper skin.
   static ThemeData light() => _build(FuzzzySkin.paper);
 
+  /// The brand pack this build runs on. **`inkPack` unless overridden**, and
+  /// the override exists for exactly one reason: `USING.md` §10 says a green
+  /// guard cannot tell you whether a screen survives a pack swap, and M14 (S8)
+  /// has to prove it does.
+  ///
+  /// ```bash
+  /// fvm flutter run -t lib/main_development.dart --flavor development \
+  ///   --dart-define=FUZZZY_PACK=stress
+  /// ```
+  ///
+  /// Resolved through the kit's own `fuzzzyBrandPacks` map rather than an
+  /// app-side `if`, so a pack added to the kit is reachable here with no edit.
+  /// An unknown name falls back to `inkPack`: a typo in a QA command must not
+  /// silently produce a third look nobody reviewed. **This getter is the whole
+  /// pack-swap surface of the app** — every other file reads roles, which is
+  /// exactly what makes one swap here sufficient.
+  static FuzzzyBrandPack get pack =>
+      fuzzzyBrandPacks[const String.fromEnvironment(
+        'FUZZZY_PACK',
+        defaultValue: 'ink',
+      )] ??
+      inkPack;
+
   static ThemeData _build(FuzzzySkin skin) {
-    final base = FuzzzyTheme.build(inkPack, skin);
+    final base = FuzzzyTheme.build(pack, skin);
 
     final colors = base.extension<FuzzzyColors>()!;
     final radius = base.extension<FuzzzyRadius>()!;
