@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 import 'package:go_router/go_router.dart';
-import 'package:themasteroflaw/src/core/core.dart';
-import 'package:themasteroflaw/src/features/cases/cases.dart';
-import 'package:themasteroflaw/src/features/consultation/consultation.dart';
-import 'package:themasteroflaw/src/features/credits/credits.dart';
-import 'package:themasteroflaw/src/features/laws/laws.dart';
+import 'package:themasteroflaw/src/src.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ConsultationPage extends StatefulWidget {
@@ -27,10 +24,24 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    _dotAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat();
+    // Duration is a MOTION ROLE, and roles need a BuildContext — so the
+    // controller is created bare here and given `motion.pulse` (plus its first
+    // `repeat()`) in didChangeDependencies. Constructing it with a literal
+    // duration would hardcode the one number the brand pack owns.
+    _dotAnimController = AnimationController(vsync: this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // The typing dots are a looping ambient beat, not a transition:
+    // `motion.pulse` is the role for exactly that (1600ms in Ink).
+    final pulse = context.fuzzzyMotion.pulse;
+    if (_dotAnimController.duration != pulse) {
+      _dotAnimController
+        ..duration = pulse
+        ..repeat();
+    }
   }
 
   @override
@@ -58,13 +69,16 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
   }
 
   void _scrollToBottom({bool force = false}) {
+    // Read the role now: the callback runs after the frame, when reading an
+    // InheritedWidget off a possibly-unmounted State would be unsafe.
+    final motion = context.fuzzzyMotion;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
       if (force || _isNearBottom()) {
         _scrollController.animateTo(
           0,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOutCubic,
+          duration: motion.standard,
+          curve: motion.standardCurve,
         );
       }
     });
@@ -72,12 +86,18 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
 
   @override
   Widget build(BuildContext context) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
+    final motion = context.fuzzzyMotion;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('AI კონსულტაცია', style: uiTextStyles.bodyBold16.copyWith(color: uiColors.primaryTextColor)),
+        // Title style + leading/action icon colours come from appBarTheme
+        // (titleM + ink), which M1 built from kit roles.
+        title: const Text('AI კონსულტაცია'),
         leading: IconButton(
           icon: const Icon(Icons.history),
           onPressed: () => _showHistorySheet(context),
@@ -87,7 +107,7 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
             builder: (context, state) {
               if (state.status == StateStatus.initial) return const SizedBox.shrink();
               return IconButton(
-                icon: Icon(Icons.add_comment_outlined, color: uiColors.primaryTextColor),
+                icon: const Icon(Icons.add_comment_outlined),
                 tooltip: 'ახალი საუბარი',
                 onPressed: () => context.read<ConsultationCubit>().reset(),
               );
@@ -98,7 +118,7 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
               //TODO enable sooner if needed
               if (state.status == StateStatus.initial || state.messages.length < 6) return const SizedBox.shrink();
               return IconButton(
-                icon: Icon(Icons.description_outlined, color: uiColors.primaryTextColor),
+                icon: const Icon(Icons.description_outlined),
                 tooltip: 'საქმის გენერაცია',
                 onPressed: state.isBuildingCase ? null : () => _triggerCaseBuild(context),
               );
@@ -107,39 +127,37 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
           BlocBuilder<ConsultationCubit, ConsultationState>(
             buildWhen: (prev, curr) => prev.chatMode != curr.chatMode,
             builder: (context, state) {
+              final lawsOnly = state.chatMode == ChatMode.lawsOnly;
               return GestureDetector(
+                behavior: HitTestBehavior.opaque,
                 onTap: () => _showModeSelector(context),
                 child: Container(
-                  margin: const EdgeInsets.only(right: 12),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  margin: EdgeInsets.only(right: space.m),
+                  padding: density.chip,
+                  // CONSTANT appearance in both modes. The fork tinted this
+                  // pill gold for `lawsOnly` and grey for `allSources`, which
+                  // made one of two equal modes look "on". The mode is already
+                  // carried by the icon and by `labelKa`; a hue on top of that
+                  // is a second, redundant (and now monochrome) voice.
                   decoration: BoxDecoration(
-                    color: state.chatMode == ChatMode.lawsOnly
-                        ? uiColors.accentColor.withValues(alpha: 0.15)
-                        : uiColors.secondaryTextColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: state.chatMode == ChatMode.lawsOnly
-                          ? uiColors.accentColor.withValues(alpha: 0.3)
-                          : uiColors.secondaryTextColor.withValues(alpha: 0.2),
-                    ),
+                    color: colors.surface,
+                    borderRadius: BorderRadius.circular(radius.m),
+                    border: Border.all(color: colors.line),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        state.chatMode == ChatMode.lawsOnly ? Icons.menu_book : Icons.auto_awesome,
+                        lawsOnly ? Icons.menu_book : Icons.auto_awesome,
                         size: 14,
-                        color: state.chatMode == ChatMode.lawsOnly ? uiColors.accentColor : uiColors.secondaryTextColor,
+                        color: colors.ink,
                       ),
-                      const SizedBox(width: 4),
+                      SizedBox(width: space.xs),
                       Text(
                         state.chatMode.labelKa,
-                        style: uiTextStyles.caption11.copyWith(
-                          color: state.chatMode == ChatMode.lawsOnly
-                              ? uiColors.accentColor
-                              : uiColors.secondaryTextColor,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        // `control` IS the w600 role — the fork's caption11 +
+                        // fontWeight override becomes a role choice.
+                        style: type.control.copyWith(color: colors.ink),
                       ),
                     ],
                   ),
@@ -177,7 +195,8 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
                 children: [
                   Expanded(child: _buildMessageList(context, state)),
                   if (state.isAgentMode) _buildAgentModeBanner(context, state),
-                  if (state.caseAnalysisReady && !state.hasCaseAttached && !state.isAgentMode) _buildCaseReadyBanner(context, state),
+                  if (state.caseAnalysisReady && !state.hasCaseAttached && !state.isAgentMode)
+                    _buildCaseReadyBanner(context, state),
                   if (state.hasCaseAttached) _buildAttachedCaseBanner(context, state),
                   _buildInputBar(context, state),
                 ],
@@ -185,34 +204,37 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
               // Scroll-to-bottom floating button
               if (_showScrollToBottom)
                 Positioned(
+                  // Dimension: clears the docked composer so the button never
+                  // sits on top of the send affordance.
                   bottom: 90 + MediaQuery.of(context).padding.bottom,
-                  right: 16,
+                  right: space.l,
                   child: AnimatedOpacity(
                     opacity: _showScrollToBottom ? 1.0 : 0.0,
-                    duration: const Duration(milliseconds: 200),
-                    child: GestureDetector(
-                      onTap: () => _scrollToBottom(force: true),
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: uiColors.backgroundSecondaryColor,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                          border: Border.all(
-                            color: uiColors.secondaryTextColor.withValues(alpha: 0.15),
+                    duration: motion.standard,
+                    curve: motion.standardCurve,
+                    // The kit's sanctioned way to reach 44×44 without moving a
+                    // painted pixel (shared/fuzzzy_hit_target.dart, RUN_DECISIONS
+                    // decision 3) — a ConstrainedBox would reflow the host.
+                    child: FuzzzyHitTarget(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => _scrollToBottom(force: true),
+                        child: Container(
+                          // Dimension: the button's own footprint.
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: colors.surface,
+                            // Ink's elevation step is the BORDER — the fork's
+                            // BoxShadow is deleted, not translated.
+                            borderRadius: BorderRadius.circular(radius.circle),
+                            border: Border.all(color: colors.line),
                           ),
-                        ),
-                        child: Icon(
-                          Icons.keyboard_arrow_down,
-                          color: uiColors.primaryTextColor,
-                          size: 22,
+                          child: Icon(
+                            Icons.keyboard_arrow_down,
+                            color: colors.ink,
+                            size: 22,
+                          ),
                         ),
                       ),
                     ),
@@ -220,27 +242,32 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
                 ),
               if (state.isBuildingCase)
                 ColoredBox(
-                  color: Colors.black.withValues(alpha: 0.3),
+                  // A blocking veil over the page. The kit's own precedent for
+                  // this is `ground` at high alpha (fuzzzy_dropzone.dart:66) —
+                  // never Colors.black, which is a light-skin bug waiting.
+                  color: colors.ground.withValues(alpha: 0.82),
                   child: Center(
                     child: Container(
-                      padding: const EdgeInsets.all(24),
+                      padding: density.dialog,
                       decoration: BoxDecoration(
-                        color: uiColors.backgroundSecondaryColor,
-                        borderRadius: BorderRadius.circular(16),
+                        // Overlay rung (USING §3): `raised` + `lineStrong`.
+                        color: colors.raised,
+                        borderRadius: BorderRadius.circular(radius.l),
+                        border: Border.all(color: colors.lineStrong),
                       ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           const CircularProgressIndicator(),
-                          const SizedBox(height: 16),
+                          SizedBox(height: space.l),
                           Text(
                             'საქმე მზადდება...',
-                            style: uiTextStyles.bodyBold14.copyWith(color: uiColors.primaryTextColor),
+                            style: type.titleS.copyWith(color: colors.ink),
                           ),
-                          const SizedBox(height: 8),
+                          SizedBox(height: space.s),
                           Text(
                             'ეს შეიძლება 30-60 წამი გაგრძელდეს',
-                            style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor),
+                            style: type.bodyS.copyWith(color: colors.inkMute),
                           ),
                         ],
                       ),
@@ -255,38 +282,53 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
   }
 
   Widget _buildWelcome(BuildContext context, ConsultationState state) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        // A centred state panel's inset is a component FOOTPRINT, so it takes
+        // a density tier, not `space.xxl` (USING §4.3) — even though 32 → 32
+        // would have matched by number.
+        padding: density.screen,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.psychology, size: 64, color: uiColors.accentColor.withValues(alpha: 0.4)),
-            const SizedBox(height: 20),
-            Text('AI კონსულტაცია', style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor)),
-            const SizedBox(height: 8),
+            // Oversized decorative state glyph → `inkFaint`, alpha deleted.
+            Icon(Icons.psychology, size: 64, color: colors.inkFaint),
+            SizedBox(height: space.xl),
+            Text('AI კონსულტაცია', style: type.titleM.copyWith(color: colors.ink)),
+            SizedBox(height: space.s),
             Text(
               'დაუსვით იურიდიული კითხვა',
-              style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
+              style: type.body.copyWith(color: colors.inkMute),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: space.xl),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _buildModeButton(context, ChatMode.lawsOnly, state.chatMode),
-                const SizedBox(width: 12),
+                SizedBox(width: space.m),
                 _buildModeButton(context, ChatMode.allSources, state.chatMode),
               ],
             ),
-            const SizedBox(height: 32),
+            SizedBox(height: space.xxl),
+            // `FuzzzyButton.primary`: actionPrimary pair, radius.m, `snug`.
             ElevatedButton.icon(
               onPressed: () => context.read<ConsultationCubit>().startConversation(),
               icon: const Icon(Icons.chat),
               label: const Text('დაწყება'),
-              style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colors.actionPrimaryBg,
+                foregroundColor: colors.actionPrimaryFg,
+                padding: density.snug,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(radius.m),
+                ),
+              ),
             ),
           ],
         ),
@@ -295,32 +337,45 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
   }
 
   Widget _buildFailedState(BuildContext context, ConsultationState state) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: density.screen,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.cloud_off, size: 64, color: uiColors.errorColor.withValues(alpha: 0.5)),
-            const SizedBox(height: 20),
+            // The oversized glyph is decoration, not the error VOICE — the
+            // copy under it carries that. Red on a 64px icon would be the
+            // screen's loudest element (USING §6, one red voice).
+            Icon(Icons.cloud_off, size: 64, color: colors.inkFaint),
+            SizedBox(height: space.xl),
             Text(
               'კავშირი ვერ მოხერხდა',
-              style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor),
+              style: type.titleM.copyWith(color: colors.ink),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: space.s),
             Text(
               _errorMessageKa(state.failureType),
-              style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
+              style: type.body.copyWith(color: colors.inkMute),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: space.xl),
             ElevatedButton.icon(
               onPressed: () => context.read<ConsultationCubit>().startConversation(),
               icon: const Icon(Icons.refresh, size: 18),
               label: const Text('ხელახლა ცდა'),
-              style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colors.actionPrimaryBg,
+                foregroundColor: colors.actionPrimaryFg,
+                padding: density.snug,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(radius.m),
+                ),
+              ),
             ),
           ],
         ),
@@ -329,32 +384,40 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
   }
 
   Widget _buildModeButton(BuildContext context, ChatMode mode, ChatMode currentMode) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
     final isSelected = mode == currentMode;
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () => context.read<ConsultationCubit>().switchMode(mode),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: density.snug,
         decoration: BoxDecoration(
-          color: isSelected ? uiColors.accentColor.withValues(alpha: 0.15) : uiColors.backgroundSecondaryColor,
-          borderRadius: BorderRadius.circular(10),
+          // Discrete choice → INVERTED-MONO fill from the action pair
+          // (USING §6: never red, never a tint ladder). Border width is
+          // CONSTANT and only its colour changes, so selecting never reflows
+          // the row — the fork also swapped fontWeight w400→w600, which
+          // re-measured the label. Both are gone.
+          color: isSelected ? colors.actionPrimaryBg : colors.surface,
+          borderRadius: BorderRadius.circular(radius.m),
           border: Border.all(
-            color: isSelected ? uiColors.accentColor : uiColors.secondaryTextColor.withValues(alpha: 0.2),
+            color: isSelected ? colors.actionPrimaryBg : colors.line,
           ),
         ),
         child: Column(
           children: [
             Icon(
               mode == ChatMode.lawsOnly ? Icons.menu_book : Icons.auto_awesome,
-              color: isSelected ? uiColors.accentColor : uiColors.secondaryTextColor,
+              color: isSelected ? colors.actionPrimaryFg : colors.inkMute,
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: space.xs),
             Text(
               mode.labelKa,
-              style: uiTextStyles.caption11.copyWith(
-                color: isSelected ? uiColors.accentColor : uiColors.secondaryTextColor,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+              style: type.control.copyWith(
+                color: isSelected ? colors.actionPrimaryFg : colors.inkMute,
               ),
             ),
           ],
@@ -364,13 +427,15 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
   }
 
   Widget _buildMessageList(BuildContext context, ConsultationState state) {
+    final space = context.fuzzzySpace;
+
     // Show action chips after first AI response (2 messages: user + AI)
     final showChips =
         !_actionChipsDismissed && state.messages.length >= 2 && !state.isSending && state.messages.last.isUser == false;
 
     // We only show the typing indicator if we're sending and haven't received any text yet
-    final streamingMsg = state.streamingMessageId != null 
-        ? state.messages.where((m) => m.id == state.streamingMessageId).firstOrNull 
+    final streamingMsg = state.streamingMessageId != null
+        ? state.messages.where((m) => m.id == state.streamingMessageId).firstOrNull
         : null;
     final showTypingIndicator = state.isSending && (streamingMsg == null || streamingMsg.text.isEmpty);
 
@@ -381,7 +446,7 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
       controller: _scrollController,
       reverse: true,
       physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+      padding: EdgeInsets.symmetric(horizontal: space.m, vertical: space.l),
       // Item order (reversed list): index 0 = visually at bottom
       //   [0]           typing indicator (if active)
       //   [1..N]        messages newest-first
@@ -409,26 +474,30 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
   }
 
   Widget _buildActionChips(BuildContext context) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
+      margin: EdgeInsets.symmetric(vertical: space.s),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'როგორ გსურთ გაგრძელება?',
-            style: uiTextStyles.labelBold12.copyWith(color: uiColors.secondaryTextColor),
+            style: type.control.copyWith(color: colors.inkMute),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: space.s),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: space.s,
+            runSpacing: space.s,
             children: [
+              // The three suggestions are peers — the fork gave them three
+              // different hues (gold / green / grey), which read as three
+              // different KINDS of action. They are one kind, so they are one
+              // appearance; the icon and the label carry the difference.
               _ActionChip(
                 icon: Icons.quiz_outlined,
                 label: '🔍 დამაზუსტე',
-                color: uiColors.accentColor,
                 onTap: () {
                   setState(() => _actionChipsDismissed = true);
                   context.read<ConsultationCubit>().sendMessage(
@@ -439,7 +508,6 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
               _ActionChip(
                 icon: Icons.auto_awesome,
                 label: '📊 სრული ანალიზი',
-                color: const Color(0xFF2ECC71),
                 onTap: () {
                   setState(() => _actionChipsDismissed = true);
                   context.read<ConsultationCubit>().sendMessage(
@@ -450,7 +518,6 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
               _ActionChip(
                 icon: Icons.chat_bubble_outline,
                 label: '💬 გავაგრძელო',
-                color: uiColors.secondaryTextColor,
                 onTap: () {
                   setState(() => _actionChipsDismissed = true);
                 },
@@ -463,24 +530,35 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
   }
 
   Widget _buildMessageBubble(BuildContext context, ChatMessage message) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
 
     if (message.isError) {
       return Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(12),
+        margin: EdgeInsets.only(bottom: space.m),
+        padding: density.tile,
         decoration: BoxDecoration(
-          color: Colors.red.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+          // A tinted panel is Color.lerp against `ground`, never alpha
+          // (USING §2.4). Error bubbles are the sanctioned 0.12 rung.
+          color: Color.lerp(colors.ground, colors.destructive, 0.12),
+          borderRadius: BorderRadius.circular(radius.m),
+          // NOT `errorBorder` — that role is a form field's error border and
+          // nothing else. A chat error bubble takes `destructiveLine`
+          // (MAPPING §2.6 corrects MIGRATION_RECIPE §2.1 here).
+          border: Border.all(color: colors.destructiveLine),
         ),
         child: Row(
           children: [
-            const Icon(Icons.error_outline, color: Colors.red, size: 18),
-            const SizedBox(width: 8),
+            Icon(Icons.error_outline, color: colors.destructiveText, size: 18),
+            SizedBox(width: space.s),
             Expanded(
-              child: Text(_errorMessageKa(message.failureType), style: uiTextStyles.body14.copyWith(color: Colors.red)),
+              child: Text(
+                _errorMessageKa(message.failureType),
+                style: type.body.copyWith(color: colors.destructiveText),
+              ),
             ),
           ],
         ),
@@ -498,40 +576,53 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('გადაკოპირებულია'),
+              // REVIEWED literal-motion: a toast DWELL is not animation
+              // timing, and `motion.*` tops out at 420ms. Dies at M11 with
+              // FuzzzyToast, which owns its own dwell.
               duration: Duration(seconds: 1),
               behavior: SnackBarBehavior.floating,
             ),
           );
         },
         child: Container(
-          margin: const EdgeInsets.only(bottom: 10),
+          margin: EdgeInsets.only(bottom: space.s),
           constraints: BoxConstraints(maxWidth: maxBubbleWidth),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: density.tile,
+          // FuzzzyChatBubble's exact recipe (domain/fuzzzy_chat_bubble.dart:
+          // 68-77): sent = actionPrimary pair with NO border, received =
+          // `surface` + a `line` hairline; the tail corner is radius.s on the
+          // sender's side and radius.l everywhere else. The fork's gold-tint
+          // vs grey-panel pair becomes inverted-mono, which is a stronger
+          // distinction than the 0.12 tint it replaces.
           decoration: BoxDecoration(
-            color: message.isUser ? uiColors.accentColor.withValues(alpha: 0.12) : uiColors.backgroundSecondaryColor,
+            color: message.isUser ? colors.actionPrimaryBg : colors.surface,
             borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(18),
-              topRight: const Radius.circular(18),
-              bottomLeft: Radius.circular(message.isUser ? 18 : 4),
-              bottomRight: Radius.circular(message.isUser ? 4 : 18),
+              topLeft: Radius.circular(radius.l),
+              topRight: Radius.circular(radius.l),
+              bottomLeft: Radius.circular(message.isUser ? radius.l : radius.s),
+              bottomRight: Radius.circular(message.isUser ? radius.s : radius.l),
             ),
-            border: message.isUser ? Border.all(color: uiColors.accentColor.withValues(alpha: 0.18)) : null,
+            border: message.isUser ? null : Border.all(color: colors.line),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SelectableText(
                 message.displayText,
-                style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor, height: 1.6),
+                // `height: 1.6` deleted — line-height belongs to the type role.
+                style: type.body.copyWith(
+                  color: message.isUser ? colors.actionPrimaryFg : colors.ink,
+                ),
               ),
               if (message.toolResults != null && message.toolResults!.isNotEmpty) ...[
-                const SizedBox(height: 10),
+                SizedBox(height: space.s),
                 ...message.toolResults!.map((t) => _buildToolResultChip(context, t)),
               ],
               if (message.citations != null && message.citations!.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Divider(color: uiColors.secondaryTextColor.withValues(alpha: 0.12), height: 1),
-                const SizedBox(height: 10),
+                SizedBox(height: space.m),
+                // Colour and thickness come from dividerTheme (line, 1px).
+                const Divider(),
+                SizedBox(height: space.s),
                 ...message.citations!.map((c) => _buildCitationChip(context, c)),
               ],
             ],
@@ -542,28 +633,37 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
   }
 
   Widget _buildCitationChip(BuildContext context, CitationData citation) {
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () => _navigateToArticle(context, citation),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        margin: EdgeInsets.only(bottom: space.xs),
+        padding: density.chip,
+        // The fork painted citations #1565C0 "link blue". Blue is not a role
+        // in this house; the tappability is carried by the underline, which
+        // survives. M11 swaps this whole chip for FuzzzyCitationChip.
         decoration: BoxDecoration(
-          color: const Color(0xFF1565C0).withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: const Color(0xFF1565C0).withValues(alpha: 0.15)),
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(radius.s),
+          border: Border.all(color: colors.line),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.article_outlined, size: 14, color: Color(0xFF1565C0)),
-            const SizedBox(width: 6),
+            Icon(Icons.article_outlined, size: 14, color: colors.ink),
+            SizedBox(width: space.xs),
             Flexible(
               child: Text(
                 citation.articleTitle.isNotEmpty ? citation.articleTitle : 'მუხლი ${citation.articleId}',
-                style: uiTextStyles.caption11.copyWith(
-                  color: const Color(0xFF1565C0),
+                style: type.bodyS.copyWith(
+                  color: colors.ink,
                   decoration: TextDecoration.underline,
+                  decorationColor: colors.ink,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -576,43 +676,48 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
   }
 
   Widget _buildToolResultChip(BuildContext context, ToolResultData tool) {
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
 
-    final (IconData icon, Color color, String label) = switch (tool.toolName) {
+    // The switch used to also carry a Color per tool (green / purple / grey).
+    // Three literal hues for three flavours of "a tool ran" is decoration, not
+    // meaning — the icon already names the tool. Colour dropped from the tuple.
+    final (IconData icon, String label) = switch (tool.toolName) {
       'create_case' => (
         Icons.create_new_folder_outlined,
-        const Color(0xFF2ECC71),
         '📁 ${_toolNameKaStatic(tool.toolName)}: ${tool.result['title'] ?? ''}',
       ),
       'build_case_analysis' => (
         Icons.auto_awesome,
-        const Color(0xFF9B59B6),
         '✨ ${_toolNameKaStatic(tool.toolName)}',
       ),
       _ => (
         Icons.build_circle_outlined,
-        const Color(0xFF7F8C8D),
         '✅ ${_toolNameKaStatic(tool.toolName)}',
       ),
     };
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      margin: EdgeInsets.only(bottom: space.xs),
+      padding: density.chip,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(radius.s),
+        border: Border.all(color: colors.line),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
+          Icon(icon, size: 14, color: colors.inkMute),
+          SizedBox(width: space.xs),
           Flexible(
             child: Text(
               label,
-              style: uiTextStyles.caption11.copyWith(color: color, fontWeight: FontWeight.w600),
+              // caption11 + w600 → `control`, the w600 role (M6 rule).
+              style: type.control.copyWith(color: colors.ink),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -663,21 +768,26 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
   }
 
   Widget _buildTypingIndicator(BuildContext context, ConsultationState state) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        margin: EdgeInsets.only(bottom: space.s),
+        padding: density.snug,
         decoration: BoxDecoration(
-          color: uiColors.backgroundSecondaryColor,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(18),
-            topRight: Radius.circular(18),
-            bottomLeft: Radius.circular(4),
-            bottomRight: Radius.circular(18),
+          // Same box as a received bubble — it IS one, still filling.
+          color: colors.surface,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(radius.l),
+            topRight: Radius.circular(radius.l),
+            bottomLeft: Radius.circular(radius.s),
+            bottomRight: Radius.circular(radius.l),
           ),
+          border: Border.all(color: colors.line),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -698,26 +808,31 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
                     );
                   },
                   child: Container(
+                    // Dimensions: the dot's own footprint and its optical
+                    // half-gap. Not a `space` rung — 7px dots on a 4px ramp
+                    // would round to a different animation.
                     margin: const EdgeInsets.symmetric(horizontal: 2.5),
                     width: 7,
                     height: 7,
                     decoration: BoxDecoration(
-                      color: uiColors.accentColor.withValues(alpha: 0.5),
-                      shape: BoxShape.circle,
+                      // Alpha 0.5 deleted: `inkMute` IS the de-emphasised rung.
+                      color: colors.inkMute,
+                      borderRadius: BorderRadius.circular(radius.circle),
                     ),
                   ),
                 ),
               ),
             ),
             if (state.streamingStatus != null) ...[
-              const SizedBox(width: 12),
+              SizedBox(width: space.m),
               Flexible(
                 child: Text(
                   state.streamingStatus!,
-                  style: uiTextStyles.caption11.copyWith(
-                    color: uiColors.secondaryTextColor,
-                    fontStyle: FontStyle.italic,
-                  ),
+                  // `fontStyle: italic` deleted — Ink has no italic face, so
+                  // it would be a synthesised oblique. Unlike M6's "skipped"
+                  // placeholder this is LIVE information the user reads, so it
+                  // keeps `inkMute` rather than dropping to `inkFaint`.
+                  style: type.bodyS.copyWith(color: colors.inkMute),
                 ),
               ),
             ],
@@ -728,25 +843,30 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
   }
 
   Widget _buildInputBar(BuildContext context, ConsultationState state) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
     final bottomPadding = MediaQuery.of(context).padding.bottom;
     return Container(
-      padding: EdgeInsets.fromLTRB(8, 10, 8, bottomPadding + 10),
+      // Docked bar idiom (M6): safe-area bottom + a `space` rung. The
+      // horizontal inset stays at `space.s`, NOT `density.screen`, because the
+      // two flanking IconButtons already carry Material's own 8px inset.
+      padding: EdgeInsets.fromLTRB(space.s, space.m, space.s, bottomPadding + space.m),
       decoration: BoxDecoration(
-        color: uiColors.backgroundSecondaryColor,
-        border: Border(top: BorderSide(color: uiColors.secondaryTextColor.withValues(alpha: 0.08))),
+        color: colors.surface,
+        border: Border(top: BorderSide(color: colors.line)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           // Case attachment button
           Padding(
-            padding: const EdgeInsets.only(bottom: 4),
+            padding: EdgeInsets.only(bottom: space.xs),
             child: IconButton(
               icon: Icon(
                 state.hasCaseAttached ? Icons.folder : Icons.folder_open_outlined,
-                color: state.hasCaseAttached ? uiColors.accentColor : uiColors.secondaryTextColor,
+                color: state.hasCaseAttached ? colors.ink : colors.inkMute,
                 size: 22,
               ),
               onPressed: () => _showCaseSelector(context),
@@ -755,23 +875,19 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
             ),
           ),
           Expanded(
-            child: Container(
+            child: ConstrainedBox(
+              // Dimension: caps the composer at ~5 lines before it scrolls.
               constraints: const BoxConstraints(maxHeight: 120),
-              decoration: BoxDecoration(
-                color: uiColors.primaryTextColor.withValues(alpha: 0.04),
-                borderRadius: BorderRadius.circular(22),
-              ),
               child: TextField(
                 controller: _messageController,
-                style: uiTextStyles.body14.copyWith(color: uiColors.primaryTextColor),
-                decoration: InputDecoration(
-                  hintText: 'დაწერეთ კითხვა...',
-                  border: InputBorder.none,
-                  hintStyle: uiTextStyles.body14.copyWith(
-                    color: uiColors.secondaryTextColor.withValues(alpha: 0.6),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                ),
+                style: type.body.copyWith(color: colors.fieldText),
+                // The whole box — fill, all five border states, corner radius,
+                // content padding and hint style — now comes from M1's
+                // inputDecorationTheme, which is built from FuzzzyFormStyles.
+                // The fork wrapped this field in a Container just to fake a
+                // fill and a 22px radius; that wrapper is gone (RUN_BRIEF §4:
+                // never re-declare field decoration locally).
+                decoration: const InputDecoration(hintText: 'დაწერეთ კითხვა...'),
                 maxLines: 5,
                 minLines: 1,
                 textInputAction: TextInputAction.send,
@@ -779,26 +895,34 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
               ),
             ),
           ),
-          const SizedBox(width: 6),
+          SizedBox(width: space.s),
           Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: GestureDetector(
-              onTap: state.isSending ? null : () => _sendMessage(context, state),
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: state.isSending
-                      ? uiColors.secondaryTextColor.withValues(alpha: 0.1)
-                      : uiColors.accentColor,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.arrow_upward_rounded,
-                  color: state.isSending
-                      ? uiColors.secondaryTextColor.withValues(alpha: 0.4)
-                      : Colors.white,
-                  size: 20,
+            padding: EdgeInsets.only(bottom: space.xs),
+            // `FuzzzyButton`'s disabled visual is Opacity(0.42) over the SAME
+            // fill (buttons/fuzzzy_button.dart:174) — never a second, faded
+            // colour pair. Geometry is identical in both states.
+            child: Opacity(
+              opacity: state.isSending ? 0.42 : 1.0,
+              child: FuzzzyHitTarget(
+                enabled: !state.isSending,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: state.isSending ? null : () => _sendMessage(context, state),
+                  child: Container(
+                    // Dimension: the send affordance's own footprint. The 44×44
+                    // touch minimum is met by FuzzzyHitTarget without growing it.
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: colors.actionPrimaryBg,
+                      borderRadius: BorderRadius.circular(radius.circle),
+                    ),
+                    child: Icon(
+                      Icons.arrow_upward_rounded,
+                      color: colors.actionPrimaryFg,
+                      size: 20,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -809,115 +933,105 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
   }
 
   Widget _buildAgentModeBanner(BuildContext context, ConsultationState state) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF2ECC71).withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF2ECC71).withValues(alpha: 0.25)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.folder_special, size: 16, color: Color(0xFF2ECC71)),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              '📂 საქმე დაკავშირებულია — AI ინსტრუმენტები აქტიურია',
-              style: uiTextStyles.labelBold12.copyWith(color: const Color(0xFF2ECC71)),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          GestureDetector(
-            onTap: () => context.read<ConsultationCubit>().exitAgentMode(),
-            child: Icon(Icons.close, size: 16, color: uiColors.secondaryTextColor),
-          ),
-        ],
-      ),
+    return _Banner(
+      icon: Icons.folder_special,
+      // Tools are wired and working — the affirmative rung of FuzzzyBanner.
+      tint: _BannerTint.success,
+      message: '📂 საქმე დაკავშირებულია — AI ინსტრუმენტები აქტიურია',
+      onDismiss: () => context.read<ConsultationCubit>().exitAgentMode(),
     );
   }
 
   Widget _buildAttachedCaseBanner(BuildContext context, ConsultationState state) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: uiColors.accentColor.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: uiColors.accentColor.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.folder, size: 16, color: uiColors.accentColor),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              '📁 ${state.attachedCaseTitle ?? 'საქმე'}',
-              style: uiTextStyles.labelBold12.copyWith(color: uiColors.accentColor),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          GestureDetector(
-            onTap: () => context.read<ConsultationCubit>().detachCase(),
-            child: Icon(Icons.close, size: 16, color: uiColors.secondaryTextColor),
-          ),
-        ],
-      ),
+    return _Banner(
+      icon: Icons.folder,
+      // A statement of WHAT is attached, not a success — `info`.
+      tint: _BannerTint.info,
+      message: '📁 ${state.attachedCaseTitle ?? 'საქმე'}',
+      onDismiss: () => context.read<ConsultationCubit>().detachCase(),
     );
   }
 
   Widget _buildCaseReadyBanner(BuildContext context, ConsultationState state) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      margin: EdgeInsets.symmetric(horizontal: space.l, vertical: space.s),
       decoration: BoxDecoration(
-        color: const Color(0xFF2ECC71).withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF2ECC71).withValues(alpha: 0.3)),
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(radius.m),
+        border: Border.all(color: colors.line),
       ),
-      child: Row(
-        children: [
-          const Icon(Icons.check_circle_outline, color: Color(0xFF2ECC71), size: 24),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'საკმარისი კონტექსტი შეგროვდა',
-                  style: uiTextStyles.bodyBold14.copyWith(color: const Color(0xFF2ECC71)),
+      child: IntrinsicHeight(
+        child: Row(
+          children: [
+            // FuzzzyBanner's 3px tinted left rule (containers/fuzzzy_banner.dart)
+            // replaces the fork's full green tint + green border + green text.
+            // IntrinsicHeight, not a fixed height: at textScaler 1.3 the Georgian
+            // copy grows and a 48px rule would stop short of the box.
+            Container(width: 3, color: colors.success),
+            Expanded(
+              child: Padding(
+                padding: density.notice,
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle_outline, color: colors.success, size: 24),
+                    SizedBox(width: space.m),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'საკმარისი კონტექსტი შეგროვდა',
+                            style: type.titleS.copyWith(color: colors.ink),
+                          ),
+                          SizedBox(height: space.xs),
+                          Text(
+                            'AI მზადაა საქმის დასაგენერირებლად',
+                            style: type.bodyS.copyWith(color: colors.inkMute),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: space.s),
+                    Opacity(
+                      opacity: state.isBuildingCase ? 0.42 : 1.0,
+                      child: ElevatedButton(
+                        onPressed: state.isBuildingCase ? null : () => _triggerCaseBuild(context),
+                        style: ElevatedButton.styleFrom(
+                          // The CTA is the screen's primary action, so it takes
+                          // the action pair — not the banner's semantic tint.
+                          backgroundColor: colors.actionPrimaryBg,
+                          foregroundColor: colors.actionPrimaryFg,
+                          disabledBackgroundColor: colors.actionPrimaryBg,
+                          disabledForegroundColor: colors.actionPrimaryFg,
+                          padding: density.chip,
+                          minimumSize: Size.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(radius.m),
+                          ),
+                        ),
+                        child: Text('გენერაცია', style: type.control),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  'AI მზადაა საქმის დასაგენერირებლად',
-                  style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor),
-                ),
-              ],
+              ),
             ),
-          ),
-          ElevatedButton(
-            onPressed: state.isBuildingCase ? null : () => _triggerCaseBuild(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF2ECC71),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              minimumSize: Size.zero,
-            ),
-            child: const Text('გენერაცია'),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Future<void> _triggerCaseBuild(BuildContext context) async {
-    final uiColors = context.uiColors;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
     final cubit = context.read<ConsultationCubit>();
     final casesCubit = context.read<CasesCubit>();
     final creditsCubit = context.read<CreditsCubit>();
@@ -928,15 +1042,29 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
       builder: (dialogCtx) => AlertDialog(
         title: const Text('საქმის გენერაცია'),
         content: const Text('საქმის სრული ანალიზის გენერაციას სჭირდება 3 კრედიტი. გსურთ გაგრძელება?'),
-        backgroundColor: uiColors.backgroundSecondaryColor,
+        // Overlay rung (USING §3 / MAPPING §2.4): a dialog is `raised`, not
+        // `surface` — the fork used one field for both rungs.
+        backgroundColor: colors.raised,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radius.l),
+          side: BorderSide(color: colors.lineStrong),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx, false),
-            child: Text('გაუქმება', style: TextStyle(color: uiColors.secondaryTextColor)),
+            // `FuzzzyButton.ghost` idle foreground.
+            child: Text('გაუქმება', style: type.control.copyWith(color: colors.inkMute)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(dialogCtx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: uiColors.accentColor),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: colors.actionPrimaryBg,
+              foregroundColor: colors.actionPrimaryFg,
+              padding: density.snug,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(radius.m),
+              ),
+            ),
             child: const Text('გენერაცია'),
           ),
         ],
@@ -993,19 +1121,21 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
 
   void _showModeSelector(BuildContext context) {
     final cubit = context.read<ConsultationCubit>();
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final density = context.fuzzzyDensity;
     showModalBottomSheet<void>(
       context: context,
       builder: (_) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: density.dialog,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('წყაროს არჩევა', style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor)),
-              const SizedBox(height: 16),
+              Text('წყაროს არჩევა', style: type.titleM.copyWith(color: colors.ink)),
+              SizedBox(height: space.l),
               _buildModeOption(
                 context,
                 cubit,
@@ -1014,7 +1144,7 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
                 'მხოლოდ კანონები',
                 'საკანონმდებლო კოდექსები',
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: space.s),
               _buildModeOption(
                 context,
                 cubit,
@@ -1038,19 +1168,26 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
     String title,
     String subtitle,
   ) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final radius = context.fuzzzyRadius;
     final isSelected = cubit.state.chatMode == mode;
     return ListTile(
-      leading: Icon(icon, color: isSelected ? uiColors.accentColor : uiColors.secondaryTextColor),
+      leading: Icon(icon, color: isSelected ? colors.ink : colors.inkMute),
       title: Text(
         title,
-        style: uiTextStyles.bodyBold14.copyWith(color: isSelected ? uiColors.accentColor : uiColors.primaryTextColor),
+        style: type.titleS.copyWith(color: colors.ink),
       ),
-      subtitle: Text(subtitle, style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor)),
-      trailing: isSelected ? Icon(Icons.check_circle, color: uiColors.accentColor) : null,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      tileColor: isSelected ? uiColors.accentColor.withValues(alpha: 0.08) : uiColors.backgroundSecondaryColor,
+      subtitle: Text(subtitle, style: type.bodyS.copyWith(color: colors.inkMute)),
+      trailing: isSelected ? Icon(Icons.check_circle, color: colors.ink) : null,
+      // CONSTANT 1px side; only its colour changes with selection. Fill stays
+      // `surface` in both states — the check mark and the ink/inkMute icon are
+      // the selection signal, and neither reflows the row.
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(radius.m),
+        side: BorderSide(color: isSelected ? colors.lineStrong : colors.line),
+      ),
+      tileColor: colors.surface,
       onTap: () {
         cubit.switchMode(mode);
         Navigator.of(context).pop();
@@ -1059,8 +1196,11 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
   }
 
   void _showCaseSelector(BuildContext context) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
     final cubit = context.read<ConsultationCubit>();
 
     showModalBottomSheet<void>(
@@ -1068,49 +1208,55 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
       isScrollControlled: true,
       builder: (_) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: density.dialog,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('საქმის მიმაგრება', style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor)),
-              const SizedBox(height: 4),
+              Text('საქმის მიმაგრება', style: type.titleM.copyWith(color: colors.ink)),
+              SizedBox(height: space.xs),
               Text(
                 'AI მიიღებს საქმის სრულ კონტექსტს',
-                style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
+                style: type.body.copyWith(color: colors.inkMute),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: space.l),
               // Detach option
               if (cubit.state.hasCaseAttached)
                 ListTile(
-                  leading: Icon(Icons.link_off, color: uiColors.errorColor),
-                  title: Text('საქმის მოხსნა', style: uiTextStyles.bodyBold14.copyWith(color: uiColors.errorColor)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  tileColor: uiColors.errorColor.withValues(alpha: 0.05),
+                  leading: Icon(Icons.link_off, color: colors.destructiveText),
+                  title: Text('საქმის მოხსნა', style: type.titleS.copyWith(color: colors.destructiveText)),
+                  // USING §6 duty 4: the IDLE destructive action is
+                  // destructiveText + a destructiveLine outline, never a fill
+                  // (the fork tinted the whole tile red at alpha 0.05).
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(radius.m),
+                    side: BorderSide(color: colors.destructiveLine),
+                  ),
+                  tileColor: colors.surface,
                   onTap: () {
                     cubit.detachCase();
                     Navigator.pop(context);
                   },
                 ),
-              if (cubit.state.hasCaseAttached) const SizedBox(height: 8),
+              if (cubit.state.hasCaseAttached) SizedBox(height: space.s),
               // Case list
               BlocBuilder<CasesCubit, CasesState>(
                 builder: (context, casesState) {
                   final cases = casesState.cases;
 
                   if (casesState.status == StateStatus.loading) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Center(child: CircularProgressIndicator()),
+                    return Padding(
+                      padding: EdgeInsets.symmetric(vertical: space.xl),
+                      child: const Center(child: CircularProgressIndicator()),
                     );
                   }
                   if (cases.isEmpty) {
                     return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      padding: EdgeInsets.symmetric(vertical: space.xl),
                       child: Center(
                         child: Text(
                           'საქმეები არ მოიძებნა',
-                          style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
+                          style: type.body.copyWith(color: colors.inkMute),
                         ),
                       ),
                     );
@@ -1121,27 +1267,26 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
                     children: cases.map((caseData) {
                       final isAttached = cubit.state.attachedCaseId == caseData.id;
                       return Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
+                        padding: EdgeInsets.only(bottom: space.xs),
                         child: ListTile(
                           leading: Icon(
                             isAttached ? Icons.folder : Icons.folder_outlined,
-                            color: isAttached ? uiColors.accentColor : uiColors.secondaryTextColor,
+                            color: isAttached ? colors.ink : colors.inkMute,
                           ),
                           title: Text(
                             caseData.title,
-                            style: uiTextStyles.bodyBold14.copyWith(
-                              color: isAttached ? uiColors.accentColor : uiColors.primaryTextColor,
-                            ),
+                            style: type.titleS.copyWith(color: colors.ink),
                           ),
                           subtitle: Text(
                             caseData.domain.displayNameKa,
-                            style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor),
+                            style: type.bodyS.copyWith(color: colors.inkMute),
                           ),
-                          trailing: isAttached ? Icon(Icons.check_circle, color: uiColors.accentColor, size: 20) : null,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          tileColor: isAttached
-                              ? uiColors.accentColor.withValues(alpha: 0.08)
-                              : uiColors.backgroundSecondaryColor,
+                          trailing: isAttached ? Icon(Icons.check_circle, color: colors.ink, size: 20) : null,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(radius.m),
+                            side: BorderSide(color: isAttached ? colors.lineStrong : colors.line),
+                          ),
+                          tileColor: colors.surface,
                           onTap: () {
                             cubit.attachCase(
                               caseId: caseData.id,
@@ -1220,42 +1365,131 @@ class _ConsultationPageState extends State<ConsultationPage> with TickerProvider
   };
 }
 
+/// Which semantic role tints a [_Banner]'s left rule and icon. Mirrors
+/// `FuzzzyBannerKind` (containers/fuzzzy_banner.dart) so the M11 swap is a
+/// rename — deliberately no `error` rung: red is not a notice (USING §6).
+enum _BannerTint { info, success }
+
+/// The inline dismissible notice that sits above the composer.
+///
+/// Built app-side on roles rather than reaching for `FuzzzyBanner` directly,
+/// because this one carries a dismiss affordance whose tap target must clear
+/// 44px and the kit's own dismiss is `inkFaint`-only. It copies FuzzzyBanner's
+/// recipe exactly: `surface` box, 1px `line` border, `radius.m`, `density.notice`
+/// padding, a 3px tinted left rule, and a `bodyS`/`inkMute` message.
+class _Banner extends StatelessWidget {
+  const _Banner({
+    required this.icon,
+    required this.tint,
+    required this.message,
+    required this.onDismiss,
+  });
+
+  final IconData icon;
+  final _BannerTint tint;
+  final String message;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
+    final rule = switch (tint) {
+      _BannerTint.info => colors.info,
+      _BannerTint.success => colors.success,
+    };
+
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: space.l, vertical: space.xs),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(radius.m),
+        border: Border.all(color: colors.line),
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          children: [
+            // Dimension: FuzzzyBanner's 3px left rule.
+            Container(width: 3, color: rule),
+            Expanded(
+              child: Padding(
+                padding: density.notice,
+                child: Row(
+                  children: [
+                    Icon(icon, size: 16, color: rule),
+                    SizedBox(width: space.s),
+                    Expanded(
+                      child: Text(
+                        message,
+                        style: type.bodyS.copyWith(color: colors.inkMute),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    // 44×44 of reach around a 16px glyph WITHOUT making the
+                    // notice 44px tall — the fork's bare Icon had a 16×16 tap
+                    // target, and a SizedBox(44) here would nearly double the
+                    // banner's height above the composer.
+                    FuzzzyHitTarget(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: onDismiss,
+                        child: Icon(Icons.close, size: 16, color: colors.inkFaint),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ActionChip extends StatelessWidget {
   const _ActionChip({
     required this.icon,
     required this.label,
-    required this.color,
     required this.onTap,
   });
 
   final IconData icon;
   final String label;
-  final Color color;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: density.snug,
+        // `FuzzzyButton.ghost` shape (harvest/mol.md §2 routes _ActionChip
+        // there at M11): surface box, line hairline, `control` label in ink.
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(radius.m),
+          border: Border.all(color: colors.line),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 6),
+            Icon(icon, size: 16, color: colors.ink),
+            SizedBox(width: space.xs),
             Text(
               label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: color,
-              ),
+              // Was a bare TextStyle(fontSize: 13, fontWeight: w600) — that IS
+              // `control`, so the literal becomes a role, not a copyWith.
+              style: type.control.copyWith(color: colors.ink),
             ),
           ],
         ),
@@ -1296,22 +1530,28 @@ class _HistorySheetState extends State<_HistorySheet> {
 
   @override
   Widget build(BuildContext context) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
 
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: density.dialog,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('ისტორია', style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor)),
-              IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+              Text('ისტორია', style: type.titleM.copyWith(color: colors.ink)),
+              IconButton(
+                icon: Icon(Icons.close, color: colors.inkMute),
+                onPressed: () => Navigator.pop(context),
+              ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: space.l),
           Expanded(
             child: FutureBuilder<ConsultationResult<List<dynamic>>>(
               future: _future,
@@ -1324,20 +1564,25 @@ class _HistorySheetState extends State<_HistorySheet> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.cloud_off, size: 48, color: uiColors.errorColor.withValues(alpha: 0.5)),
-                        const SizedBox(height: 12),
+                        // Oversized state glyph → inkFaint (M4 rule).
+                        Icon(Icons.cloud_off, size: 48, color: colors.inkFaint),
+                        SizedBox(height: space.m),
                         Text(
                           'ვერ ჩაიტვირთა ისტორია',
-                          style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
+                          style: type.body.copyWith(color: colors.inkMute),
                         ),
-                        const SizedBox(height: 16),
+                        SizedBox(height: space.l),
                         ElevatedButton.icon(
                           onPressed: _retry,
                           icon: const Icon(Icons.refresh, size: 18),
                           label: const Text('ხელახლა ცდა'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: uiColors.accentColor,
-                            foregroundColor: uiColors.backgroundPrimaryColor,
+                            backgroundColor: colors.actionPrimaryBg,
+                            foregroundColor: colors.actionPrimaryFg,
+                            padding: density.snug,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(radius.m),
+                            ),
                           ),
                         ),
                       ],
@@ -1350,7 +1595,7 @@ class _HistorySheetState extends State<_HistorySheet> {
                   return Center(
                     child: Text(
                       'ისტორია ცარიელია',
-                      style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
+                      style: type.body.copyWith(color: colors.inkMute),
                     ),
                   );
                 }
@@ -1365,13 +1610,21 @@ class _HistorySheetState extends State<_HistorySheet> {
                     final date = DateTime.tryParse(dateStr) ?? DateTime.now();
 
                     return ListTile(
-                      leading: Icon(Icons.chat_bubble_outline, color: uiColors.accentColor),
-                      title: Text(title, style: uiTextStyles.bodyBold14.copyWith(color: uiColors.primaryTextColor)),
+                      leading: Icon(Icons.chat_bubble_outline, color: colors.ink),
+                      title: Text(title, style: type.titleS.copyWith(color: colors.ink)),
                       subtitle: Text(
                         '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} • $phase',
-                        style: uiTextStyles.caption11.copyWith(color: uiColors.secondaryTextColor),
+                        // Metadata → `inkFaint` (USING §2.2: timestamps/meta).
+                        // NOT the mono `dataS` role, tempting though a date is:
+                        // `$phase` is a Georgian word and the mono family has
+                        // no Georgian block, so the line would render half in
+                        // JetBrains Mono and half in the Noto fallback (M3
+                        // rule 4, the same trap as `type.label`).
+                        style: type.bodyS.copyWith(color: colors.inkFaint),
                       ),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(radius.m),
+                      ),
                       onTap: () => widget.onSelect(item['id'].toString()),
                     );
                   },
