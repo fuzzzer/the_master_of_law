@@ -76,7 +76,11 @@ class CaseCard extends StatelessWidget {
                     ),
                   ),
                   SizedBox(width: space.s),
-                  _StatusBadge(status: caseData.status),
+                  AppStatusChip(
+                    label: caseData.status.displayNameKa,
+                    kind: caseStatusKind(caseData.status),
+                    qaId: 'caseStatus.${caseData.id}',
+                  ),
                 ],
               ),
               SizedBox(height: space.s),
@@ -141,63 +145,19 @@ class CaseCard extends StatelessWidget {
   }
 }
 
-/// `FuzzzyStatusChip`'s recipe, app-side.
+/// A case's lifecycle status as an [AppStatusKind]. Shared by this card and by
+/// `case_workspace_page`'s app-bar chip — M11c collapsed the two byte-identical
+/// `_StatusBadge` / `_StatusChip` twins onto [AppStatusChip], and this is the
+/// one place the mapping lives.
 ///
-/// The kit's own widget cannot be used here yet: it hardcodes
-/// `type.label.toUpperCase()` — the MONO eyebrow role — and every label in this
-/// app is Georgian, which has no glyphs in Space Mono and no case to upper.
-/// Filed as `PHASE_M_KIT_QUEUE` item 11. Everything else is copied exactly:
-/// no fill, a 1px `Color.lerp(ground, role, .40)` border, `density.chip`,
-/// `radius.s`, and an 8px leading disc in the kind's role.
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.status});
-
-  final CaseStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.fuzzzyColors;
-    final type = context.fuzzzyTextStyles;
-    final space = context.fuzzzySpace;
-    final radius = context.fuzzzyRadius;
-
-    // The fork drew this state twice: once as a colour and once as a coloured
-    // emoji (🟢/🟡/⚪ at a hardcoded fontSize: 10). The disc IS what the emoji
-    // was imitating, so the emoji is deleted rather than re-sized.
-    final role = switch (status) {
-      CaseStatus.active => colors.success,
-      CaseStatus.pending => colors.warning,
-      CaseStatus.closed => colors.inkMute,
-    };
-
-    return Container(
-      padding: context.fuzzzyDensity.chip,
-      decoration: BoxDecoration(
-        border: Border.all(color: Color.lerp(colors.ground, role, 0.40)!),
-        borderRadius: BorderRadius.circular(radius.s),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            // §4.4's one status-dot diameter.
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: role,
-              borderRadius: BorderRadius.circular(radius.circle),
-            ),
-          ),
-          SizedBox(width: space.s),
-          Text(
-            status.displayNameKa,
-            style: type.control.copyWith(color: role),
-          ),
-        ],
-      ),
-    );
-  }
-}
+/// The fork drew this state twice: once as a colour and once as a coloured
+/// emoji (🟢/🟡/⚪ at a hardcoded `fontSize: 10`). The chip's 8px disc IS what
+/// the emoji was imitating, so the emoji was deleted rather than re-sized.
+AppStatusKind caseStatusKind(CaseStatus status) => switch (status) {
+  CaseStatus.active => AppStatusKind.success,
+  CaseStatus.pending => AppStatusKind.warning,
+  CaseStatus.closed => AppStatusKind.neutral,
+};
 
 /// `FuzzzyFilterChip`'s neutral `dotColor` variant, app-side and non-interactive
 /// (inputs/fuzzzy_filter_chip.dart:105-130): the taxonomy colour is the 8px

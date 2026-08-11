@@ -17,11 +17,25 @@ import 'package:url_launcher/url_launcher.dart';
 /// where M8 §B had to demote the strength RING. The discipline that makes it
 /// safe is unchanged: the role appears only as an **8px dot** or a chip's own
 /// **border**, never as a fill.
-Color _strengthRole(FuzzzyColors c, ArgumentStrength s) => switch (s) {
-  ArgumentStrength.strong => c.success,
-  ArgumentStrength.moderate => c.warning,
-  ArgumentStrength.weak => c.destructive,
+/// Argument strength as an [AppStatusKind]. This is the single source of the
+/// mapping; [_strengthRole] derives its colour from it so the 4px leading rule
+/// and the chip can never disagree.
+AppStatusKind _strengthKind(ArgumentStrength s) => switch (s) {
+  ArgumentStrength.strong => AppStatusKind.success,
+  ArgumentStrength.moderate => AppStatusKind.warning,
+  ArgumentStrength.weak => AppStatusKind.error,
 };
+
+Color _strengthRole(FuzzzyColors c, ArgumentStrength s) =>
+    switch (_strengthKind(
+      s,
+    )) {
+      AppStatusKind.success => c.success,
+      AppStatusKind.warning => c.warning,
+      AppStatusKind.error => c.destructive,
+      AppStatusKind.info => c.info,
+      AppStatusKind.neutral => c.inkMute,
+    };
 
 /// Arguments section with numbered cards, strength badges, and guided builder.
 class CaseArgumentsSection extends StatelessWidget {
@@ -374,7 +388,11 @@ class _ArgumentCard extends StatelessWidget {
                 style: type.titleS.copyWith(color: colors.ink),
               ),
               const Spacer(),
-              _StrengthChip(strength: argument.strength),
+              AppStatusChip(
+                label: argument.strength.displayNameKa,
+                kind: _strengthKind(argument.strength),
+                qaId: 'argStrength.$index',
+              ),
             ],
           ),
           SizedBox(height: space.s),
@@ -475,60 +493,6 @@ class _ArgumentCard extends StatelessWidget {
               ],
             ),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-/// The strength marker on an argument card — `FuzzzyStatusChip`'s recipe,
-/// app-side, for the same reason `case_chat_section._TrustBadge` is
-/// (M8b §C): the kit chip labels in `fuzzzyTextStyles.label`, the uppercase
-/// **mono, Latin-only** eyebrow role, and `displayNameKa` is Georgian.
-///
-/// Recipe copied from `fuzzzy_status_chip.dart:80-98`: no fill, a 1px
-/// `Color.lerp(ground, role, 0.40)` border, `density.chip`, `radius.s`, an 8px
-/// leading disc in the role, label in the role. The fork's `alpha 0.15` FILL
-/// is deleted — USING §2.4 forbids alpha tints, and a red-filled "weak" badge
-/// is exactly the fill USING §6 bans.
-///
-/// M11 consolidates this and `_TrustBadge` into one app-side status chip.
-class _StrengthChip extends StatelessWidget {
-  const _StrengthChip({required this.strength});
-  final ArgumentStrength strength;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.fuzzzyColors;
-    final type = context.fuzzzyTextStyles;
-    final space = context.fuzzzySpace;
-    final radius = context.fuzzzyRadius;
-    final density = context.fuzzzyDensity;
-    final role = _strengthRole(colors, strength);
-
-    return Container(
-      padding: density.chip,
-      decoration: BoxDecoration(
-        border: Border.all(color: Color.lerp(colors.ground, role, 0.40)!),
-        borderRadius: BorderRadius.circular(radius.s),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            // Dimension: §4.4's one status-dot diameter.
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: role,
-              borderRadius: BorderRadius.circular(radius.circle),
-            ),
-          ),
-          SizedBox(width: space.s),
-          Text(
-            strength.displayNameKa,
-            style: type.control.copyWith(color: role),
-          ),
         ],
       ),
     );

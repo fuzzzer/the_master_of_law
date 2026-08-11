@@ -169,7 +169,11 @@ class _CaseWorkspacePageState extends State<CaseWorkspacePage>
                           ),
                           child: Row(
                             children: [
-                              _StatusChip(status: caseData.status),
+                              AppStatusChip(
+                                label: caseData.status.displayNameKa,
+                                kind: caseStatusKind(caseData.status),
+                                qaId: 'workspaceStatus',
+                              ),
                               SizedBox(width: space.s),
                               _DomainChip(domain: caseData.domain),
                               const Spacer(),
@@ -356,52 +360,6 @@ class _CaseWorkspacePageState extends State<CaseWorkspacePage>
           ],
         );
       },
-    );
-  }
-}
-
-/// `FuzzzyStatusChip`'s recipe, app-side — see the twin in `case_card.dart` and
-/// `PHASE_M_KIT_QUEUE` item 11 for why the kit's own widget cannot take a
-/// Georgian label yet.
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.status});
-
-  final CaseStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.fuzzzyColors;
-    final type = context.fuzzzyTextStyles;
-    final space = context.fuzzzySpace;
-    final radius = context.fuzzzyRadius;
-
-    final role = switch (status) {
-      CaseStatus.active => colors.success,
-      CaseStatus.pending => colors.warning,
-      CaseStatus.closed => colors.inkMute,
-    };
-
-    return Container(
-      padding: context.fuzzzyDensity.chip,
-      decoration: BoxDecoration(
-        border: Border.all(color: Color.lerp(colors.ground, role, 0.40)!),
-        borderRadius: BorderRadius.circular(radius.s),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: role,
-              borderRadius: BorderRadius.circular(radius.circle),
-            ),
-          ),
-          SizedBox(width: space.s),
-          Text(status.displayNameKa, style: type.control.copyWith(color: role)),
-        ],
-      ),
     );
   }
 }

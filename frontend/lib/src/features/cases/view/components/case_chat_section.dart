@@ -797,7 +797,11 @@ class _MessageBubble extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (!isUser && message.trustLevel != null) ...[
-              _TrustBadge(level: message.trustLevel!),
+              AppStatusChip(
+                label: _trustLabel(message.trustLevel!),
+                kind: _trustKind(message.trustLevel!),
+                qaId: 'trust.${message.id}',
+              ),
               SizedBox(height: space.s),
             ],
             SelectableText(
@@ -890,84 +894,26 @@ class _MessageBubble extends StatelessWidget {
   }
 }
 
-/// The AI answer's trust marker — `FuzzzyStatusChip`'s recipe, app-side.
+/// The AI answer's trust level, as an [AppStatusKind] and a Georgian label.
 ///
-/// `FuzzzyStatusChip` itself could NOT be used verbatim: its label takes
-/// `fuzzzyTextStyles.label`, the uppercase mono eyebrow role, and these three
-/// labels are Georgian — a family with no Georgian block and tracking that is
-/// wrong for Mkhedruli (MAPPING §3 judgement 3). So this is the kit's own
-/// recipe rebuilt on the roles with a Georgian-capable type role
-/// (`fuzzzy_status_chip.dart:80-98`): NO fill, a 1px
-/// `Color.lerp(ground, role, 0.40)` border, `density.chip`, `radius.s`, an 8px
-/// leading disc in the role, and the label in the role's own colour.
+/// Maps exactly as `harvest/mol.md` §1 specifies: verified → `success` ·
+/// interpretation → `warning` · general → `neutral` (grey `inkMute`, never
+/// red). That is also what MoL's own never-called `verifiedColor` /
+/// `interpretationColor` / `guidanceColor` fork fields meant.
 ///
-/// The three levels map exactly as `harvest/mol.md` §1 specifies:
-/// verified → `success` · interpretation → `warning` · general → `inkMute`
-/// (`FuzzzyStatusKind.neutral`). That is also what MoL's own never-called
-/// `verifiedColor` / `interpretationColor` / `guidanceColor` fields meant.
-class _TrustBadge extends StatelessWidget {
-  const _TrustBadge({required this.level});
-  final String level;
+/// The chip itself is [AppStatusChip] — M11c consolidated this file's
+/// `_TrustBadge` and four identical twins into that one widget.
+AppStatusKind _trustKind(String level) => switch (level) {
+  'verified' => AppStatusKind.success,
+  'interpretation' => AppStatusKind.warning,
+  _ => AppStatusKind.neutral,
+};
 
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.fuzzzyColors;
-    final type = context.fuzzzyTextStyles;
-    final space = context.fuzzzySpace;
-    final radius = context.fuzzzyRadius;
-    final density = context.fuzzzyDensity;
-
-    final role = switch (level) {
-      'verified' => colors.success,
-      'interpretation' => colors.warning,
-      _ => colors.inkMute,
-    };
-    // `neutral` draws a plain grey outline decoupled from its dot; every other
-    // kind colour-mixes its own role into the border. Kit behaviour, copied.
-    final border = level == 'verified' || level == 'interpretation'
-        ? Color.lerp(colors.ground, role, 0.40)!
-        : Color.lerp(colors.ground, colors.lineStrong, 0.40)!;
-
-    return Container(
-      padding: density.chip,
-      decoration: BoxDecoration(
-        border: Border.all(color: border),
-        borderRadius: BorderRadius.circular(radius.s),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            // Dimension: §4.4's ONE sanctioned status-dot diameter. It
-            // replaces the ✓ / ◐ / ○ glyphs the fork prefixed to each label —
-            // the dot IS what those stood for, and M7/M8 already reduced this
-            // app's other taxonomies to the same disc.
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: role,
-              borderRadius: BorderRadius.circular(radius.circle),
-            ),
-          ),
-          SizedBox(width: space.s),
-          Text(
-            _trustLabel(level),
-            // caption11 + w600 → `control`, the w600 role (M6 rule). The
-            // explicit `fontWeight: w600` the fork bolted on is deleted: weight
-            // belongs to the type role.
-            style: type.control.copyWith(color: role),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static String _trustLabel(String level) => switch (level) {
-    'verified' => 'დადასტურებული',
-    'interpretation' => 'ინტერპრეტაცია',
-    _ => 'ზოგადი მითითება',
-  };
-}
+String _trustLabel(String level) => switch (level) {
+  'verified' => 'დადასტურებული',
+  'interpretation' => 'ინტერპრეტაცია',
+  _ => 'ზოგადი მითითება',
+};
 
 /// Typing indicator shown while AI is responding.
 class _TypingIndicator extends StatelessWidget {

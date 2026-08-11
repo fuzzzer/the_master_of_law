@@ -12,11 +12,23 @@ import 'package:themasteroflaw/src/src.dart';
 ///
 /// The role appears only as the card's **4px leading rule** or the chip's own
 /// **border and 8px dot** — never as a fill (M7/M8's red discipline).
-Color _severityRole(FuzzzyColors c, RiskSeverity s) => switch (s) {
-  RiskSeverity.high => c.destructive,
-  RiskSeverity.medium => c.warning,
-  RiskSeverity.low => c.info,
+/// Risk severity as an [AppStatusKind]. Single source of the mapping;
+/// [_severityRole] derives its colour from it so the leading rule, the dot and
+/// the chip can never disagree.
+AppStatusKind _severityKind(RiskSeverity s) => switch (s) {
+  RiskSeverity.high => AppStatusKind.error,
+  RiskSeverity.medium => AppStatusKind.warning,
+  RiskSeverity.low => AppStatusKind.info,
 };
+
+Color _severityRole(FuzzzyColors c, RiskSeverity s) =>
+    switch (_severityKind(s)) {
+      AppStatusKind.success => c.success,
+      AppStatusKind.warning => c.warning,
+      AppStatusKind.error => c.destructive,
+      AppStatusKind.info => c.info,
+      AppStatusKind.neutral => c.inkMute,
+    };
 
 /// Risks + weaknesses: severity badges, mitigation, "Red Team" button.
 class CaseRisksSection extends StatelessWidget {
@@ -118,7 +130,11 @@ class CaseRisksSection extends StatelessWidget {
                                     ),
                                   ),
                                 ),
-                                _SeverityChip(severity: risk.severity),
+                                AppStatusChip(
+                                  label: risk.severity.displayNameKa,
+                                  kind: _severityKind(risk.severity),
+                                  qaId: 'riskSeverity.${risk.id}',
+                                ),
                               ],
                             ),
                             if (risk.mitigationSuggestion != null &&
@@ -367,58 +383,6 @@ class CaseRisksSection extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-/// The severity marker on a risk card — `FuzzzyStatusChip`'s recipe, app-side.
-///
-/// Third instance of the same app-side twin (`_TrustBadge` M8b §C,
-/// `_StrengthChip` M9), all for the same reason: the kit chip labels in
-/// `fuzzzyTextStyles.label`, the uppercase **mono, Latin-only** eyebrow role,
-/// and `displayNameKa` is Georgian. M11 consolidates all three.
-///
-/// No fill, a 1px `Color.lerp(ground, role, 0.40)` border, `density.chip`,
-/// `radius.s`, an 8px leading disc, label in the role. The fork's `alpha 0.15`
-/// fill is deleted — a red-filled "high" badge is exactly what USING §6 bans.
-class _SeverityChip extends StatelessWidget {
-  const _SeverityChip({required this.severity});
-  final RiskSeverity severity;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.fuzzzyColors;
-    final type = context.fuzzzyTextStyles;
-    final space = context.fuzzzySpace;
-    final radius = context.fuzzzyRadius;
-    final density = context.fuzzzyDensity;
-    final role = _severityRole(colors, severity);
-
-    return Container(
-      padding: density.chip,
-      decoration: BoxDecoration(
-        border: Border.all(color: Color.lerp(colors.ground, role, 0.40)!),
-        borderRadius: BorderRadius.circular(radius.s),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            // Dimension: §4.4's one status-dot diameter.
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: role,
-              borderRadius: BorderRadius.circular(radius.circle),
-            ),
-          ),
-          SizedBox(width: space.s),
-          Text(
-            severity.displayNameKa,
-            style: type.control.copyWith(color: role),
-          ),
-        ],
-      ),
     );
   }
 }
