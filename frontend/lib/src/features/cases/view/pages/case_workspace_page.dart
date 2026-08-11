@@ -84,6 +84,10 @@ class _CaseWorkspacePageState extends State<CaseWorkspacePage>
       },
       builder: (context, state) {
         final caseData = state.caseData;
+        // Built once, used twice: mounted in the header Column below, and
+        // MEASURED by `_headerHeight`. Two instances would be two chances to
+        // drift, which is the same failure `_DomainChip` was consolidated for.
+        final tabBar = caseData == null ? null : _tabBar(context);
 
         return Scaffold(
           appBar: AppBar(
@@ -156,9 +160,15 @@ class _CaseWorkspacePageState extends State<CaseWorkspacePage>
             ],
             bottom: caseData != null
                 ? PreferredSize(
-                    // Dimension: the reserved height of the status row + tab
-                    // strip below the title.
-                    preferredSize: const Size.fromHeight(80),
+                    // 🔴 DERIVED, not the hardcoded `Size.fromHeight(80)` this
+                    // used to be (`T-0263`). Three things were wrong with the
+                    // literal: it is a raw dimension where roles belong; it did
+                    // not move with `textScaler`, so at 1.3 the reserve was
+                    // ~16 px short of what the chip row needs; and it did not
+                    // move with the **pack** — the stress pack's `density.chip`
+                    // is 12 px vertical against ink's 6, which alone puts the
+                    // row over an 80 px budget. See [_headerHeight].
+                    preferredSize: Size.fromHeight(_headerHeight(context, tabBar!)),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -167,34 +177,65 @@ class _CaseWorkspacePageState extends State<CaseWorkspacePage>
                           padding: EdgeInsets.symmetric(
                             horizontal: density.screen.left,
                           ),
-                          // 🔴 M14b. Two unbounded chips plus a `%` readout
-                          // overflowed this row by 39 px on the right under
-                          // the stress pack — on all ten tabs, because this
-                          // header is painted above every one of them.
+                          // 🔴 M14b filed the overflow here (two unbounded
+                          // chips plus a `%` readout, 39 px right under the
+                          // stress pack, on all ten tabs) and made both chips
+                          // `Flexible`. That stopped the overflow and created
+                          // `T-0263`: on the SHIPPED ink build at 1.3/360 both
+                          // labels truncated to `აქტ…` and `სისხ…`.
                           //
-                          // `Flexible`, not a second `Expanded`: at ink widths
-                          // both chips still take their natural width and the
-                          // row is pixel-identical, and only when the row runs
-                          // out does each chip give ground (its label ellipses
-                          // — see `AppStatusChip`'s `LayoutBuilder`). The
-                          // `PreferredSize` above is a hard 80 px, so wrapping
-                          // to a second line was never an option here: it
-                          // would have traded a horizontal overflow for a
-                          // vertical one.
+                          // The cause was NOT the height, and not a genuine
+                          // shortage of width — it was the `Spacer` that used
+                          // to sit between the chips and the `%`. **A `Spacer`
+                          // is a flex child** (`Expanded(child: SizedBox())`),
+                          // so `RenderFlex` split the free space three ways and
+                          // capped each chip at a THIRD of the row while a
+                          // third of it stayed visibly empty. Measured at
+                          // 1.3/360 (M17): 50.2 px of label budget per chip
+                          // with the `Spacer`, **90.8 px without** — same
+                          // widths, same fonts, same everything else.
+                          //
+                          // This is the exact trap M14d already recorded for
+                          // `case_arguments_section` ("Spacer had to GO, not
+                          // stay") and then did not apply here. The trailing
+                          // gap is now `mainAxisAlignment.spaceBetween`, which
+                          // distributes what the loose `Flexible` child did
+                          // *not* take — so the chips get the whole row to
+                          // grow into and the `%` still sits hard right.
+                          //
+                          // Wrapping to a second run was considered and
+                          // rejected: a `Wrap` under a `PreferredSize` whose
+                          // height must be known before layout would trade a
+                          // horizontal ellipsis for a vertical overflow, which
+                          // is the same bad trade M14b made once already.
                           child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Flexible(
-                                child: AppStatusChip(
-                                  label: caseData.status.displayNameKa,
-                                  kind: caseStatusKind(caseData.status),
-                                  qaId: 'workspaceStatus',
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Flexible(
+                                      child: AppStatusChip(
+                                        label: caseData.status.displayNameKa,
+                                        kind: caseStatusKind(caseData.status),
+                                        qaId: 'workspaceStatus',
+                                      ),
+                                    ),
+                                    SizedBox(width: space.s),
+                                    Flexible(
+                                      child: AppDomainChip(
+                                        domain: caseData.domain,
+                                        // On the AppBar's `ground` chrome →
+                                        // a `surface` box.
+                                        parent: AppChipParent.ground,
+                                        qaId: 'workspaceDomain',
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                               SizedBox(width: space.s),
-                              Flexible(
-                                child: _DomainChip(domain: caseData.domain),
-                              ),
-                              const Spacer(),
                               Text(
                                 '${caseData.completenessPercent}%',
                                 // Tabular, Latin-only → the mono `dataS` role.
@@ -204,50 +245,11 @@ class _CaseWorkspacePageState extends State<CaseWorkspacePage>
                           ),
                         ),
                         SizedBox(height: space.s),
-                        // Tab bar
-                        TabBar(
-                          controller: _tabController,
-                          isScrollable: true,
-                          tabAlignment: TabAlignment.start,
-                          labelColor: colors.ink,
-                          unselectedLabelColor: colors.inkMute,
-                          // 🔴 USING §6 duty 3: the active marker in a STRIP is
-                          // the 2px `live` rail. This is the screen's red
-                          // voice, which is why the delete action above stays
-                          // outlined text (MAPPING §2.2 judgement 3, decided at
-                          // M0 so M7 would not re-litigate it).
-                          indicatorColor: colors.live,
-                          indicatorSize: TabBarIndicatorSize.label,
-                          // Selected and unselected share ONE style: the fork
-                          // used labelBold12 vs label12, so moving between tabs
-                          // re-measured every label and could re-scroll the
-                          // strip. Weight is not a selection signal here — the
-                          // colour and the rail are.
-                          labelStyle: type.control,
-                          unselectedLabelStyle: type.control,
-                          dividerColor: colors.line,
-                          padding: EdgeInsets.symmetric(horizontal: space.s),
-                          // `Tab(child:)` rather than `Tab(icon:, text:)`:
-                          // the icon+text form stacks and takes the tab from
-                          // 46 to 72px, which would blow the 80px
-                          // PreferredSize this AppBar reserves. The Row keeps
-                          // the strip's height byte-identical and only grows
-                          // it horizontally, where it already scrolls.
-                          tabs: _tabs
-                              .map(
-                                (t) => Tab(
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(t.$1, size: 16),
-                                      SizedBox(width: space.xs),
-                                      Text(t.$2),
-                                    ],
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                        ),
+                        // Tab bar. Built ONCE into `tabBar` above so that
+                        // `_headerHeight` measures the very widget that is in
+                        // the tree — see its doc for why asking the widget
+                        // beats restating 46 + 2 in a second place.
+                        tabBar,
                       ],
                     ),
                   )
@@ -282,6 +284,107 @@ class _CaseWorkspacePageState extends State<CaseWorkspacePage>
                 ),
         );
       },
+    );
+  }
+
+  /// The height [PreferredSize] must reserve: one chip row + `space.s` + the
+  /// tab strip.
+  ///
+  /// Replaces a hardcoded `80`. That literal was wrong along **two** axes it
+  /// could not see:
+  ///
+  /// - **`textScaler`.** The chip row is type plus padding, so it grows with
+  ///   the user's text size. At 1.3 the row alone wants ~38 px against the ~26
+  ///   the literal implicitly budgeted.
+  /// - **the pack.** `density.chip` is 6 px vertical in ink and **12** in the
+  ///   stress pack, and `space.s` moves too — so the one number could not be
+  ///   right for both, and `USING.md` §10's whole point is that a screen must
+  ///   survive a pack swap.
+  ///
+  /// The tab strip is not restated here: [TabBar] implements
+  /// `PreferredSizeWidget`, so it is asked. That is what keeps this correct if
+  /// someone ever gives a `Tab` an `icon:` (which stacks it from 46 px to 72
+  /// and is exactly the change the tab-strip comment warns about) — the
+  /// reserve follows instead of silently clipping.
+  double _headerHeight(BuildContext context, TabBar tabBar) {
+    final type = context.fuzzzyTextStyles;
+    final density = context.fuzzzyDensity;
+
+    // One chip: the label's real line box, the pack's chip padding, and the
+    // 1 px border on each side.
+    //
+    // 🔴 The line box is MEASURED, not computed. `fontSize * height * scaler`
+    // is the obvious formula and it is wrong — it returned 34.25 px against a
+    // chip that actually renders 24.8 px at scale 1.0 and 29.8 at 1.3 (both
+    // measured at M17). Font metrics are not `fontSize × height`, and guessing
+    // them is how the literal 80 came to be off in the first place. A
+    // `TextPainter` on the same style the chips use is the same layout the
+    // framework will perform, so it cannot drift from them.
+    final probe = TextPainter(
+      // Any single Mkhedruli glyph: line height is a property of the FONT and
+      // the style, not of the string. Using a real Georgian glyph rather than
+      // 'x' keeps it honest if a fallback face ever changes the metrics.
+      text: TextSpan(text: 'ა', style: type.control),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    )..layout();
+    final chipRow = probe.height + density.chip.vertical + 2;
+
+    return chipRow + context.fuzzzySpace.s + tabBar.preferredSize.height;
+  }
+
+  /// The tab strip, built as a value so [_headerHeight] can measure the
+  /// instance that is actually mounted.
+  TabBar _tabBar(BuildContext context) {
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+
+    return TabBar(
+                          controller: _tabController,
+                          isScrollable: true,
+                          tabAlignment: TabAlignment.start,
+                          labelColor: colors.ink,
+                          unselectedLabelColor: colors.inkMute,
+                          // 🔴 USING §6 duty 3: the active marker in a STRIP is
+                          // the 2px `live` rail. This is the screen's red
+                          // voice, which is why the delete action above stays
+                          // outlined text (MAPPING §2.2 judgement 3, decided at
+                          // M0 so M7 would not re-litigate it).
+                          indicatorColor: colors.live,
+                          indicatorSize: TabBarIndicatorSize.label,
+                          // Selected and unselected share ONE style: the fork
+                          // used labelBold12 vs label12, so moving between tabs
+                          // re-measured every label and could re-scroll the
+                          // strip. Weight is not a selection signal here — the
+                          // colour and the rail are.
+                          labelStyle: type.control,
+                          unselectedLabelStyle: type.control,
+                          dividerColor: colors.line,
+                          padding: EdgeInsets.symmetric(horizontal: space.s),
+                          // `Tab(child:)` rather than `Tab(icon:, text:)`:
+                          // the icon+text form stacks and takes the tab from
+                          // 46 to 72px. That used to blow the AppBar's hard
+                          // 80px reserve; since M17 `_headerHeight` measures
+                          // this widget instead, so the consequence would be a
+                          // taller header rather than a clipped one — but the
+                          // Row is still the right shape, because it grows the
+                          // strip only horizontally, where it already scrolls.
+                          tabs: _tabs
+                              .map(
+                                (t) => Tab(
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(t.$1, size: 16),
+                                      SizedBox(width: space.xs),
+                                      Text(t.$2),
+                                    ],
+                                  ),
+                                ),
+                              )
+                              .toList(),
     );
   }
 
@@ -382,63 +485,3 @@ class _CaseWorkspacePageState extends State<CaseWorkspacePage>
   }
 }
 
-/// `FuzzzyFilterChip`'s neutral `dotColor` variant. Sits on the AppBar's
-/// `ground` chrome, so its resting fill is `surface` — the opposite rung from
-/// the twin inside `CaseCard`, which sits on a `surface` card.
-class _DomainChip extends StatelessWidget {
-  const _DomainChip({required this.domain});
-
-  final LegalDomain domain;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.fuzzzyColors;
-    final type = context.fuzzzyTextStyles;
-    final space = context.fuzzzySpace;
-    final radius = context.fuzzzyRadius;
-
-    return Container(
-      padding: context.fuzzzyDensity.chip,
-      decoration: BoxDecoration(
-        color: colors.surface,
-        border: Border.all(color: colors.line),
-        borderRadius: BorderRadius.circular(radius.s),
-      ),
-      // M14b: same `LayoutBuilder` guard as `AppStatusChip` — this chip is now
-      // `Flexible` in the header row, so it must be able to give ground, but a
-      // `Flexible` under unbounded main-axis constraints throws.
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final labelText = Text(
-            domain.shortLabelKa,
-            style: type.control.copyWith(color: colors.inkMute),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          );
-          return Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                // The taxonomy disc replaces the fork's '⚖️ ' emoji prefix
-                // (which also carried a hardcoded fontSize: 12) — the dot is
-                // what the emoji was standing in for, and it actually names
-                // the domain.
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: context.legalDomainColors.of(domain),
-                  borderRadius: BorderRadius.circular(radius.circle),
-                ),
-              ),
-              SizedBox(width: space.s),
-              if (constraints.maxWidth.isFinite)
-                Flexible(child: labelText)
-              else
-                labelText,
-            ],
-          );
-        },
-      ),
-    );
-  }
-}

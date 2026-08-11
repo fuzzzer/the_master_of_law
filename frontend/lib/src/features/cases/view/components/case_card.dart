@@ -80,7 +80,12 @@ class CaseCard extends StatelessWidget {
               // Domain chip + date
               Row(
                 children: [
-                  _DomainChip(domain: caseData.domain, dotColor: domainColor),
+                  AppDomainChip(
+                    domain: caseData.domain,
+                    // Inside a `surface` card -> a `ground` box.
+                    parent: AppChipParent.surface,
+                    qaId: 'caseDomain.${caseData.id}',
+                  ),
                   const Spacer(),
                   Text(
                     _formatDate(caseData.updatedAt),
@@ -151,52 +156,3 @@ AppStatusKind caseStatusKind(CaseStatus status) => switch (status) {
   CaseStatus.pending => AppStatusKind.warning,
   CaseStatus.closed => AppStatusKind.neutral,
 };
-
-/// `FuzzzyFilterChip`'s neutral `dotColor` variant, app-side and non-interactive
-/// (inputs/fuzzzy_filter_chip.dart:105-130): the taxonomy colour is the 8px
-/// disc, the box and the label stay monochrome.
-class _DomainChip extends StatelessWidget {
-  const _DomainChip({required this.domain, required this.dotColor});
-
-  final LegalDomain domain;
-  final Color dotColor;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.fuzzzyColors;
-    final type = context.fuzzzyTextStyles;
-    final space = context.fuzzzySpace;
-    final radius = context.fuzzzyRadius;
-
-    return Container(
-      padding: context.fuzzzyDensity.chip,
-      decoration: BoxDecoration(
-        // Parent-aware surface rule: this chip sits INSIDE a `surface` card,
-        // so its recessed panel is `ground`. (The workspace page's own domain
-        // chip sits on `ground` chrome and therefore takes `surface` — same
-        // widget shape, opposite rung.)
-        color: colors.ground,
-        border: Border.all(color: colors.line),
-        borderRadius: BorderRadius.circular(radius.s),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: dotColor,
-              borderRadius: BorderRadius.circular(radius.circle),
-            ),
-          ),
-          SizedBox(width: space.s),
-          Text(
-            domain.shortLabelKa,
-            style: type.control.copyWith(color: colors.inkMute),
-          ),
-        ],
-      ),
-    );
-  }
-}

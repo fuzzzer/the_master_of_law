@@ -445,7 +445,7 @@ class _ArgumentCard extends StatelessWidget {
                 // `parent: surface` gives it a `ground` box.
                 return AppCitationChip(
                   label: article.title,
-                  parent: AppCitationParent.surface,
+                  parent: AppChipParent.surface,
                   leading: const Icon(Icons.gavel),
                   trailing: hasUrl ? const Icon(Icons.open_in_new) : null,
                   onTap: hasUrl

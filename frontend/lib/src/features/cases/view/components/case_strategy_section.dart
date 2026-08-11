@@ -151,7 +151,7 @@ class CaseStrategySection extends StatelessWidget {
               // constant.
               return AppCitationChip(
                 label: article.title,
-                parent: AppCitationParent.ground,
+                parent: AppChipParent.ground,
                 leading: const Icon(Icons.gavel),
                 trailing: hasUrl ? const Icon(Icons.open_in_new) : null,
                 onTap: hasUrl ? () => launchUrl(Uri.parse(article.url!)) : null,

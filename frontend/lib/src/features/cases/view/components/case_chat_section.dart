@@ -898,7 +898,7 @@ class _MessageBubble extends StatelessWidget {
                   padding: EdgeInsets.only(bottom: space.xs),
                   child: AppCitationChip(
                     label: c.articleTitle,
-                    parent: AppCitationParent.surface,
+                    parent: AppChipParent.surface,
                     leading: const Icon(Icons.gavel),
                     trailing: hasUrl ? const Icon(Icons.open_in_new) : null,
                     maxLines: 2,

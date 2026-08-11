@@ -715,14 +715,14 @@ class _ConsultationPageState extends State<ConsultationPage>
     // M11d: one of four identical hand-rolled citation chips, now
     // `AppCitationChip`. This one is the only one that navigates IN-app, so it
     // takes no `open_in_new` trailing glyph. It sits on the message column's
-    // `ground`, hence `AppCitationParent.ground` → a `surface` box.
+    // `ground`, hence `AppChipParent.ground` → a `surface` box.
     return Padding(
       padding: EdgeInsets.only(bottom: context.fuzzzySpace.xs),
       child: AppCitationChip(
         label: citation.articleTitle.isNotEmpty
             ? citation.articleTitle
             : 'მუხლი ${citation.articleId}',
-        parent: AppCitationParent.ground,
+        parent: AppChipParent.ground,
         leading: const Icon(Icons.article_outlined),
         onTap: () => _navigateToArticle(context, citation),
         qaId: citation.articleId,

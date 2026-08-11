@@ -1,20 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
-
-/// What the chip is sitting ON, so it can pick the correct recessed rung.
-///
-/// This is the **parent-aware surface rule** (`USING.md` §3) turned into an
-/// API instead of a comment. The same citation chip appears inside a `surface`
-/// chat bubble and directly on a `ground` list, and it must take the *opposite*
-/// rung in each — four call sites previously restated that by hand, and two of
-/// them carried a comment explaining it because the code alone did not.
-enum AppCitationParent {
-  /// The chip sits on `ground` (a page/list background) → its box is `surface`.
-  ground,
-
-  /// The chip sits inside a `surface` card or bubble → its box is `ground`.
-  surface,
-}
+// `AppChipParent` — the shared parent-aware surface rule (M17 / T-0261).
+import 'package:themasteroflaw/src/src.dart';
 
 /// A tappable inline legal citation, with a **Georgian-safe** label.
 ///
@@ -58,7 +45,7 @@ class AppCitationChip extends StatelessWidget {
   /// The article title, Georgian, rendered exactly as given — never uppercased.
   final String label;
 
-  final AppCitationParent parent;
+  final AppChipParent parent;
 
   /// Usually `Icons.gavel` (a linked law) or `Icons.article_outlined`
   /// (a cited article). Takes the chip's own `ink` role via [IconTheme].
@@ -87,8 +74,8 @@ class AppCitationChip extends StatelessWidget {
 
     // The parent-aware rule, in one place instead of four.
     final box = switch (parent) {
-      AppCitationParent.ground => colors.surface,
-      AppCitationParent.surface => colors.ground,
+      AppChipParent.ground => colors.surface,
+      AppChipParent.surface => colors.ground,
     };
     final tappable = onTap != null;
 

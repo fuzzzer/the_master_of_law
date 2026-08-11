@@ -1,4 +1,6 @@
+export 'app_chip_parent.dart';
 export 'app_citation_chip.dart';
+export 'app_domain_chip.dart';
 export 'app_rule_card.dart';
 export 'app_status_chip.dart';
 export 'case_arguments_section.dart';
