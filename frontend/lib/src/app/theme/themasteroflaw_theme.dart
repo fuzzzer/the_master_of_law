@@ -80,7 +80,6 @@ abstract final class ThemasteroflawTheme {
       cardTheme: _card(colors, radius),
       dividerTheme: _divider(colors),
       inputDecorationTheme: _input(colors, type, form),
-      chipTheme: _chip(colors, radius, type),
       bottomNavigationBarTheme: _bottomNav(colors, type),
       // 🔴 DO NOT write an explicit `<ThemeExtension<dynamic>>` type argument
       // on this list. `ThemeExtension` is F-bounded
@@ -165,8 +164,13 @@ abstract final class ThemasteroflawTheme {
   // Material sub-themes — every value below is a kit ROLE, never a literal.
   // ---------------------------------------------------------------------------
 
-  /// 14 stock `AppBar` sites. Flat on `ground`, ink foreground, no scroll
-  /// elevation — the Ink surface has no shadow vocabulary.
+  /// **14 stock `AppBar` sites — 12 live, 2 in dead UI** (re-counted at M18,
+  /// `T-0262`; the two are `questionnaire_page` / `questionnaire_review_page`,
+  /// which S9 ruled dead code killed by commit `870d507` three months before
+  /// Phase M — see the M18 deletion note above [_bottomNav]).
+  ///
+  /// Flat on `ground`, ink foreground, no scroll elevation — the Ink surface
+  /// has no shadow vocabulary.
   ///
   /// **`titleM`, not `titleL` (corrected at M3).** `MAPPING.md` §3 judgement 1
   /// maps MoL's page headers to `titleM` on purpose: the app has no
@@ -188,7 +192,16 @@ abstract final class ThemasteroflawTheme {
     actionsIconTheme: IconThemeData(color: c.ink),
   );
 
-  /// 28 stock `Card` sites. Material 3's default card is an elevated, tinted,
+  /// **1 stock `Card` site** — `dev_panel_tile.dart:27`, and nothing else.
+  ///
+  /// This doc said **28** until M18 (`T-0262`). That was an M1-era count that
+  /// was true when it was written and was never revised as M2–M11 deleted the
+  /// call sites; a `grep` at M18 found one survivor. Left in place *because*
+  /// it still configures a live surface — the dev panel, which S9's verifier
+  /// reached and drove clean at 1.3/360 — and because a stock `Card` is the
+  /// kind of thing a later change reintroduces without thinking.
+  ///
+  /// Material 3's default card is an elevated, tinted,
   /// shadow-casting surface; Ink cards are a flat `surface` panel with a
   /// hairline `line` border.
   ///
@@ -211,7 +224,19 @@ abstract final class ThemasteroflawTheme {
     ),
   );
 
-  /// 6 stock `Divider` sites. Material 3 resolves a divider's colour from
+  /// **6 stock `Divider` sites — 5 live, 1 in dead UI** (re-counted at M18).
+  ///
+  /// `space: 1` is deliberate and is the one value here that is a dimension
+  /// rather than a role: Material's default is **16**, i.e. a divider reserves
+  /// 15 px of vertical air around its hairline. All six call sites supply
+  /// their own `space.*` / `density.*` padding, so inheriting Material's 16
+  /// would double-space every one of them. Collapsing the reserve to the
+  /// hairline itself is what makes a stock `Divider()` interchangeable with a
+  /// hand-drawn `line` border — the same reasoning [_card] and [_input] apply
+  /// to radii. Called out here because the doc used to justify only the
+  /// colour, which left the reader to assume `space: 1` was an oversight.
+  ///
+  /// Material 3 resolves a divider's colour from
   /// `colorScheme.outlineVariant` (which the kit binds to `lineStrong`), NOT
   /// from `ThemeData.dividerColor` — so without this, every hairline would be
   /// drawn one step too heavy.
@@ -221,7 +246,8 @@ abstract final class ThemasteroflawTheme {
     space: 1,
   );
 
-  /// 19 stock `InputDecoration` sites. Mirrors `FuzzzyTextField`'s box exactly
+  /// **18 stock `InputDecoration` sites — 16 live, 2 in dead UI** (re-counted
+  /// at M18; the doc said 19). Mirrors `FuzzzyTextField`'s box exactly
   /// (fill / idleBorder / focusBorder / errorBorder / disabledBorder at
   /// `form.borderWidth`, `form.radius` corners, `form.contentPadding`) so a
   /// Material field and a kit field are indistinguishable during the swap.
@@ -258,30 +284,38 @@ abstract final class ThemasteroflawTheme {
     );
   }
 
-  /// 13 stock `Chip` sites. Unselected reads as a `surface` pill on a `line`
-  /// hairline; selected inverts to `actionPrimary` — the kit's inverted-mono
-  /// selection, deliberately NOT red (`harvest/mol.md` §4, red discipline).
-  static ChipThemeData _chip(
-    FuzzzyColors c,
-    FuzzzyRadius r,
-    FuzzzyTextStyles t,
-  ) => ChipThemeData(
-    backgroundColor: c.surface,
-    selectedColor: c.actionPrimaryBg,
-    disabledColor: c.track,
-    surfaceTintColor: Colors.transparent,
-    checkmarkColor: c.actionPrimaryFg,
-    elevation: 0,
-    pressElevation: 0,
-    side: BorderSide(color: c.line),
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(r.s),
-    ),
-    labelStyle: t.label.copyWith(color: c.ink),
-    secondaryLabelStyle: t.label.copyWith(color: c.actionPrimaryFg),
-  );
+  // ---------------------------------------------------------------------------
+  // DELETED at M18 (`T-0262`): `_chip` / `chipTheme`.
+  //
+  // It claimed "13 stock `Chip` sites" and configured **zero**. That number was
+  // an M1-era count; M9/M9b cleared the last Material chip, and a census at M18
+  // found no `Chip`, `ChoiceChip`, `FilterChip`, `ActionChip` or `InputChip`
+  // anywhere in `lib/` (the four `Chip(` matches a naive grep returns are a
+  // private `_ActionChip` at `consultation_page.dart:1587`, which is an app
+  // widget and reads roles directly). Every chip in this app is now
+  // `AppStatusChip`, `AppDomainChip`, `AppCitationChip` or a kit widget, and
+  // none of them reads `ChipThemeData`.
+  //
+  // 🔴 **Deleted rather than corrected, deliberately, because dead config here
+  // was not neutral — it was loaded.** Its `labelStyle` and
+  // `secondaryLabelStyle` were `type.label`: the mono, Latin-only, wide-tracked
+  // eyebrow role. That is precisely the `T-0259` defect fixed in `_bottomNav`
+  // one checkpoint ago, and precisely the reason `AppStatusChip` exists at all
+  // (`PHASE_M_KIT_QUEUE` item 11). So the first person to add a Material `Chip`
+  // to this Georgian app would have silently inherited a label rendered through
+  // `fontFamilyFallback` at 1.76px of tracking per Mkhedruli glyph — and would
+  // have inherited it from a theme whose doc-comment told them 13 other sites
+  // already relied on it.
+  //
+  // Correcting the comment would have left the trap; correcting the role would
+  // have left an unread, untested, unrenderable block that no gate can keep
+  // honest. Removing it removes a wrong default, not a safety net: a future
+  // Material chip now falls back to Material's own theme, which is visibly
+  // un-Ink and therefore gets noticed.
+  // ---------------------------------------------------------------------------
 
-  /// 1 stock `BottomNavigationBar` site (`main_shell`). Selected item uses
+  /// 1 stock `BottomNavigationBar` site (`main_shell`, verified at M18).
+  /// Selected item uses
   /// `ink` rather than a brand accent — Ink keeps navigation monochrome.
   ///
   /// **`control` / `bodyS`, NOT `label` (corrected at M16, `T-0259`).** The

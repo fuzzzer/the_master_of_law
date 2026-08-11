@@ -159,16 +159,48 @@ void main() {
         });
       });
 
-      test('the six Material sub-themes the fork used to set are set', () {
-        // MAPPING §7: FuzzzyTheme.build sets none of these, and ~80 stock
+      test('the FIVE Material sub-themes with live call sites are set', () {
+        // MAPPING §7: FuzzzyTheme.build sets none of these, and the stock
         // widgets in this app inherit them. Losing any one is invisible to
         // `analyze` and to every role count.
+        //
+        // Counts re-measured at M18 (`T-0262`) — the doc-comments in
+        // `themasteroflaw_theme.dart` used to carry M1-era numbers:
+        //   appBar 14 (12 live) · card 1 · divider 6 (5 live) ·
+        //   input 18 (16 live) · bottomNav 1
         expect(theme.appBarTheme.backgroundColor, isNotNull);
         expect(theme.cardTheme.color, isNotNull);
         expect(theme.dividerTheme.color, isNotNull);
         expect(theme.inputDecorationTheme.fillColor, isNotNull);
-        expect(theme.chipTheme.backgroundColor, isNotNull);
         expect(theme.bottomNavigationBarTheme.selectedItemColor, isNotNull);
+      });
+
+      test('`chipTheme` is deliberately NOT set — and stays that way', () {
+        // 🔴 This assertion is inverted ON PURPOSE (M18, `T-0262`). `_chip`
+        // was deleted, not corrected: it claimed 13 stock `Chip` sites and
+        // configured **zero** (a census at M18 found no `Chip`/`ChoiceChip`/
+        // `FilterChip`/`ActionChip`/`InputChip` in `lib/`), and its
+        // `labelStyle` was `type.label` — the mono, Latin-only eyebrow role,
+        // i.e. exactly the `T-0259` defect that had just been fixed in
+        // `_bottomNav` and exactly the reason `AppStatusChip` exists.
+        //
+        // Dead config that is also WRONG is a loaded gun: the first person to
+        // drop a Material `Chip` into this Georgian app would have inherited a
+        // label at 1.76px of tracking per Mkhedruli glyph, from a theme whose
+        // comment assured them 13 other sites already depended on it.
+        //
+        // If someone re-adds a `chipTheme`, this test fails and they have to
+        // read the reason first — which is the entire point of putting the
+        // absence under test rather than just deleting the code.
+        expect(
+          theme.chipTheme.backgroundColor,
+          isNull,
+          reason:
+              'a chipTheme is back. Before restoring it: are there really '
+              'stock Material chips now, and does the label take `control` '
+              'rather than the Latin-only `label` role? See the M18 note in '
+              'themasteroflaw_theme.dart.',
+        );
       });
 
       test("radii are Ink's 2/3/4 ramp, not the fork's 8/12/16", () {
