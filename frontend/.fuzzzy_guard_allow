@@ -1,0 +1,48 @@
+# fuzzzy_ui_kit consumer-guard allow-list — the_master_of_law
+#
+#   fvm dart run fuzzzy_ui_kit:guard lib --allow=.fuzzzy_guard_allow
+#
+# One `path:line` pin per line, each with a stated reason. A pin without a
+# reason is how an allow-list rots into a whitelist (guard.dart:36).
+#
+# TWO THINGS THAT WILL BITE YOU:
+#   1. Paths are relative to the SCANNED ROOT. These pins are written for
+#      `guard lib`, so they start `src/…`. Scanning `lib/src/features/x`
+#      instead makes every pin here a no-op.
+#   2. Pins are line-exact. If a pinned line moves, the pin silently stops
+#      matching and the violation comes back — which is the correct, loud
+#      failure. Re-check this file whenever a pinned file is edited.
+#
+# ── literal-colour · the legal-domain taxonomy ──────────────────────────────
+# The eight legal-domain colours are APP-SUPPLIED by owner ruling
+# (design/harvest/mol.md §3; MAPPING.md §2.1 marks the row "locked"): the kit
+# deliberately does not bake a legal taxonomy, and ships the neutral mechanism
+# instead (FuzzzyFilterChip.dotColor / FuzzzyCard.leadingRule take a
+# caller-supplied colour). These 16 literals are the fork's own hexes, re-homed
+# app-side at M7 so the taxonomy survives the fork's deletion at M12. They are
+# the ONLY correct `Color(0x…)` in this app, they appear on screen only as a
+# 4px rule or an 8px dot, and every other pixel stays role-driven.
+src/app/theme/legal_domain_colors.dart:53   # night · criminal
+src/app/theme/legal_domain_colors.dart:54   # night · civil
+src/app/theme/legal_domain_colors.dart:55   # night · administrative
+src/app/theme/legal_domain_colors.dart:56   # night · labor
+src/app/theme/legal_domain_colors.dart:57   # night · tax
+src/app/theme/legal_domain_colors.dart:58   # night · family
+src/app/theme/legal_domain_colors.dart:59   # night · property
+src/app/theme/legal_domain_colors.dart:60   # night · other
+src/app/theme/legal_domain_colors.dart:65   # paper · criminal
+src/app/theme/legal_domain_colors.dart:66   # paper · civil
+src/app/theme/legal_domain_colors.dart:67   # paper · administrative
+src/app/theme/legal_domain_colors.dart:68   # paper · labor
+src/app/theme/legal_domain_colors.dart:69   # paper · tax
+src/app/theme/legal_domain_colors.dart:70   # paper · family
+src/app/theme/legal_domain_colors.dart:71   # paper · property
+src/app/theme/legal_domain_colors.dart:72   # paper · other
+#
+# ── literal-motion · snackbar dwell times ───────────────────────────────────
+# NOT YET PINNED. Six SnackBar `duration:` sites are reviewed and annotated in
+# code (JOURNAL M3/M5/M6/M6b): a toast DWELL is not animation timing, and
+# `fuzzzyMotion` tops out at 420ms. They all die at M11 with FuzzzyToast, so
+# they are deliberately left failing until then rather than pinned now — if
+# M11 lands as planned there is nothing to pin. Add them here at M13 ONLY if
+# any survive, with the surviving file:line.

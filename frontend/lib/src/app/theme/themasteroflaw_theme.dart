@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:themasteroflaw/src/src.dart';
 import 'package:ui_kit/ui_kit.dart';
 
 /// The Master of Law — the ONE bridge from `fuzzzy_ui_kit` to Flutter's
@@ -60,6 +61,9 @@ abstract final class ThemasteroflawTheme {
       extensions: <ThemeExtension<dynamic>>[
         ...base.extensions.values.where((e) => e is! FuzzzyTextStyles),
         type,
+        // The app's own taxonomy palette — NOT a kit role, by owner ruling
+        // (harvest/mol.md §3, MAPPING §2.1). Skin-bound like the fork's was.
+        if (skin == FuzzzySkin.night) LegalDomainColors.dark else LegalDomainColors.light,
         ..._legacyExtensions(legacy),
       ],
     );
@@ -137,16 +141,16 @@ abstract final class ThemasteroflawTheme {
   /// at `textScaler 1.3` on a 360dp screen. `titleM` (18pt) sits inside the
   /// fork's own range and keeps the ratio to `titleS`/`body`.
   static AppBarTheme _appBar(FuzzzyColors c, FuzzzyTextStyles t) => AppBarTheme(
-        backgroundColor: c.ground,
-        foregroundColor: c.ink,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        centerTitle: false,
-        titleTextStyle: t.titleM.copyWith(color: c.ink),
-        iconTheme: IconThemeData(color: c.ink),
-        actionsIconTheme: IconThemeData(color: c.ink),
-      );
+    backgroundColor: c.ground,
+    foregroundColor: c.ink,
+    surfaceTintColor: Colors.transparent,
+    elevation: 0,
+    scrolledUnderElevation: 0,
+    centerTitle: false,
+    titleTextStyle: t.titleM.copyWith(color: c.ink),
+    iconTheme: IconThemeData(color: c.ink),
+    actionsIconTheme: IconThemeData(color: c.ink),
+  );
 
   /// 28 stock `Card` sites. Material 3's default card is an elevated, tinted,
   /// shadow-casting surface; Ink cards are a flat `surface` panel with a
@@ -160,26 +164,26 @@ abstract final class ThemasteroflawTheme {
   /// fields. It is 1px in Ink and 8px in the stress pack, so it only shows up
   /// where it matters: under a pack swap.
   static CardThemeData _card(FuzzzyColors c, FuzzzyRadius r) => CardThemeData(
-        color: c.surface,
-        surfaceTintColor: Colors.transparent,
-        shadowColor: Colors.transparent,
-        elevation: 0,
-        margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(r.l),
-          side: BorderSide(color: c.line),
-        ),
-      );
+    color: c.surface,
+    surfaceTintColor: Colors.transparent,
+    shadowColor: Colors.transparent,
+    elevation: 0,
+    margin: EdgeInsets.zero,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(r.l),
+      side: BorderSide(color: c.line),
+    ),
+  );
 
   /// 6 stock `Divider` sites. Material 3 resolves a divider's colour from
   /// `colorScheme.outlineVariant` (which the kit binds to `lineStrong`), NOT
   /// from `ThemeData.dividerColor` — so without this, every hairline would be
   /// drawn one step too heavy.
   static DividerThemeData _divider(FuzzzyColors c) => DividerThemeData(
-        color: c.line,
-        thickness: 1,
-        space: 1,
-      );
+    color: c.line,
+    thickness: 1,
+    space: 1,
+  );
 
   /// 19 stock `InputDecoration` sites. Mirrors `FuzzzyTextField`'s box exactly
   /// (fill / idleBorder / focusBorder / errorBorder / disabledBorder at
@@ -194,9 +198,9 @@ abstract final class ThemasteroflawTheme {
     FuzzzyFormStyles form,
   ) {
     OutlineInputBorder border(Color color) => OutlineInputBorder(
-          borderRadius: BorderRadius.circular(form.radius),
-          borderSide: BorderSide(color: color, width: form.borderWidth),
-        );
+      borderRadius: BorderRadius.circular(form.radius),
+      borderSide: BorderSide(color: color, width: form.borderWidth),
+    );
 
     return InputDecorationTheme(
       filled: true,
@@ -225,38 +229,36 @@ abstract final class ThemasteroflawTheme {
     FuzzzyColors c,
     FuzzzyRadius r,
     FuzzzyTextStyles t,
-  ) =>
-      ChipThemeData(
-        backgroundColor: c.surface,
-        selectedColor: c.actionPrimaryBg,
-        disabledColor: c.track,
-        surfaceTintColor: Colors.transparent,
-        checkmarkColor: c.actionPrimaryFg,
-        elevation: 0,
-        pressElevation: 0,
-        side: BorderSide(color: c.line),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(r.s),
-        ),
-        labelStyle: t.label.copyWith(color: c.ink),
-        secondaryLabelStyle: t.label.copyWith(color: c.actionPrimaryFg),
-      );
+  ) => ChipThemeData(
+    backgroundColor: c.surface,
+    selectedColor: c.actionPrimaryBg,
+    disabledColor: c.track,
+    surfaceTintColor: Colors.transparent,
+    checkmarkColor: c.actionPrimaryFg,
+    elevation: 0,
+    pressElevation: 0,
+    side: BorderSide(color: c.line),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(r.s),
+    ),
+    labelStyle: t.label.copyWith(color: c.ink),
+    secondaryLabelStyle: t.label.copyWith(color: c.actionPrimaryFg),
+  );
 
   /// 1 stock `BottomNavigationBar` site (`main_shell`). Selected item uses
   /// `ink` rather than a brand accent — Ink keeps navigation monochrome.
   static BottomNavigationBarThemeData _bottomNav(
     FuzzzyColors c,
     FuzzzyTextStyles t,
-  ) =>
-      BottomNavigationBarThemeData(
-        backgroundColor: c.surface,
-        selectedItemColor: c.ink,
-        unselectedItemColor: c.inkMute,
-        selectedLabelStyle: t.label.copyWith(color: c.ink),
-        unselectedLabelStyle: t.label.copyWith(color: c.inkMute),
-        type: BottomNavigationBarType.fixed,
-        elevation: 0,
-      );
+  ) => BottomNavigationBarThemeData(
+    backgroundColor: c.surface,
+    selectedItemColor: c.ink,
+    unselectedItemColor: c.inkMute,
+    selectedLabelStyle: t.label.copyWith(color: c.ink),
+    unselectedLabelStyle: t.label.copyWith(color: c.inkMute),
+    type: BottomNavigationBarType.fixed,
+    elevation: 0,
+  );
 
   // ---------------------------------------------------------------------------
   // Transitional bridge — DELETE WITH `packages/ui_kit` AT M12
@@ -273,6 +275,5 @@ abstract final class ThemasteroflawTheme {
   ///
   /// This list becomes empty by construction at M12, when `packages/ui_kit` is
   /// deleted and this method and its import go with it.
-  static Iterable<ThemeExtension<dynamic>> _legacyExtensions(ThemeData fork) =>
-      fork.extensions.values;
+  static Iterable<ThemeExtension<dynamic>> _legacyExtensions(ThemeData fork) => fork.extensions.values;
 }

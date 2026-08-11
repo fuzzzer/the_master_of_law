@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 import 'package:themasteroflaw/src/src.dart';
-import 'package:ui_kit/ui_kit.dart';
 
 /// Case card widget displayed in the cases list.
 /// Shows title, domain chip, status badge, completeness bar, and last updated.
@@ -16,22 +16,16 @@ class CaseCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onDismissed;
 
-  Color _domainColor(UiColors uiColors) => switch (caseData.domain) {
-    LegalDomain.criminal => uiColors.criminalColor,
-    LegalDomain.civil => uiColors.civilColor,
-    LegalDomain.administrative => uiColors.administrativeColor,
-    LegalDomain.labor => uiColors.laborColor,
-    LegalDomain.tax => uiColors.taxColor,
-    LegalDomain.family => uiColors.familyColor,
-    LegalDomain.property => uiColors.propertyColor,
-    LegalDomain.other => uiColors.otherDomainColor,
-  };
-
   @override
   Widget build(BuildContext context) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
-    final domainColor = _domainColor(uiColors);
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
+    // The one place a taxonomy colour is read: it paints the 4px leading rule
+    // and the chip's 8px dot, and nothing else (see LegalDomainColors).
+    final domainColor = context.legalDomainColors.of(caseData.domain);
 
     return Dismissible(
       key: ValueKey(caseData.id),
@@ -39,24 +33,34 @@ class CaseCard extends StatelessWidget {
       onDismissed: (_) => onDismissed(),
       background: Container(
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
+        padding: EdgeInsets.only(right: space.xl),
         decoration: BoxDecoration(
-          color: uiColors.errorColor.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(12),
+          // Swipe-to-archive IS a destructive commit in flight, which is the
+          // one moment USING §6 duty 4 allows red as a fill.
+          color: colors.destructive,
+          borderRadius: BorderRadius.circular(radius.l),
         ),
-        child: Icon(Icons.archive_outlined, color: uiColors.errorColor),
+        child: Icon(Icons.archive_outlined, color: colors.onRed),
       ),
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: Container(
           decoration: BoxDecoration(
-            color: uiColors.backgroundSecondaryColor,
-            borderRadius: BorderRadius.circular(12),
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(radius.l),
+            // `FuzzzyCard(leadingRule:)`'s shape (containers/fuzzzy_card.dart)
+            // — the fork's AccentCard idiom, kept verbatim so M11 is a swap.
+            // The card also gains the hairline the fork never drew: a
+            // `surface` box on `ground` needs a `line` edge in Ink.
             border: Border(
               left: BorderSide(color: domainColor, width: 4),
+              top: BorderSide(color: colors.line),
+              right: BorderSide(color: colors.line),
+              bottom: BorderSide(color: colors.line),
             ),
           ),
-          padding: const EdgeInsets.all(16),
+          padding: density.card,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -66,67 +70,57 @@ class CaseCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       caseData.title,
-                      style: uiTextStyles.bodyBold16.copyWith(
-                        color: uiColors.primaryTextColor,
-                      ),
+                      style: type.titleS.copyWith(color: colors.ink),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  _StatusBadge(status: caseData.status, uiColors: uiColors, uiTextStyles: uiTextStyles),
+                  SizedBox(width: space.s),
+                  _StatusBadge(status: caseData.status),
                 ],
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: space.s),
               // Domain chip + date
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: domainColor.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      caseData.domain.shortLabelKa,
-                      style: uiTextStyles.labelBold12.copyWith(color: domainColor),
-                    ),
-                  ),
+                  _DomainChip(domain: caseData.domain, dotColor: domainColor),
                   const Spacer(),
                   Text(
                     _formatDate(caseData.updatedAt),
-                    style: uiTextStyles.caption11.copyWith(
-                      color: uiColors.secondaryTextColor,
-                    ),
+                    style: type.bodyS.copyWith(color: colors.inkFaint),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: space.m),
               // Completeness bar
               Row(
                 children: [
                   Expanded(
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(radius.s),
                       child: LinearProgressIndicator(
                         value: caseData.completenessPercent / 100,
-                        backgroundColor: uiColors.surfaceColor,
-                        valueColor: AlwaysStoppedAnimation(
-                          caseData.completenessPercent > 60
-                              ? uiColors.successColor
-                              : caseData.completenessPercent > 30
-                              ? uiColors.warningColor
-                              : uiColors.secondaryTextColor,
-                        ),
+                        // The EMPTY half of a progress bar is `track`, not
+                        // `surface` (MAPPING §2.7 — the fork's `surfaceColor`
+                        // was the track role wearing the wrong name).
+                        backgroundColor: colors.track,
+                        // Completeness is progress, not a verdict: a
+                        // three-colour traffic light here would spend two
+                        // semantic roles on a percentage. One `ink` bar, and
+                        // the number next to it says the rest.
+                        valueColor: AlwaysStoppedAnimation(colors.ink),
+                        // Dimension: the bar's own 4px height.
                         minHeight: 4,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: space.s),
                   Text(
                     '${caseData.completenessPercent}%',
-                    style: uiTextStyles.caption11.copyWith(
-                      color: uiColors.secondaryTextColor,
-                    ),
+                    // A percentage is tabular data and carries no Georgian —
+                    // one of the very few strings in this app that CAN take
+                    // the mono `dataS` role (see JOURNAL M6b judgement 4).
+                    style: type.dataS.copyWith(color: colors.inkMute),
                   ),
                 ],
               ),
@@ -147,35 +141,109 @@ class CaseCard extends StatelessWidget {
   }
 }
 
+/// `FuzzzyStatusChip`'s recipe, app-side.
+///
+/// The kit's own widget cannot be used here yet: it hardcodes
+/// `type.label.toUpperCase()` — the MONO eyebrow role — and every label in this
+/// app is Georgian, which has no glyphs in Space Mono and no case to upper.
+/// Filed as `PHASE_M_KIT_QUEUE` item 11. Everything else is copied exactly:
+/// no fill, a 1px `Color.lerp(ground, role, .40)` border, `density.chip`,
+/// `radius.s`, and an 8px leading disc in the kind's role.
 class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({
-    required this.status,
-    required this.uiColors,
-    required this.uiTextStyles,
-  });
+  const _StatusBadge({required this.status});
 
   final CaseStatus status;
-  final UiColors uiColors;
-  final UiTextStyles uiTextStyles;
 
   @override
   Widget build(BuildContext context) {
-    final (color, emoji) = switch (status) {
-      CaseStatus.active => (uiColors.successColor, '🟢'),
-      CaseStatus.pending => (uiColors.warningColor, '🟡'),
-      CaseStatus.closed => (uiColors.secondaryTextColor, '⚪'),
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+
+    // The fork drew this state twice: once as a colour and once as a coloured
+    // emoji (🟢/🟡/⚪ at a hardcoded fontSize: 10). The disc IS what the emoji
+    // was imitating, so the emoji is deleted rather than re-sized.
+    final role = switch (status) {
+      CaseStatus.active => colors.success,
+      CaseStatus.pending => colors.warning,
+      CaseStatus.closed => colors.inkMute,
     };
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(emoji, style: const TextStyle(fontSize: 10)),
-        const SizedBox(width: 4),
-        Text(
-          status.displayNameKa,
-          style: uiTextStyles.labelBold12.copyWith(color: color),
-        ),
-      ],
+    return Container(
+      padding: context.fuzzzyDensity.chip,
+      decoration: BoxDecoration(
+        border: Border.all(color: Color.lerp(colors.ground, role, 0.40)!),
+        borderRadius: BorderRadius.circular(radius.s),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            // §4.4's one status-dot diameter.
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: role,
+              borderRadius: BorderRadius.circular(radius.circle),
+            ),
+          ),
+          SizedBox(width: space.s),
+          Text(
+            status.displayNameKa,
+            style: type.control.copyWith(color: role),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// `FuzzzyFilterChip`'s neutral `dotColor` variant, app-side and non-interactive
+/// (inputs/fuzzzy_filter_chip.dart:105-130): the taxonomy colour is the 8px
+/// disc, the box and the label stay monochrome.
+class _DomainChip extends StatelessWidget {
+  const _DomainChip({required this.domain, required this.dotColor});
+
+  final LegalDomain domain;
+  final Color dotColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+
+    return Container(
+      padding: context.fuzzzyDensity.chip,
+      decoration: BoxDecoration(
+        // Parent-aware surface rule: this chip sits INSIDE a `surface` card,
+        // so its recessed panel is `ground`. (The workspace page's own domain
+        // chip sits on `ground` chrome and therefore takes `surface` — same
+        // widget shape, opposite rung.)
+        color: colors.ground,
+        border: Border.all(color: colors.line),
+        borderRadius: BorderRadius.circular(radius.s),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: dotColor,
+              borderRadius: BorderRadius.circular(radius.circle),
+            ),
+          ),
+          SizedBox(width: space.s),
+          Text(
+            domain.shortLabelKa,
+            style: type.control.copyWith(color: colors.inkMute),
+          ),
+        ],
+      ),
     );
   }
 }

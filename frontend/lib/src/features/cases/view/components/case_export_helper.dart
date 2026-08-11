@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 import 'package:themasteroflaw/src/src.dart';
 
 /// Generates and exports a structured case summary.
@@ -103,13 +104,22 @@ class CaseExportHelper {
 
     Clipboard.setData(ClipboardData(text: buffer.toString()));
 
-    final uiColors = context.uiColors;
+    final colors = context.fuzzzyColors;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('საქმე კოპირებულია ბუფერში'),
-        backgroundColor: uiColors.successColor,
+        // `FuzzzyToast`'s shape: a `raised` sheet with the semantic colour
+        // carried by the CONTENT. The fork filled the whole bar with
+        // `successColor` and left the label on Material's default foreground —
+        // and the kit ships no `onSuccess` role to fix that with (JOURNAL M5).
+        content: Text(
+          'საქმე კოპირებულია ბუფერში',
+          style: context.fuzzzyTextStyles.body.copyWith(color: colors.success),
+        ),
+        backgroundColor: colors.raised,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(context.fuzzzyRadius.m),
+        ),
       ),
     );
   }
