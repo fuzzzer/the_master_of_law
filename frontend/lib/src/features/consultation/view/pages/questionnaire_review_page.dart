@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 import 'package:themasteroflaw/src/src.dart';
 
 class QuestionnaireReviewPage extends StatelessWidget {
@@ -17,42 +18,41 @@ class QuestionnaireReviewPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final uiColors = context.uiColors;
-    final uiTextStyles = context.uiTextStyles;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+    final radius = context.fuzzzyRadius;
+    final density = context.fuzzzyDensity;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'პასუხების მიმოხილვა',
-          style: uiTextStyles.bodyBold16.copyWith(color: uiColors.primaryTextColor),
-        ),
+        // Title style comes from appBarTheme (titleM + ink), built from roles.
+        title: const Text('პასუხების მიმოხილვა'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: onEdit,
         ),
       ),
       body: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        padding: density.screen.copyWith(top: space.l, bottom: space.l),
         itemCount: questions.length + 1,
-        separatorBuilder: (_, __) => Divider(
-          color: uiColors.secondaryTextColor.withValues(alpha: 0.1),
-          height: 1,
-        ),
+        // Divider colour and thickness come from dividerTheme (line, 1px).
+        separatorBuilder: (_, __) => const Divider(),
         itemBuilder: (context, index) {
           if (index == 0) {
             return Padding(
-              padding: const EdgeInsets.only(bottom: 16),
+              padding: EdgeInsets.only(bottom: space.l),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'გადახედეთ თქვენს პასუხებს',
-                    style: uiTextStyles.headlineBold20.copyWith(color: uiColors.primaryTextColor),
+                    style: type.titleM.copyWith(color: colors.ink),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: space.xs),
                   Text(
                     'დარწმუნდით, რომ ინფორმაცია სწორია, სანამ ანალიზს დაიწყებთ.',
-                    style: uiTextStyles.body14.copyWith(color: uiColors.secondaryTextColor),
+                    style: type.body.copyWith(color: colors.inkMute),
                   ),
                 ],
               ),
@@ -64,44 +64,52 @@ class QuestionnaireReviewPage extends StatelessWidget {
           final isAnswered = answer != null && answer.isNotEmpty;
 
           return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
+            padding: EdgeInsets.symmetric(vertical: space.m),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
+                  // Dimensions: the step marker's fixed footprint.
                   width: 24,
                   height: 24,
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: isAnswered
-                        ? uiColors.accentColor.withValues(alpha: 0.15)
-                        : uiColors.secondaryTextColor.withValues(alpha: 0.1),
+                    // The kit's "on" state is INVERTED-MONO, not an accent
+                    // tint (inputs/fuzzzy_filter_chip.dart:92-104).
+                    color: isAnswered ? colors.actionPrimaryBg : colors.surface,
+                    border: Border.all(
+                      color: isAnswered ? colors.actionPrimaryBg : colors.line,
+                    ),
+                    borderRadius: BorderRadius.circular(radius.circle),
                   ),
                   child: Center(
                     child: Text(
                       '$index',
-                      style: uiTextStyles.caption11.copyWith(
-                        color: isAnswered ? uiColors.accentColor : uiColors.secondaryTextColor,
-                        fontWeight: FontWeight.w600,
+                      // `control` IS the w600 role — no fontWeight override.
+                      style: type.control.copyWith(
+                        color: isAnswered
+                            ? colors.actionPrimaryFg
+                            : colors.inkMute,
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: space.m),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         question.questionText,
-                        style: uiTextStyles.bodyBold14.copyWith(color: uiColors.primaryTextColor),
+                        style: type.titleS.copyWith(color: colors.ink),
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: space.xs),
                       Text(
                         isAnswered ? _formatAnswer(answer, question.questionType) : 'გამოტოვებულია',
-                        style: uiTextStyles.body14.copyWith(
-                          color: isAnswered ? uiColors.primaryTextColor : uiColors.secondaryTextColor,
-                          fontStyle: isAnswered ? FontStyle.normal : FontStyle.italic,
+                        // Italic is not a role, and Ink has no italic face.
+                        // "Skipped" is a PLACEHOLDER, which is exactly what
+                        // `inkFaint` is for (USING §2.2).
+                        style: type.body.copyWith(
+                          color: isAnswered ? colors.ink : colors.inkFaint,
                         ),
                       ),
                     ],
@@ -113,37 +121,54 @@ class QuestionnaireReviewPage extends StatelessWidget {
         },
       ),
       bottomNavigationBar: Container(
-        padding: EdgeInsets.fromLTRB(20, 12, 20, MediaQuery.of(context).padding.bottom + 12),
+        padding: EdgeInsets.fromLTRB(
+          density.screen.left,
+          space.m,
+          density.screen.right,
+          MediaQuery.of(context).padding.bottom + space.m,
+        ),
         decoration: BoxDecoration(
-          color: uiColors.backgroundSecondaryColor,
-          border: Border(top: BorderSide(color: uiColors.secondaryTextColor.withValues(alpha: 0.1))),
+          color: colors.surface,
+          border: Border(top: BorderSide(color: colors.line)),
         ),
         child: Row(
           children: [
             Expanded(
+              // `FuzzzyButton.secondary` (buttons/fuzzzy_button.dart:99-100):
+              // `ink` label on a `lineStrong` outline, no fill.
               child: OutlinedButton(
                 onPressed: onEdit,
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  side: BorderSide(color: uiColors.secondaryTextColor.withValues(alpha: 0.3)),
+                  padding: density.snug,
+                  side: BorderSide(color: colors.lineStrong),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(radius.m),
+                  ),
                 ),
                 child: Text(
                   'რედაქტირება',
-                  style: uiTextStyles.bodyBold14.copyWith(color: uiColors.primaryTextColor),
+                  style: type.control.copyWith(color: colors.ink),
                 ),
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: space.m),
             Expanded(
               flex: 2,
+              // `FuzzzyButton.primary`: the actionPrimary pair, radius.m,
+              // `control` label. The fork left this to Material's defaults.
               child: ElevatedButton(
                 onPressed: onConfirm,
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  backgroundColor: colors.actionPrimaryBg,
+                  foregroundColor: colors.actionPrimaryFg,
+                  padding: density.snug,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(radius.m),
+                  ),
                 ),
                 child: Text(
                   'ანალიზის დაწყება',
-                  style: uiTextStyles.bodyBold14,
+                  style: type.control.copyWith(color: colors.actionPrimaryFg),
                 ),
               ),
             ),
