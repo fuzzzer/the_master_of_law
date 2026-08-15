@@ -25,6 +25,7 @@ from app.repositories.case_file_repository import CaseFileRepository
 from app.repositories.user_repository import UserRepository
 from app.services.conversation_service import ConversationService
 from app.utils.logger import get_logger
+from app.services.model_config_service import cheap_model, strong_model
 
 logger = get_logger(__name__)
 
@@ -337,7 +338,7 @@ class CaseBuilderService:
         analysis = await self.gemini.generate(
             prompt=prompt,
             temperature=CASE_FULL_ANALYSIS.temperature,
-            model_name=settings.gemini_strong_model,
+            model_name=await strong_model(),
         )
         return analysis
 
@@ -352,7 +353,7 @@ class CaseBuilderService:
         case_data = await self.gemini.generate_json(
             prompt=prompt,
             temperature=CASE_BUILDER.temperature,
-            model_name=settings.gemini_strong_model,
+            model_name=await strong_model(),
         )
         if not isinstance(case_data, dict):
             raise ValueError("Gemini returned invalid case file format")
@@ -453,7 +454,7 @@ class CaseBuilderService:
             queries = await self.gemini.generate_json(
                 prompt=prompt,
                 temperature=0.3,
-                model_name=settings.gemini_cheap_model,  # CHEAP tier
+                model_name=await cheap_model(),  # CHEAP tier
             )
             if isinstance(queries, list):
                 result = [q for q in queries if isinstance(q, str) and q.strip()]

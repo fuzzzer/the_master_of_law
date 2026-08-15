@@ -35,7 +35,7 @@ class _LegalDictionaryPageState extends State<LegalDictionaryPage> {
       } else {
         _filteredTerms = legalDictionaryData.where((term) {
           return term.term.toLowerCase().contains(query) ||
-                 term.definition.toLowerCase().contains(query);
+              term.definition.toLowerCase().contains(query);
         }).toList();
       }
     });

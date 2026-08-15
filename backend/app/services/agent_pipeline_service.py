@@ -37,6 +37,7 @@ from app.services.rag_retrieval_service import RAGRetrievalService, get_rag_serv
 from app.services.trace_service import record_step
 from app.tools.case_tools import ALWAYS_TOOLS, CASE_CREATION_TOOLS, FULL_CASE_TOOLS
 from app.utils.logger import get_logger
+from app.services.model_config_service import cheap_model, strong_model
 
 logger = get_logger(__name__)
 
@@ -259,12 +260,12 @@ class AgentPipelineService:
         chat_history = self._history_to_contents(recent)
 
         try:
-            chat = self.gemini.create_chat(
+            chat = await self.gemini.create_chat(
                 history=chat_history,
                 system_instruction=AGENT_PLANNER.template,
                 temperature=AGENT_PLANNER.temperature,
                 max_output_tokens=AGENT_PLANNER.max_output_tokens,
-                model_name=settings.gemini_cheap_model,  # CHEAP tier
+                model_name=await cheap_model(),  # CHEAP tier
                 response_mime_type="application/json",
             )
             response = await chat.send_message(user_message)
@@ -297,7 +298,7 @@ class AgentPipelineService:
                 )
                 record_step(
                     "phase_1_plan",
-                    model=settings.gemini_cheap_model,
+                    model=await cheap_model(),
                     planner_raw_response=raw,
                     intent=plan.intent,
                     needs_rag=plan.needs_rag,
@@ -361,12 +362,12 @@ class AgentPipelineService:
         tools = self._select_tools(case_file_id, is_case_chat)
         chat_history = self._history_to_contents(history)
 
-        chat = self.gemini.create_chat(
+        chat = await self.gemini.create_chat(
             history=chat_history,
             system_instruction=system_prompt,
             tools=tools,
             temperature=GEMINI_TEMPERATURE,
-            model_name=settings.gemini_strong_model,
+            model_name=await strong_model(),
         )
 
         # Build the user message with law context prefix
@@ -383,7 +384,7 @@ class AgentPipelineService:
 
         record_step(
             "llm_generation_request",
-            model=settings.gemini_strong_model,
+            model=await strong_model(),
             system_prompt=system_prompt,
             history_message_count=len(history),
             available_tools=self._tool_names(tools),
@@ -868,7 +869,7 @@ class AgentPipelineService:
                     prompt=correction_prompt,
                     system_instruction=CITATION_VERIFIER.template,
                     temperature=CITATION_VERIFIER.temperature,
-                    model_name=settings.gemini_cheap_model,  # CHEAP tier
+                    model_name=await cheap_model(),  # CHEAP tier
                 )
                 if corrected and corrected.strip():
                     response_text = corrected
@@ -951,7 +952,7 @@ class AgentPipelineService:
                 prompt=prompt,
                 system_instruction=FAITHFULNESS_CHECKER.template,
                 temperature=FAITHFULNESS_CHECKER.temperature,
-                model_name=settings.gemini_cheap_model,
+                model_name=await cheap_model(),
             )
         except Exception as e:
             logger.warning("faithfulness_check_failed", error=str(e))
@@ -987,7 +988,7 @@ class AgentPipelineService:
                 prompt=correction_prompt,
                 system_instruction=CITATION_VERIFIER.template,
                 temperature=CITATION_VERIFIER.temperature,
-                model_name=settings.gemini_cheap_model,
+                model_name=await cheap_model(),
             )
             if corrected and corrected.strip():
                 record_step(
@@ -1055,7 +1056,7 @@ class AgentPipelineService:
             repaired = await self.gemini.generate(
                 prompt=prompt,
                 temperature=0.2,
-                model_name=settings.gemini_cheap_model,
+                model_name=await cheap_model(),
             )
             if repaired and repaired.strip():
                 record_step(
@@ -1222,7 +1223,7 @@ class AgentPipelineService:
             repaired = await self.gemini.generate(
                 prompt=prompt,
                 temperature=0.2,
-                model_name=settings.gemini_cheap_model,
+                model_name=await cheap_model(),
             )
             if repaired and repaired.strip():
                 record_step(

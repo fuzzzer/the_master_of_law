@@ -137,7 +137,7 @@ class TestPhase1Plan:
         mock_response.text = plan_response
         mock_chat = MagicMock()
         mock_chat.send_message = AsyncMock(return_value=mock_response)
-        mock_gemini.create_chat = MagicMock(return_value=mock_chat)
+        mock_gemini.create_chat = AsyncMock(return_value=mock_chat)
 
         svc = AgentPipelineService(gemini=mock_gemini)
         plan = await svc._phase_1_plan("რა სასჯელი ეკისრება", [])
@@ -157,7 +157,7 @@ class TestPhase1Plan:
         mock_response.text = plan_response
         mock_chat = MagicMock()
         mock_chat.send_message = AsyncMock(return_value=mock_response)
-        mock_gemini.create_chat = MagicMock(return_value=mock_chat)
+        mock_gemini.create_chat = AsyncMock(return_value=mock_chat)
 
         svc = AgentPipelineService(gemini=mock_gemini)
         plan = await svc._phase_1_plan("გამარჯობა", [])
@@ -168,7 +168,7 @@ class TestPhase1Plan:
         """Exception should produce fallback plan."""
         mock_chat = MagicMock()
         mock_chat.send_message = AsyncMock(side_effect=Exception("API error"))
-        mock_gemini.create_chat = MagicMock(return_value=mock_chat)
+        mock_gemini.create_chat = AsyncMock(return_value=mock_chat)
 
         svc = AgentPipelineService(gemini=mock_gemini)
         plan = await svc._phase_1_plan("test question", [])
@@ -183,7 +183,7 @@ class TestPhase1Plan:
         mock_response.text = raw
         mock_chat = MagicMock()
         mock_chat.send_message = AsyncMock(return_value=mock_response)
-        mock_gemini.create_chat = MagicMock(return_value=mock_chat)
+        mock_gemini.create_chat = AsyncMock(return_value=mock_chat)
 
         svc = AgentPipelineService(gemini=mock_gemini)
         plan = await svc._phase_1_plan("test", [])
@@ -281,7 +281,7 @@ class TestFullRun:
         mock_response.text = plan_json
         mock_chat = MagicMock()
         mock_chat.send_message = AsyncMock(return_value=mock_response)
-        mock_gemini.create_chat = MagicMock(return_value=mock_chat)
+        mock_gemini.create_chat = AsyncMock(return_value=mock_chat)
 
         svc = AgentPipelineService(gemini=mock_gemini)
         result = await svc.run(user_message="Hello")
@@ -318,7 +318,7 @@ class TestFullRun:
                 return mock_plan_chat
             return mock_exec_chat
 
-        mock_gemini.create_chat = MagicMock(side_effect=create_chat_side_effect)
+        mock_gemini.create_chat = AsyncMock(side_effect=create_chat_side_effect)
 
         # Citation service
         mock_citation_svc = MagicMock()

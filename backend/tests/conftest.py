@@ -97,7 +97,7 @@ def mock_gemini():
     mock_response.text = '{"needs_rag": true, "search_queries": ["test query"]}'
     mock_response.candidates = []
     mock_chat.send_message = AsyncMock(return_value=mock_response)
-    gemini.create_chat = MagicMock(return_value=mock_chat)
+    gemini.create_chat = AsyncMock(return_value=mock_chat)
 
     return gemini
 

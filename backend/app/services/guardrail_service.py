@@ -25,6 +25,7 @@ from app.integrations.vertex_ai_client import VertexAIClient, get_vertex_ai_clie
 from app.prompts.guardrail import GUARDRAIL_CLASSIFIER
 from app.services.trace_service import record_step
 from app.utils.logger import get_logger
+from app.services.model_config_service import cheap_model, strong_model
 
 logger = get_logger(__name__)
 
@@ -97,7 +98,7 @@ class GuardrailService:
                 max_output_tokens=GUARDRAIL_MAX_OUTPUT_TOKENS,
                 thinking_budget=0,
                 response_mime_type="application/json",
-                model_name=settings.gemini_cheap_model,  # CHEAP tier
+                model_name=await cheap_model(),  # CHEAP tier
             )
             if not raw:
                 return self._fail_open("empty_response", "Empty response from Gemini")

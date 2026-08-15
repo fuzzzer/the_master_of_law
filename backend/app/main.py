@@ -41,6 +41,7 @@ from app.routes import (
     ws_chat_router,
     api_key_router,
     contacts_router,
+    model_router,
 )
 from app.utils.logger import get_logger, setup_logging
 
@@ -136,6 +137,7 @@ def create_app() -> FastAPI:
     app.include_router(api_key_router.router)
     app.include_router(contacts_router.router)
     app.include_router(trace_router.router)
+    app.include_router(model_router.router)
 
     return app
 

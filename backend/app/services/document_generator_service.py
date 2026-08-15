@@ -18,6 +18,7 @@ from app.integrations.vertex_ai_client import VertexAIClient, get_vertex_ai_clie
 from app.prompts.document_generator import DOCUMENT_DRAFTER
 from app.repositories.case_file_repository import CaseFileRepository
 from app.utils.logger import get_logger
+from app.services.model_config_service import cheap_model, strong_model
 
 logger = get_logger(__name__)
 
@@ -75,7 +76,7 @@ class DocumentGeneratorService:
         result = await self.gemini.generate_json(
             prompt=prompt,
             temperature=DOCUMENT_DRAFTER.temperature,
-            model_name=settings.gemini_strong_model,
+            model_name=await strong_model(),
         )
 
         if not isinstance(result, dict) or "document_markdown" not in result:

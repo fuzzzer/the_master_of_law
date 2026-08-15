@@ -139,13 +139,24 @@ class VertexAIClient:
     """Wrapper around google-genai SDK for Gemini (Vertex AI or Gemini API)."""
 
     def __init__(self) -> None:
-        self._model = settings.gemini_strong_model
         self._client: genai.Client | None = None
+
+    async def _default_model(self) -> str:
+        """Model used when a caller names none.
+
+        Resolved per call rather than pinned in __init__: this object is a
+        process-lifetime singleton, so a value captured at construction would
+        outlive any runtime model change and quietly serve the old model to
+        whichever call sites do not pass one explicitly.
+        """
+        from app.services.model_config_service import strong_model
+
+        return await strong_model()
 
     def _get_client(self) -> genai.Client:
         if self._client is None:
             self._client = create_genai_client()
-            logger.info("vertex_ai_client_init", model=self._model, provider=settings.gemini_provider)
+            logger.info("vertex_ai_client_init", provider=settings.gemini_provider)
         return self._client
 
     async def generate(
@@ -178,7 +189,7 @@ class VertexAIClient:
 
         _apply_thinking(config, thinking_budget)
 
-        model = model_name or self._model
+        model = model_name or await self._default_model()
         response = await with_retry(
             lambda: client.aio.models.generate_content(
                 model=model,
@@ -229,7 +240,7 @@ class VertexAIClient:
             config.system_instruction = system_instruction
 
         response_stream = await client.aio.models.generate_content_stream(
-            model=model_name or self._model,
+            model=model_name or await self._default_model(),
             contents=prompt,
             config=config,
         )
@@ -238,7 +249,7 @@ class VertexAIClient:
             if chunk.text:
                 yield chunk.text
 
-    def create_chat(
+    async def create_chat(
         self,
         history: list[Any] | None = None,
         system_instruction: str | None = None,
@@ -284,7 +295,7 @@ class VertexAIClient:
 
         _apply_thinking(config, thinking_budget)
 
-        model = model_name or self._model
+        model = model_name or await self._default_model()
         chat = client.aio.chats.create(
             model=model,
             config=config,
@@ -319,7 +330,7 @@ class VertexAIClient:
             config.system_instruction = system_instruction
 
         return await client.aio.models.generate_content(
-            model=model_name or self._model,
+            model=model_name or await self._default_model(),
             contents=contents,
             config=config,
         )
@@ -352,7 +363,7 @@ class VertexAIClient:
             config.system_instruction = system_instruction
 
         response_stream = await client.aio.models.generate_content_stream(
-            model=model_name or self._model,
+            model=model_name or await self._default_model(),
             contents=contents,
             config=config,
         )

@@ -118,7 +118,7 @@ class TestAgentPipelineDirectResponseFlow:
         mock_response.text = plan_json
         mock_chat = MagicMock()
         mock_chat.send_message = AsyncMock(return_value=mock_response)
-        mock_gemini.create_chat = MagicMock(return_value=mock_chat)
+        mock_gemini.create_chat = AsyncMock(return_value=mock_chat)
 
         svc = AgentPipelineService(gemini=mock_gemini)
         result = await svc.run(user_message="გამარჯობა")

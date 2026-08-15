@@ -37,6 +37,7 @@ from app.services.legal_classifier_service import ClassificationResult, KeywordC
 from app.services.threshold_service import get_threshold_service
 from app.services.trace_service import record_step
 from app.utils.logger import get_logger
+from app.services.model_config_service import cheap_model, strong_model
 
 logger = get_logger(__name__)
 
@@ -230,7 +231,7 @@ class RAGRetrievalService:
             reranked = await self._stage_4_rerank(user_message, rerank_pool, top_k)
             record_step(
                 "rag_rerank",
-                rerank_model=settings.gemini_cheap_model,
+                rerank_model=await cheap_model(),
                 candidate_count=len(merged),
                 pool_per_collection=pool_counts,
                 selected_order=[r.get("chunk_id") for r in reranked],
@@ -302,7 +303,7 @@ class RAGRetrievalService:
             queries = await self.gemini.generate_json(
                 prompt=prompt,
                 temperature=QUERY_EXPANSION.temperature,
-                model_name=settings.gemini_cheap_model,
+                model_name=await cheap_model(),
             )
             if isinstance(queries, list):
                 # If the AI explicitly returned an empty list, it means no search is needed
@@ -482,7 +483,7 @@ class RAGRetrievalService:
             ids = await self.gemini.generate_json(
                 prompt=prompt,
                 temperature=RERANK.temperature,
-                model_name=settings.gemini_cheap_model,
+                model_name=await cheap_model(),
             )
             if isinstance(ids, list):
                 lookup = {c["chunk_id"]: c for c in candidates}
