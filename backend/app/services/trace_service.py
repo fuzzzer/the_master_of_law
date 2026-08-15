@@ -121,7 +121,19 @@ def get_current_trace() -> TraceRecorder | None:
 
 
 def record_step(name: str, **data: Any) -> None:
-    """Record a pipeline step on the active trace. No-op when tracing is off."""
+    """Record a pipeline step on the active trace, and report it as progress.
+
+    Progress is emitted FIRST and independently of tracing: a user watching a
+    spinner should still see stages when TRACE_ENABLED is off, and a progress
+    sink that misbehaves must not cost us the trace.
+    """
+    from app.services.progress_service import emit_progress
+
+    try:
+        emit_progress(name, data)
+    except Exception as e:  # noqa: BLE001 — never break a request for a spinner
+        logger.warning("progress_step_failed", step=name, error=str(e))
+
     trace = _current_trace.get()
     if trace is None:
         return

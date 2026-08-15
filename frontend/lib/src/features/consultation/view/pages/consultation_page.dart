@@ -179,6 +179,10 @@ class _ConsultationPageState extends State<ConsultationPage>
         listenWhen: (prev, curr) {
           if (prev.messages.length != curr.messages.length) return true;
           if (prev.streamingStatus != curr.streamingStatus) return true;
+          // A stage change repaints the indicator and nothing else, but it is
+          // the ONLY thing moving for most of a 30-120s answer — drop it and
+          // the progress rail freezes on its first value.
+          if (prev.stage != curr.stage) return true;
           if (curr.streamingMessageId != null && curr.messages.isNotEmpty) {
             final prevMsg = prev.messages
                 .where((m) => m.id == curr.streamingMessageId)
@@ -832,6 +836,7 @@ class _ConsultationPageState extends State<ConsultationPage>
     final space = context.fuzzzySpace;
     final radius = context.fuzzzyRadius;
     final density = context.fuzzzyDensity;
+    final motion = context.fuzzzyMotion;
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
@@ -848,58 +853,117 @@ class _ConsultationPageState extends State<ConsultationPage>
           ),
           border: Border.all(color: colors.line),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: List.generate(
-                3,
-                (i) => AnimatedBuilder(
-                  animation: _dotAnimController,
-                  builder: (_, child) {
-                    final delay = i * 0.2;
-                    final t = (_dotAnimController.value - delay).clamp(
-                      0.0,
-                      1.0,
-                    );
-                    final bounce = (t < 0.5) ? (t * 2) : (2 - t * 2);
-                    return Transform.translate(
-                      offset: Offset(0, -3 * bounce),
-                      child: child,
-                    );
-                  },
-                  child: Container(
-                    // Dimensions: the dot's own footprint and its optical
-                    // half-gap. Not a `space` rung — 7px dots on a 4px ramp
-                    // would round to a different animation.
-                    margin: const EdgeInsets.symmetric(horizontal: 2.5),
-                    width: 7,
-                    height: 7,
-                    decoration: BoxDecoration(
-                      // Alpha 0.5 deleted: `inkMute` IS the de-emphasised rung.
-                      color: colors.inkMute,
-                      borderRadius: BorderRadius.circular(radius.circle),
+        // Sized to the conversation column, not to the text: a long Georgian
+        // stage name at a large text scale must wrap inside the bubble rather
+        // than push it past the gutter (the M14b overflow class).
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * 0.78,
+        ),
+        child: () {
+          final stage = state.stage;
+          final label = stage?.label ?? state.streamingStatus;
+          final row = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(
+                  3,
+                  (i) => AnimatedBuilder(
+                    animation: _dotAnimController,
+                    builder: (_, child) {
+                      final delay = i * 0.2;
+                      final t = (_dotAnimController.value - delay).clamp(
+                        0.0,
+                        1.0,
+                      );
+                      final bounce = (t < 0.5) ? (t * 2) : (2 - t * 2);
+                      return Transform.translate(
+                        offset: Offset(0, -3 * bounce),
+                        child: child,
+                      );
+                    },
+                    child: Container(
+                      // Dimensions: the dot's own footprint and its optical
+                      // half-gap. Not a `space` rung — 7px dots on a 4px ramp
+                      // would round to a different animation.
+                      margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        // Alpha 0.5 deleted: `inkMute` IS the de-emphasised rung.
+                        color: colors.inkMute,
+                        borderRadius: BorderRadius.circular(radius.circle),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            if (state.streamingStatus != null) ...[
-              SizedBox(width: space.m),
-              Flexible(
-                child: Text(
-                  state.streamingStatus!,
-                  // `fontStyle: italic` deleted — Ink has no italic face, so
-                  // it would be a synthesised oblique. Unlike M6's "skipped"
-                  // placeholder this is LIVE information the user reads, so it
-                  // keeps `inkMute` rather than dropping to `inkFaint`.
-                  style: type.bodyS.copyWith(color: colors.inkMute),
+              if (label != null) ...[
+                SizedBox(width: space.m),
+                Flexible(
+                  child: Text(
+                    label,
+                    // `fontStyle: italic` deleted — Ink has no italic face, so
+                    // it would be a synthesised oblique. Unlike M6's "skipped"
+                    // placeholder this is LIVE information the user reads, so it
+                    // keeps `inkMute` rather than dropping to `inkFaint`.
+                    style: type.bodyS.copyWith(color: colors.inkMute),
+                  ),
+                ),
+              ],
+            ],
+          );
+
+          if (stage == null) return row;
+
+          // With a real stage we can show POSITION, not just motion. Answers
+          // take 30-120s; "…" for two minutes reads as a hang, whereas a named
+          // stage that advances reads as work. The detail line is deliberately
+          // concrete ("23 articles found") — a number is evidence the step did
+          // something, which reassurance cannot be.
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              row,
+              if (stage.detail != null) ...[
+                SizedBox(height: space.xs),
+                Text(
+                  stage.detail!,
+                  // One rung quieter than the stage name: it qualifies the
+                  // stage, it does not compete with it.
+                  style: type.bodyS.copyWith(color: colors.inkFaint),
+                ),
+              ],
+              SizedBox(height: space.s),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(radius.l),
+                child: TweenAnimationBuilder<double>(
+                  // Stages fire in uneven jumps (a request skips whatever it
+                  // does not need), so the rail is TWEENED — an instant jump
+                  // from 0.2 to 0.7 reads as a glitch, a 300ms slide reads as
+                  // progress.
+                  tween: Tween(begin: 0, end: stage.progress),
+                  // Pack-bound, not a literal: the guard is right that a
+                  // hardcoded duration is a pixel the brand pack can no
+                  // longer control. `standard` is the rung for a state
+                  // change the user is watching, which is what this is.
+                  duration: motion.standard,
+                  curve: motion.standardCurve,
+                  builder: (context, value, _) => LinearProgressIndicator(
+                    value: value,
+                    // The empty rung of a progress bar IS `track` (MAPPING §2.3).
+                    backgroundColor: colors.track,
+                    valueColor: AlwaysStoppedAnimation(colors.ink),
+                    // Dimension: the bar's 4px rail, matching the questionnaire.
+                    minHeight: 4,
+                  ),
                 ),
               ),
             ],
-          ],
-        ),
+          );
+        }(),
       ),
     );
   }

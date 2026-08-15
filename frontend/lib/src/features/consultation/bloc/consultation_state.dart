@@ -49,6 +49,52 @@ class ToolResultData {
   });
 }
 
+/// One reported stage of the backend pipeline.
+///
+/// The backend answers in 30-120s and used to say only "…" for all of it. A
+/// stage carries a name, an optional CONCRETE detail ("23 articles found")
+/// and its position, so the indicator can show movement rather than just
+/// motion.
+class PipelineStage {
+  /// Stable identifier — `guard`, `search`, `draft`, `verify`, …
+  /// Match on this, never on [label], which is display text.
+  final String key;
+  final String label;
+  final String? detail;
+  final int index;
+  final int total;
+
+  const PipelineStage({
+    required this.key,
+    required this.label,
+    required this.index,
+    required this.total,
+    this.detail,
+  });
+
+  factory PipelineStage.fromMap(Map<String, dynamic> map) => PipelineStage(
+    key: map['key']?.toString() ?? '',
+    label: map['label']?.toString() ?? '',
+    detail: map['detail']?.toString(),
+    index: (map['index'] as num?)?.toInt() ?? 0,
+    total: (map['total'] as num?)?.toInt() ?? 1,
+  );
+
+  /// 0.0-1.0 through the declared stage list. Stages a request skips never
+  /// fire, so this advances in uneven jumps — it is a position, not an ETA.
+  double get progress => total <= 1 ? 0 : (index / (total - 1)).clamp(0.0, 1.0);
+
+  @override
+  bool operator ==(Object other) =>
+      other is PipelineStage &&
+      other.key == key &&
+      other.detail == detail &&
+      other.index == index;
+
+  @override
+  int get hashCode => Object.hash(key, detail, index);
+}
+
 class CitationData {
   final String articleId;
   final String articleTitle;
@@ -85,6 +131,7 @@ class ConsultationState {
   final List<ToolResultData> pendingConfirmations;
   final String? streamingStatus;
   final String? streamingMessageId;
+  final PipelineStage? stage;
 
   const ConsultationState({
     this.status = StateStatus.initial,
@@ -104,6 +151,7 @@ class ConsultationState {
     this.pendingConfirmations = const [],
     this.streamingStatus,
     this.streamingMessageId,
+    this.stage,
   });
 
   bool get hasCaseAttached => attachedCaseId != null;
@@ -132,6 +180,8 @@ class ConsultationState {
     bool clearStreamingStatus = false,
     String? streamingMessageId,
     bool clearStreamingMessageId = false,
+    PipelineStage? stage,
+    bool clearStage = false,
   }) {
     return ConsultationState(
       status: status ?? this.status,
@@ -144,13 +194,24 @@ class ConsultationState {
       caseAnalysisReady: caseAnalysisReady ?? this.caseAnalysisReady,
       isBuildingCase: isBuildingCase ?? this.isBuildingCase,
       caseFileData: caseFileData ?? this.caseFileData,
-      attachedCaseId: clearAttachedCase ? null : (attachedCaseId ?? this.attachedCaseId),
-      attachedCaseTitle: clearAttachedCase ? null : (attachedCaseTitle ?? this.attachedCaseTitle),
-      attachedCaseContext: clearAttachedCase ? null : (attachedCaseContext ?? this.attachedCaseContext),
+      attachedCaseId: clearAttachedCase
+          ? null
+          : (attachedCaseId ?? this.attachedCaseId),
+      attachedCaseTitle: clearAttachedCase
+          ? null
+          : (attachedCaseTitle ?? this.attachedCaseTitle),
+      attachedCaseContext: clearAttachedCase
+          ? null
+          : (attachedCaseContext ?? this.attachedCaseContext),
       caseFileId: clearCaseFileId ? null : (caseFileId ?? this.caseFileId),
       pendingConfirmations: pendingConfirmations ?? this.pendingConfirmations,
-      streamingStatus: clearStreamingStatus ? null : (streamingStatus ?? this.streamingStatus),
-      streamingMessageId: clearStreamingMessageId ? null : (streamingMessageId ?? this.streamingMessageId),
+      streamingStatus: clearStreamingStatus
+          ? null
+          : (streamingStatus ?? this.streamingStatus),
+      streamingMessageId: clearStreamingMessageId
+          ? null
+          : (streamingMessageId ?? this.streamingMessageId),
+      stage: clearStage ? null : (stage ?? this.stage),
     );
   }
 }

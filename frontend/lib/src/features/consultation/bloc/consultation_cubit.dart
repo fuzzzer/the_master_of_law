@@ -143,6 +143,7 @@ class ConsultationCubit extends Cubit<ConsultationState> {
         isSending: true,
         streamingMessageId: streamingId,
         clearStreamingStatus: true,
+        clearStage: true,
       ),
     );
 
@@ -174,6 +175,7 @@ class ConsultationCubit extends Cubit<ConsultationState> {
           messages: [...msgs, errorMsg],
           isSending: false,
           clearStreamingStatus: true,
+          clearStage: true,
           clearStreamingMessageId: true,
         ),
       );
@@ -183,10 +185,26 @@ class ConsultationCubit extends Cubit<ConsultationState> {
       (event) {
         if (isClosed) return;
         final type = event['type'];
-        if (type == 'status') {
+        if (type == 'stage') {
+          // Real pipeline position, reported live by the backend. It replaces
+          // `streamingStatus` rather than sitting beside it: two competing
+          // progress lines is worse than one, and the stage carries strictly
+          // more (name + concrete detail + position).
           _safeEmit(
-            state.copyWith(streamingStatus: event['message']?.toString()),
+            state.copyWith(
+              stage: PipelineStage.fromMap(Map<String, dynamic>.from(event)),
+              clearStreamingStatus: true,
+            ),
           );
+        } else if (type == 'status') {
+          // Legacy coarse status, still sent around the edges of the pipeline
+          // (before the guardrail, during case build). Never overwrite a real
+          // stage with it — the stage is the better signal once it exists.
+          if (state.stage == null) {
+            _safeEmit(
+              state.copyWith(streamingStatus: event['message']?.toString()),
+            );
+          }
         } else if (type == 'chunk') {
           final msgs = List<ChatMessage>.from(state.messages);
           final index = msgs.indexWhere((m) => m.id == streamingId);
@@ -202,6 +220,7 @@ class ConsultationCubit extends Cubit<ConsultationState> {
               state.copyWith(
                 messages: msgs,
                 clearStreamingStatus: true,
+                clearStage: true,
                 isSending: false,
               ),
             );
@@ -217,6 +236,7 @@ class ConsultationCubit extends Cubit<ConsultationState> {
               state.copyWith(
                 messages: msgs,
                 clearStreamingStatus: true,
+                clearStage: true,
                 isSending: false,
               ),
             );
@@ -326,6 +346,7 @@ class ConsultationCubit extends Cubit<ConsultationState> {
               messages: msgs,
               isSending: false,
               clearStreamingStatus: true,
+              clearStage: true,
               clearStreamingMessageId: true,
               caseAnalysisReady: caseReady,
               caseFileId: createdCaseId ?? state.caseFileId,
@@ -350,6 +371,7 @@ class ConsultationCubit extends Cubit<ConsultationState> {
               messages: [...msgs, errorMsg],
               isSending: false,
               clearStreamingStatus: true,
+              clearStage: true,
               clearStreamingMessageId: true,
             ),
           );

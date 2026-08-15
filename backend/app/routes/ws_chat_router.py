@@ -143,7 +143,26 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                 history = await conv_svc.get_conversation_history(conversation_id)
                 await conv_svc.save_user_message(conversation_id, user_message)
 
-                await websocket.send_json({"type": "status", "message": "Checking query..."})
+                # Stage reporting starts BEFORE the guardrail — that call is a
+                # model round-trip too, and leaving it unreported meant stage
+                # 1 of 10 never fired and the bar began at 2.
+                import asyncio as _asyncio
+
+                from app.services.progress_service import (
+                    clear_progress_sink,
+                    set_progress_sink,
+                )
+
+                stage_queue: _asyncio.Queue = _asyncio.Queue()
+                set_progress_sink(stage_queue.put_nowait)
+
+                async def pump_stages():
+                    while True:
+                        frame = await stage_queue.get()
+                        if not await _safe_send(websocket, frame):
+                            return
+
+                stage_task = _asyncio.create_task(pump_stages())
 
                 start_trace(
                     entry_point="ws_chat",
@@ -226,6 +245,7 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
 
                     # Concurrently run pipeline and watch for disconnect
                     import asyncio
+
                     pipeline_task = asyncio.create_task(
                         pipeline.run(
                             user_message=enriched_message,
@@ -249,13 +269,24 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
 
                     disconnect_task = asyncio.create_task(watch_disconnect())
 
-                    done, pending = await asyncio.wait(
-                        [pipeline_task, disconnect_task],
-                        return_when=asyncio.FIRST_COMPLETED
-                    )
+                    try:
+                        done, pending = await asyncio.wait(
+                            [pipeline_task, disconnect_task],
+                            return_when=asyncio.FIRST_COMPLETED
+                        )
 
-                    for task in pending:
-                        task.cancel()
+                        for task in pending:
+                            task.cancel()
+
+                        # Flush stage frames emitted between the pump's last
+                        # iteration and the pipeline finishing.
+                        while not stage_queue.empty():
+                            await _safe_send(websocket, stage_queue.get_nowait())
+                    finally:
+                        # Flush whatever the pump has not drained yet; the
+                        # pump itself is retired by the per-message finally.
+                        while not stage_queue.empty():
+                            await _safe_send(websocket, stage_queue.get_nowait())
 
                     if pipeline_task not in done:
                         # Client disconnected during pipeline run!
@@ -375,6 +406,13 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                         "type": "error",
                         "message": "An error occurred during analysis. Please try again.",
                     })
+                finally:
+                    # This handler is a LOOP serving many messages. Every exit
+                    # path from one message — answered, blocked by the
+                    # guardrail, or failed — must retire that message's pump,
+                    # or the next one pushes stages into a queue nobody drains.
+                    stage_task.cancel()
+                    clear_progress_sink()
 
     except WebSocketDisconnect:
         logger.info("ws_disconnected", conversation_id=conversation_id)
