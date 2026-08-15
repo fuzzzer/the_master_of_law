@@ -3,7 +3,7 @@
 > **Status:** Complete
 > **Location:** `law_corpus/`
 
-The Master of Law's intelligence relies heavily on a highly curated, accurate, and properly chunked corpus of Georgian law.
+Fuzzzy Law's intelligence relies heavily on a highly curated, accurate, and properly chunked corpus of Georgian law.
 
 ## Included Legal Sources
 

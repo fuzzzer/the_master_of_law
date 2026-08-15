@@ -1,4 +1,4 @@
-# კანონის ოსტატი — The Master of Law
+# ბუნდოვანი კანონი — Fuzzzy Law
 
 > Your AI Legal Advocate — because every Georgian citizen deserves adequate defense.
 > **Last updated:** 2026-05-05
@@ -11,8 +11,8 @@
 |------|-----------|--------|----------|
 | 1 | Law Corpus Pipeline | ✅ **COMPLETE** | `law_corpus/` |
 | 2 | FastAPI Backend | ✅ **COMPLETE** | `backend/` |
-| 3a | Design System | 🔄 **IN PROGRESS** | `packages/open-design/design-systems/kanonis-ostati/DESIGN.md` |
-| 3b | Flutter App | 🔄 **IN PROGRESS** | `frontend/` (package: `master_of_law`) |
+| 3a | Design System | 🔄 **IN PROGRESS** | `packages/open-design/design-systems/fuzzzy-law/DESIGN.md` |
+| 3b | Flutter App | 🔄 **IN PROGRESS** | `frontend/` (package: `fuzzzy_law`) |
 | 4 | Integration & Deploy | ⬜ **FUTURE** | — |
 
 ---
@@ -36,12 +36,12 @@ Built a production-grade backend with 25 endpoints, 10 services, 5-stage RAG pip
 ## Step 3 — Design System & Flutter App 🔄 IN PROGRESS
 
 **Spec:** `master_plan/03_design_system_prompt.md`
-**Design:** `packages/open-design/design-systems/kanonis-ostati/DESIGN.md`
+**Design:** `packages/open-design/design-systems/fuzzzy-law/DESIGN.md`
 **Roadmap:** `master_plan/04_feature_roadmap.md`
 
 ### What's Done
 - Comprehensive DESIGN.md with case-centric architecture
-- Flutter app renamed: `themasteroflaw` → `master_of_law` (`ge.fuzzycore.masteroflaw`)
+- Flutter app renamed: `fuzzzy_law` → `fuzzzy_law` (`ge.fuzzycore.fuzzzylaw`)
 - 5-tab navigation defined: Chat, Cases (★), Laws, Notes, Profile
 - Feature roadmap with 6 phases
 - User needs analysis
@@ -98,7 +98,7 @@ Users **dump** raw information. The AI **organizes** it.
 | **Backend reference** | `AI_GUIDE.md` |
 | **Backend details** | `handoff.md` |
 | **Start backend** | `startup_handoff.md` |
-| **Design system** | `packages/open-design/design-systems/kanonis-ostati/DESIGN.md` |
+| **Design system** | `packages/open-design/design-systems/fuzzzy-law/DESIGN.md` |
 | **Feature roadmap** | `master_plan/04_feature_roadmap.md` |
 | **Flutter architecture** | `frontend/.agents/general_guide/flutter_architecture.md` |
 | **Production deploy** | `PRODUCTION_SETUP.md` |
@@ -108,7 +108,7 @@ Users **dump** raw information. The AI **organizes** it.
 ## Project Map
 
 ```
-the_master_of_law/
+fuzzzy_law/
 ├── master_plan/                    # Specs + roadmap
 │   ├── 01_law_corpus_agent_prompt.md   # ✅ Step 1 spec
 │   ├── 02_backend_system_prompt.md     # ✅ Step 2 spec
@@ -118,7 +118,7 @@ the_master_of_law/
 │   └── README.md
 ├── law_corpus/                     # ✅ COMPLETE (9,450 chunks)
 ├── backend/                        # ✅ COMPLETE (25 endpoints, 124 tests)
-├── frontend/                  # 🔄 Flutter app (master_of_law)
+├── frontend/                  # 🔄 Flutter app (fuzzzy_law)
 │   ├── packages/ui_kit/            # Design system implementation
 │   └── packages/open-design/       # Open-design tool
 ├── AI_GUIDE.md                     # Backend architecture

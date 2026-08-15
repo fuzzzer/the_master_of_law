@@ -6,9 +6,9 @@
 
 ---
 
-# Task: Build "The Master of Law" — Full Production Flutter App
+# Task: Build "Fuzzzy Law" — Full Production Flutter App
 
-You are building a COMPLETE, PRODUCTION-READY Flutter mobile app called **კანონის ოსტატი (The Master of Law)** — an AI-powered legal case workspace for Georgian citizens. 
+You are building a COMPLETE, PRODUCTION-READY Flutter mobile app called **ბუნდოვანი კანონი (Fuzzzy Law)** — an AI-powered legal case workspace for Georgian citizens. 
 
 **No placeholders. No "coming soon." Every screen fully functional. One tap launch.**
 
@@ -26,7 +26,7 @@ Before writing ANY code, you MUST read all of these:
 
 3. **`frontend/.agents/general_guide/lessons_learned.md`** — Anti-patterns and historical bugs. Repositories never throw. Cubits never try/catch. Single barrel import rule.
 
-4. **`packages/open-design/design-systems/kanonis-ostati/DESIGN.md`** — Full visual design spec (one directory up from `frontend/`).
+4. **`packages/open-design/design-systems/fuzzzy-law/DESIGN.md`** — Full visual design spec (one directory up from `frontend/`).
 
 5. **`.agents/context/backend.md`** — Backend API (25 endpoints). All endpoint paths, auth, credit system (at project root level).
 
@@ -36,13 +36,13 @@ Before writing ANY code, you MUST read all of these:
 
 ## Project State — What Exists
 
-**Package:** `themasteroflaw` | **Bundle:** `ge.fuzzycore.themasteroflaw` | **Flutter:** 3.32.0 (FVM)
+**Package:** `fuzzzy_law` | **Bundle:** `ge.fuzzycore.fuzzzylaw` | **Flutter:** 3.32.0 (FVM)
 
 **Already built (DO NOT recreate):**
-- App shell: `ThemasteroflawApp`, `Initializer`, `GlobalBlocProviders`
+- App shell: `FuzzzyLawApp`, `Initializer`, `GlobalBlocProviders`
 - Core: DI (GetIt), HTTP client (Dio), error handling, l10n (ka/en), services (logger, cache, secure storage, dev panel)
 - UI Kit package: `packages/ui_kit/` with theme extension system (`UiColors`, `UiTextStyles`, `UiFormStyles` via `context.uiColors` etc.)
-- GoRouter skeleton (empty routes in `themasteroflaw_router.dart`)
+- GoRouter skeleton (empty routes in `fuzzzy_law_router.dart`)
 - BLoC generic states: `StateStatus`, `ActionStateStatus` enums
 
 **Not built yet (YOU BUILD THIS):**
@@ -479,7 +479,7 @@ From case overview → export button:
 1. Add `export 'features/features.dart';` to `src.dart`
 2. Register ALL cubits and repositories in `dependency_injection.dart`
 3. Initialize Hive with all TypeAdapters in `Initializer.preAppInit()`
-4. Configure ALL routes in `themasteroflaw_router.dart`
+4. Configure ALL routes in `fuzzzy_law_router.dart`
 5. Add ALL new localization strings via `loc.sh` pattern (externalize every user-facing string)
 6. Remind user to run `./exp.sh` after all file creation
 
@@ -492,7 +492,7 @@ From case overview → export button:
 3. **Constructor injection** for repos and cubits. `sl.get<T>()` ONLY in data sources
 4. **No hardcoded colors** — use `context.uiColors.accentColor` etc.
 5. **No hardcoded text styles** — use `context.uiTextStyles.bodyBold16` etc.
-6. **Single import** — `import 'package:themasteroflaw/src/src.dart';`
+6. **Single import** — `import 'package:fuzzzy_law/src/src.dart';`
 7. **Every directory gets a barrel file** exporting all children
 8. **State is immutable** — always `copyWith`
 9. **Dark mode is default** — test dark first

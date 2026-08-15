@@ -1,4 +1,4 @@
-# კანონის ოსტატი — The Master of Law
+# ბუნდოვანი კანონი — Fuzzzy Law
 
 > AI-powered legal advocate for Georgian citizens.
 
@@ -17,7 +17,7 @@
 | **Flutter / UI** | `frontend/.agents/orchestrator.md` → `frontend/.agents/general_guide/flutter_architecture.md` |
 | **Production deploy** | `.agents/context/production.md` |
 | **Debugging** | `.agents/debug_surgeon/context.md` |
-| **Design system** | `packages/open-design/design-systems/kanonis-ostati/DESIGN.md` |
+| **Design system** | `packages/open-design/design-systems/fuzzzy-law/DESIGN.md` |
 | **Law corpus / RAG tuning** | `.agents/context/law_corpus.md` + `.agents/rag_specialist/context.md` |
 | **Feature planning** | `master_plan/04_feature_roadmap.md` |
 | **Evaluation** | `eval/steps.md` |
@@ -36,7 +36,7 @@ git log --oneline -10 -- <file>
 ## Architecture
 
 ```
-Flutter App (master_of_law, ge.fuzzycore.masteroflaw)
+Flutter App (fuzzzy_law, ge.fuzzycore.fuzzzylaw)
   │ Features: auth, cases, consultation, feedback, laws, profile
   │ HTTPS / WebSocket + RAGCollectionConfig (feature flags)
   ▼
@@ -76,7 +76,7 @@ import vertexai            # ❌ WRONG — never use this
 ```
 
 ### Key Identifiers
-- **Package:** `master_of_law` | **Bundle ID:** `ge.fuzzycore.masteroflaw`
+- **Package:** `fuzzzy_law` | **Bundle ID:** `ge.fuzzycore.fuzzzylaw`
 - **GCP Project:** `gen-lang-client-0225498420` | **Region:** `us-central1`
 - **LLM:** `gemini-3.1-pro` | **Embeddings:** `gemini-embedding-001` (768 dims)
 

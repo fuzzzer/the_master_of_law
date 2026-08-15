@@ -1,9 +1,9 @@
-import 'package:themasteroflaw/src/src.dart';
+import 'package:fuzzzy_law/src/src.dart';
 
-ThemasteroflawLocalizations get currentContextLocalizations {
+FuzzzyLawLocalizations get currentContextLocalizations {
   if (navigatorKey.currentContext == null) {
-    return ThemasteroflawLocalizationsKa();
+    return FuzzzyLawLocalizationsKa();
   }
 
-  return ThemasteroflawLocalizations.of(navigatorKey.currentContext!)!;
+  return FuzzzyLawLocalizations.of(navigatorKey.currentContext!)!;
 }

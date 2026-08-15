@@ -5,24 +5,24 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart' as intl;
 
-import 'themasteroflaw_localizations_en.dart';
-import 'themasteroflaw_localizations_ka.dart';
+import 'fuzzzy_law_localizations_en.dart';
+import 'fuzzzy_law_localizations_ka.dart';
 
 // ignore_for_file: type=lint
 
-/// Callers can lookup localized strings with an instance of ThemasteroflawLocalizations
-/// returned by `ThemasteroflawLocalizations.of(context)`.
+/// Callers can lookup localized strings with an instance of FuzzzyLawLocalizations
+/// returned by `FuzzzyLawLocalizations.of(context)`.
 ///
-/// Applications need to include `ThemasteroflawLocalizations.delegate()` in their app's
+/// Applications need to include `FuzzzyLawLocalizations.delegate()` in their app's
 /// `localizationDelegates` list, and the locales they support in the app's
 /// `supportedLocales` list. For example:
 ///
 /// ```dart
-/// import 'generated_localizations/themasteroflaw_localizations.dart';
+/// import 'generated_localizations/fuzzzy_law_localizations.dart';
 ///
 /// return MaterialApp(
-///   localizationsDelegates: ThemasteroflawLocalizations.localizationsDelegates,
-///   supportedLocales: ThemasteroflawLocalizations.supportedLocales,
+///   localizationsDelegates: FuzzzyLawLocalizations.localizationsDelegates,
+///   supportedLocales: FuzzzyLawLocalizations.supportedLocales,
 ///   home: MyApplicationHome(),
 /// );
 /// ```
@@ -59,23 +59,23 @@ import 'themasteroflaw_localizations_ka.dart';
 /// Select and expand the newly-created Localizations item then, for each
 /// locale your application supports, add a new item and select the locale
 /// you wish to add from the pop-up menu in the Value field. This list should
-/// be consistent with the languages listed in the ThemasteroflawLocalizations.supportedLocales
+/// be consistent with the languages listed in the FuzzzyLawLocalizations.supportedLocales
 /// property.
-abstract class ThemasteroflawLocalizations {
-  ThemasteroflawLocalizations(String locale)
+abstract class FuzzzyLawLocalizations {
+  FuzzzyLawLocalizations(String locale)
     : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
-  static ThemasteroflawLocalizations? of(BuildContext context) {
-    return Localizations.of<ThemasteroflawLocalizations>(
+  static FuzzzyLawLocalizations? of(BuildContext context) {
+    return Localizations.of<FuzzzyLawLocalizations>(
       context,
-      ThemasteroflawLocalizations,
+      FuzzzyLawLocalizations,
     );
   }
 
-  static const LocalizationsDelegate<ThemasteroflawLocalizations> delegate =
-      _ThemasteroflawLocalizationsDelegate();
+  static const LocalizationsDelegate<FuzzzyLawLocalizations> delegate =
+      _FuzzzyLawLocalizationsDelegate();
 
   /// A list of this localizations delegate along with the default localizations
   /// delegates.
@@ -1145,14 +1145,14 @@ abstract class ThemasteroflawLocalizations {
   String get topSlots;
 }
 
-class _ThemasteroflawLocalizationsDelegate
-    extends LocalizationsDelegate<ThemasteroflawLocalizations> {
-  const _ThemasteroflawLocalizationsDelegate();
+class _FuzzzyLawLocalizationsDelegate
+    extends LocalizationsDelegate<FuzzzyLawLocalizations> {
+  const _FuzzzyLawLocalizationsDelegate();
 
   @override
-  Future<ThemasteroflawLocalizations> load(Locale locale) {
-    return SynchronousFuture<ThemasteroflawLocalizations>(
-      lookupThemasteroflawLocalizations(locale),
+  Future<FuzzzyLawLocalizations> load(Locale locale) {
+    return SynchronousFuture<FuzzzyLawLocalizations>(
+      lookupFuzzzyLawLocalizations(locale),
     );
   }
 
@@ -1161,20 +1161,20 @@ class _ThemasteroflawLocalizationsDelegate
       <String>['en', 'ka'].contains(locale.languageCode);
 
   @override
-  bool shouldReload(_ThemasteroflawLocalizationsDelegate old) => false;
+  bool shouldReload(_FuzzzyLawLocalizationsDelegate old) => false;
 }
 
-ThemasteroflawLocalizations lookupThemasteroflawLocalizations(Locale locale) {
+FuzzzyLawLocalizations lookupFuzzzyLawLocalizations(Locale locale) {
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
     case 'en':
-      return ThemasteroflawLocalizationsEn();
+      return FuzzzyLawLocalizationsEn();
     case 'ka':
-      return ThemasteroflawLocalizationsKa();
+      return FuzzzyLawLocalizationsKa();
   }
 
   throw FlutterError(
-    'ThemasteroflawLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+    'FuzzzyLawLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
     'an issue with the localizations generation tool. Please file an issue '
     'on GitHub with a reproducible sample app and the gen-l10n configuration '
     'that was used.',

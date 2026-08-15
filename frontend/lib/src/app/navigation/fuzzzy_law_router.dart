@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:fuzzzy_law/src/src.dart';
 import 'package:go_router/go_router.dart';
-import 'package:themasteroflaw/src/src.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
 
 class AppRouter {
-  static final GoRouter themasteroflawRouter = GoRouter(
+  static final GoRouter fuzzzyLawRouter = GoRouter(
     navigatorKey: navigatorKey,
     initialLocation: '/auth',
     observers: [NavigationLogger()],

@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fuzzzy_law/src/src.dart';
 import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:themasteroflaw/src/src.dart';
 
 /// Phase M · Unit A · **M18 — the `T-0260` lock.**
 ///
@@ -44,7 +44,7 @@ void main() {
         'Directionality', (tester) async {
       // `pumpWidget` supplies only a `View`. There is no `MaterialApp`, no
       // `Theme`, no `MediaQuery`, no `Directionality`, no `Focus` scope — the
-      // shape of the tree when `ThemasteroflawTheme.dark()` itself throws and
+      // shape of the tree when `FuzzzyLawTheme.dark()` itself throws and
       // `MaterialApp` never builds. Before M18 this threw a null-check error
       // on `extension<FuzzzyColors>()!`; SEEN RED.
       await tester.pumpWidget(const AppErrorPageView(message: message));
@@ -107,7 +107,7 @@ void main() {
   group('the healthy path is unchanged', () {
     Future<void> pumpThemed(WidgetTester tester) async {
       late ThemeData theme;
-      runZonedGuarded(() => theme = ThemasteroflawTheme.dark(), (e, _) {});
+      runZonedGuarded(() => theme = FuzzzyLawTheme.dark(), (e, _) {});
       await tester.pumpWidget(
         MaterialApp(
           theme: theme,
@@ -153,7 +153,7 @@ void main() {
       addTearDown(tester.view.reset);
 
       late ThemeData theme;
-      runZonedGuarded(() => theme = ThemasteroflawTheme.dark(), (e, _) {});
+      runZonedGuarded(() => theme = FuzzzyLawTheme.dark(), (e, _) {});
       await tester.pumpWidget(
         MaterialApp(
           theme: theme,

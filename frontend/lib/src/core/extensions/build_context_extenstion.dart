@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:themasteroflaw/src/src.dart';
+import 'package:fuzzzy_law/src/src.dart';
 
 /// App-level `BuildContext` conveniences.
 ///
@@ -31,6 +31,6 @@ import 'package:themasteroflaw/src/src.dart';
 /// becomes an `unused_local_variable` WARNING, which is a gate failure, not a
 /// hint (JOURNAL M9 judgement 9).
 extension BuildContextExtension on BuildContext {
-  ThemasteroflawLocalizations get themasteroflawLocalizations =>
-      ThemasteroflawLocalizations.of(this)!;
+  FuzzzyLawLocalizations get fuzzzyLawLocalizations =>
+      FuzzzyLawLocalizations.of(this)!;
 }

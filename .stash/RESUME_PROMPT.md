@@ -16,7 +16,7 @@ Read these files in order:
 
 For specific tasks, also load:
 - Backend work → `handoff.md` + `startup_handoff.md`
-- Design system → `packages/open-design/design-systems/kanonis-ostati/DESIGN.md`
+- Design system → `packages/open-design/design-systems/fuzzzy-law/DESIGN.md`
 - Flutter ui_kit → `frontend/packages/ui_kit/lib/src/`
 - Flutter architecture → `frontend/.agents/general_guide/flutter_architecture.md`
 - Production deploy → `PRODUCTION_SETUP.md`
@@ -31,7 +31,7 @@ For specific tasks, also load:
 - **Step 1** — Law corpus: 9,450 chunks in ChromaDB, 12 Georgian legal codes
 - **Step 2** — Backend: 25 endpoints, 10 services, 124 tests, Docker ready
 - **Step 3a** — Design system: DESIGN.md created, case-centric architecture defined
-- **Flutter rename** — `themasteroflaw` → `master_of_law`, bundle: `ge.fuzzycore.masteroflaw`
+- **Flutter rename** — `fuzzzy_law` → `fuzzzy_law`, bundle: `ge.fuzzycore.fuzzzylaw`
 
 ### In Progress 🔄
 - Generating visual mockups via open-design (chat screen, case builder, laws, etc.)
@@ -57,11 +57,11 @@ For specific tasks, also load:
 ## Project Map
 
 ```
-the_master_of_law/
+fuzzzy_law/
 ├── master_plan/             📐 Specs + roadmap (01=corpus ✅, 02=backend ✅, 03=design 🔄, 04=roadmap ✅)
 ├── law_corpus/              📚 Georgian law data (9,450 chunks, DO NOT MODIFY)
 ├── backend/                 🔧 FastAPI backend (25 endpoints, 10 services, 124 tests)
-├── frontend/           📱 Flutter app (renamed to master_of_law)
+├── frontend/           📱 Flutter app (renamed to fuzzzy_law)
 │   ├── packages/ui_kit/     🎨 Design system implementation (needs token injection)
 │   └── packages/open-design/🖌️ Open-design tool for mockup generation
 ├── AI_GUIDE.md              📖 Backend architecture reference

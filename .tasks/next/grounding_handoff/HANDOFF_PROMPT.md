@@ -1,7 +1,7 @@
 # HANDOFF PROMPT — Grounding Hardening Executor
 
-You are the **implementing agent** for the grounding-hardening initiative of კანონის ოსტატი
-(The Master of Law) — an AI legal advocate for Georgian citizens. A planner/debugger agent has
+You are the **implementing agent** for the grounding-hardening initiative of ბუნდოვანი კანონი
+(Fuzzzy Law) — an AI legal advocate for Georgian citizens. A planner/debugger agent has
 already audited the live system, built a pipeline transparency suite for you to verify with,
 and produced the plan you will now execute **end to end in this run**.
 

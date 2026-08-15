@@ -2,7 +2,7 @@
 
 > Complete reference for the 32 REST and WebSocket endpoints in the backend.
 
-**Base URL:** `http://localhost:8000` (Local) / `https://api.kanonis-ostati.ge` (Production)
+**Base URL:** `http://localhost:8000` (Local) / `https://api.fuzzzy-law.ge` (Production)
 **Authentication:** Pass a Firebase ID token in the header: `Authorization: Bearer <TOKEN>`
 
 ## Rate Limiting

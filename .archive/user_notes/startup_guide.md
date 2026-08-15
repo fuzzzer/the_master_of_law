@@ -1,4 +1,4 @@
-# 🚀 Master of Law — Backend Startup Guide
+# 🚀 Fuzzzy Law — Backend Startup Guide
 
 ## Quick Start (Copy-Paste)
 

@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════════════════════════
-#  THE MASTER OF LAW — Docker Compose (Production)
+#  FUZZZY LAW — Docker Compose (Production)
 #
 #  SECURITY MODEL:
 #  ┌─────────────────────────────────────────────────────────┐
@@ -40,7 +40,7 @@ services:
     env_file: .env
     environment:
       # Override DB/Redis URLs to use Docker internal hostnames
-      DATABASE_URL: postgresql+asyncpg://mol_user:${POSTGRES_PASSWORD}@postgres:5432/master_of_law
+      DATABASE_URL: postgresql+asyncpg://fuzzzy_user:${POSTGRES_PASSWORD}@postgres:5432/fuzzzy_law
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       CHROMA_PERSIST_DIR: /app/law_corpus_data/chroma
       # Vertex AI auth — ADC auto-discovers this. Billing goes through GCP.
@@ -74,8 +74,8 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: master_of_law
-      POSTGRES_USER: mol_user
+      POSTGRES_DB: fuzzzy_law
+      POSTGRES_USER: fuzzzy_user
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       # Reject connections from non-internal networks
       POSTGRES_HOST_AUTH_METHOD: scram-sha-256
@@ -83,7 +83,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mol_user -d master_of_law"]
+      test: ["CMD-SHELL", "pg_isready -U fuzzzy_user -d fuzzzy_law"]
       interval: 10s
       timeout: 5s
       retries: 5

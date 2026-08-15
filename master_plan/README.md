@@ -1,13 +1,13 @@
-# 🏛️ The Master of Law — Master Plan
+# 🏛️ Fuzzzy Law — Master Plan
 
-> **კანონის ოსტატი** — Your AI Legal Advocate
+> **ბუნდოვანი კანონი** — Your AI Legal Advocate
 > **Last updated:** 2026-05-05
 
 ## Mission
 
 **Every Georgian citizen deserves adequate legal defense — regardless of income.**
 
-The Master of Law is an AI-powered legal advocate that ensures no one walks into court unprepared, uninformed, or undefended. It uses the full text of Georgian legislation, combined with Gemini 3.1 Pro's reasoning, to build real defense strategies — citing exact law articles, identifying every applicable defense, and explaining it all in plain language.
+Fuzzzy Law is an AI-powered legal advocate that ensures no one walks into court unprepared, uninformed, or undefended. It uses the full text of Georgian legislation, combined with Gemini 3.1 Pro's reasoning, to build real defense strategies — citing exact law articles, identifying every applicable defense, and explaining it all in plain language.
 
 This is not a legal Q&A chatbot. It is a **case-building tool** — it thinks like a lawyer, advocates for the user's best interest, organizes all case materials, and helps users achieve the most favorable legal outcome possible.
 
@@ -20,7 +20,7 @@ This is not a legal Q&A chatbot. It is a **case-building tool** — it thinks li
 | 1 | Law Corpus Pipeline | ✅ **DONE** | `law_corpus/`, `01_law_corpus_agent_prompt.md` |
 | 2 | FastAPI Backend | ✅ **DONE** | `backend/`, `02_backend_system_prompt.md` |
 | 3 | Design System | 🔄 **IN PROGRESS** | `03_design_system_prompt.md`, `04_feature_roadmap.md` |
-| 4 | Flutter App | 🔄 **IN PROGRESS** | `frontend/` (package: `master_of_law`) |
+| 4 | Flutter App | 🔄 **IN PROGRESS** | `frontend/` (package: `fuzzzy_law`) |
 | 5 | Integration & Deploy | ⬜ **FUTURE** | — |
 
 ---
@@ -123,7 +123,7 @@ Full details in [`04_feature_roadmap.md`](./04_feature_roadmap.md)
 
 | Layer | Technology |
 |-------|-----------|
-| **Mobile App** | Flutter (Dart) — `master_of_law` package, `ge.fuzzycore.masteroflaw` |
+| **Mobile App** | Flutter (Dart) — `fuzzzy_law` package, `ge.fuzzycore.fuzzzylaw` |
 | **Backend API** | Python 3.11 + FastAPI (25 endpoints, 10 services) |
 | **AI Model** | Gemini 3.1 Pro (Vertex AI, google-genai SDK) |
 | **Embeddings** | gemini-embedding-001 (768 dims, 9,450 chunks) |
@@ -153,7 +153,7 @@ Full details in [`04_feature_roadmap.md`](./04_feature_roadmap.md)
 ## Directory Structure
 
 ```
-the_master_of_law/
+fuzzzy_law/
 ├── master_plan/                    # ← You are here
 │   ├── README.md                   # ★ This file
 │   ├── 01_law_corpus_agent_prompt.md    # ✅ Step 1 spec
@@ -172,7 +172,7 @@ the_master_of_law/
 │   ├── tests/                      # 124 tests
 │   └── docker-compose.yml          # Production deployment
 │
-├── frontend/                  # 🔄 Flutter app (package: master_of_law)
+├── frontend/                  # 🔄 Flutter app (package: fuzzzy_law)
 │   ├── lib/                        # App source
 │   ├── packages/ui_kit/            # Design system tokens
 │   └── packages/open-design/       # Open-design tool (cloned)

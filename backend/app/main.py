@@ -94,8 +94,8 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     """Build and configure the FastAPI application."""
     app = FastAPI(
-        title="The Master of Law API",
-        description="AI-powered legal advocate backend for Georgian citizens — კანონის ოსტატი",
+        title="Fuzzzy Law API",
+        description="AI-powered legal advocate backend for Georgian citizens — ბუნდოვანი კანონი",
         version="0.2.7",
         lifespan=lifespan,
         docs_url="/docs" if not settings.is_production else None,

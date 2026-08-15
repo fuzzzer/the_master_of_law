@@ -67,7 +67,7 @@ After `buildCaseFile()` returns data:
 2. Navigate to `CaseWorkspacePage` with the case ID
 3. The workspace should show all populated sections (facts, strategies, evidence, tasks, etc.)
 
-**Check:** `frontend/lib/src/app/navigation/themasteroflaw_router.dart` for existing case workspace route.
+**Check:** `frontend/lib/src/app/navigation/fuzzzy_law_router.dart` for existing case workspace route.
 
 ### 3. Frontend Files to Modify
 

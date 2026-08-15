@@ -86,7 +86,7 @@ Then read the relevant skill context from `.agents/<skill>/context.md`.
 | **Starting any task** | `context/mindset_and_principles.md` (always first) |
 | Working on the backend | `context/backend.md` + `code_architect` |
 | Working on Flutter app | `frontend/.agents/orchestrator.md` |
-| Working on design system | `packages/open-design/design-systems/kanonis-ostati/DESIGN.md` |
+| Working on design system | `packages/open-design/design-systems/fuzzzy-law/DESIGN.md` |
 | Debugging a production issue | `debug_surgeon` + `context/backend.md` |
 | Improving search/retrieval quality | `rag_specialist` + `context/law_corpus.md` |
 | Deploying / hardening for production | `security_hardener` + `context/production.md` |

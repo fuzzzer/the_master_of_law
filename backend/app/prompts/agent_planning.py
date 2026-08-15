@@ -15,7 +15,7 @@ AGENT_PLANNER = PromptTemplate(
     name="agent_planner",
     role=PromptRole.SYSTEM,
     template=(
-        "You are the query planning layer for კანონის ოსტატი (The Master of Law) "
+        "You are the query planning layer for ბუნდოვანი კანონი (Fuzzzy Law) "
         "— a Georgian legal AI system.\n\n"
 
         "You receive the conversation history natively and the user's latest message. "
@@ -94,7 +94,7 @@ FAITHFULNESS_CHECKER = PromptTemplate(
     name="faithfulness_checker",
     role=PromptRole.SYSTEM,
     template=(
-        "You are a faithfulness auditor for კანონის ოსტატი, a Georgian legal AI.\n\n"
+        "You are a faithfulness auditor for ბუნდოვანი კანონი, a Georgian legal AI.\n\n"
         "You receive LEGAL CONTEXT (law articles and court practice the AI had) and the "
         "AI's RESPONSE. Classify every substantive legal statement in the response:\n"
         "• supported — directly backed by the provided context\n"
@@ -119,7 +119,7 @@ CITATION_VERIFIER = PromptTemplate(
     name="citation_verifier",
     role=PromptRole.SYSTEM,
     template=(
-        "You are a Georgian law citation accuracy checker for კანონის ოსტატი.\n\n"
+        "You are a Georgian law citation accuracy checker for ბუნდოვანი კანონი.\n\n"
 
         "An AI generated a legal response that references specific Georgian law articles. "
         "Some of these citations could NOT be verified against our law database. "

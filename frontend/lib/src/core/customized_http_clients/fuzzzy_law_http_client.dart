@@ -1,22 +1,22 @@
 import 'package:dio/dio.dart';
+import 'package:fuzzzy_law/src/src.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:themasteroflaw/src/src.dart';
 
-export 'themasteroflaw_http_client_components/themasteroflaw_http_client_components.dart';
-export 'themasteroflaw_public_http_client.dart';
+export 'fuzzzy_law_http_client_components/fuzzzy_law_http_client_components.dart';
+export 'fuzzzy_law_public_http_client.dart';
 
-class ThemasteroflawHttpClient extends HttpClientInterface {
+class FuzzzyLawHttpClient extends HttpClientInterface {
   final Dio _dio;
 
-  ThemasteroflawHttpClient({
+  FuzzzyLawHttpClient({
     required PackageInfo packageInfo,
     bool hasApiInterceptor = true,
     bool hasAuthInterceptor = true,
     bool hasLoggingInterceptor = true,
   }) : _dio = Dio(DefaultBaseOptions()) {
     _dio.interceptors.addAll([
-      if (hasApiInterceptor) ThemasteroflawApiInterceptor(packageInfo: packageInfo),
-      if (hasAuthInterceptor) ThemasteroflawAuthInterceptor(),
+      if (hasApiInterceptor) FuzzzyLawApiInterceptor(packageInfo: packageInfo),
+      if (hasAuthInterceptor) FuzzzyLawAuthInterceptor(),
       if (hasLoggingInterceptor) LoggingInterceptor(),
     ]);
   }
@@ -27,7 +27,7 @@ class ThemasteroflawHttpClient extends HttpClientInterface {
     Options? options,
     CancelToken? cancelToken,
     void Function(int, int)? onReceiveProgress,
-    bool throwExceptionOnthemasteroflawUnsuccessfulResponse = true,
+    bool throwExceptionOnFuzzzyLawUnsuccessfulResponse = true,
   }) async {
     try {
       return await _dio.getUri<T>(
@@ -37,7 +37,7 @@ class ThemasteroflawHttpClient extends HttpClientInterface {
       );
     } on DioException catch (ex) {
       logger.e(ex);
-      throw ThemasteroflawRestApiExceptionTranslator.translateToHttpClientException(
+      throw FuzzzyLawRestApiExceptionTranslator.translateToHttpClientException(
         ex,
       );
     } catch (ex, stackTrace) {
@@ -56,7 +56,7 @@ class ThemasteroflawHttpClient extends HttpClientInterface {
     CancelToken? cancelToken,
     void Function(int, int)? onSendProgress,
     void Function(int, int)? onReceiveProgress,
-    bool handlesthemasteroflawErrors = true,
+    bool handlesFuzzzyLawErrors = true,
   }) async {
     try {
       return await _dio.postUri<T>(
@@ -69,7 +69,7 @@ class ThemasteroflawHttpClient extends HttpClientInterface {
       );
     } on DioException catch (ex) {
       logger.e(ex);
-      throw ThemasteroflawRestApiExceptionTranslator.translateToHttpClientException(ex);
+      throw FuzzzyLawRestApiExceptionTranslator.translateToHttpClientException(ex);
     } catch (ex, stackTrace) {
       logger.e(ex, stackTrace: stackTrace);
 
@@ -98,7 +98,7 @@ class ThemasteroflawHttpClient extends HttpClientInterface {
       );
     } on DioException catch (ex) {
       logger.e(ex);
-      throw ThemasteroflawRestApiExceptionTranslator.translateToHttpClientException(
+      throw FuzzzyLawRestApiExceptionTranslator.translateToHttpClientException(
         ex,
       );
     } catch (ex, stackTrace) {
@@ -128,7 +128,7 @@ class ThemasteroflawHttpClient extends HttpClientInterface {
       );
     } on DioException catch (ex) {
       logger.e(ex);
-      throw ThemasteroflawRestApiExceptionTranslator.translateToHttpClientException(
+      throw FuzzzyLawRestApiExceptionTranslator.translateToHttpClientException(
         ex,
       );
     } catch (ex, stackTrace) {
@@ -154,7 +154,7 @@ class ThemasteroflawHttpClient extends HttpClientInterface {
       );
     } on DioException catch (ex) {
       logger.e(ex);
-      throw ThemasteroflawRestApiExceptionTranslator.translateToHttpClientException(
+      throw FuzzzyLawRestApiExceptionTranslator.translateToHttpClientException(
         ex,
       );
     } catch (ex, stackTrace) {

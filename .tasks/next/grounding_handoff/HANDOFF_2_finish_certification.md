@@ -1,6 +1,6 @@
 # HANDOFF — Finish the grounding certification report (fresh-context agent)
 
-You are picking up the grounding-hardening initiative for კანონის ოსტატი (The Master of
+You are picking up the grounding-hardening initiative for ბუნდოვანი კანონი (The Master of
 Law). **Phases 0–4 of `.tasks/next/grounding_hardening_plan.md` are fully implemented,
 tested, and trace-verified. The 30-question certification run has PASSED (30/30 on all
 automated checks C1–C8).** The previous agent ran out of context while writing up the final
@@ -178,6 +178,6 @@ if you touch them.
   /chat/send). One chat = 4-6 model calls.
 - `rag_config` cannot actually disable the georgian_laws collection (`to_collection_names`
   always falls back to it) — don't design tests assuming you can turn statutes off.
-- DB access: `docker exec backend-postgres-1 psql -U mol_user -d master_of_law -c "..."`.
+- DB access: `docker exec backend-postgres-1 psql -U fuzzzy_user -d fuzzzy_law -c "..."`.
   Latest trace id: `SELECT id FROM pipeline_traces WHERE status='completed' ORDER BY created_at DESC LIMIT 1;`
 ```

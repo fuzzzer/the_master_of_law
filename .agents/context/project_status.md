@@ -1,4 +1,4 @@
-# Project Status — კანონის ოსტატი
+# Project Status — ბუნდოვანი კანონი
 
 > **Last verified:** 2026-05-12
 
@@ -51,7 +51,7 @@
 - ⬜ Extract design tokens → Flutter ui_kit
 
 ### Step 3b — Flutter App
-- ✅ Package: `master_of_law` (`ge.fuzzycore.masteroflaw`)
+- ✅ Package: `fuzzzy_law` (`ge.fuzzycore.fuzzzylaw`)
 - ✅ Features scaffolded: auth, cases, consultation, feedback, laws, profile
 - ✅ WebSocket chat with streaming
 - ✅ AI case intake flow with questionnaire

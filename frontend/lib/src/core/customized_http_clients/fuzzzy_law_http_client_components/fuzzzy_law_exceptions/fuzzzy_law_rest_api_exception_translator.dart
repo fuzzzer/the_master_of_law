@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
-import 'package:themasteroflaw/src/src.dart';
+import 'package:fuzzzy_law/src/src.dart';
 
-abstract class ThemasteroflawRestApiExceptionTranslator extends HttpClientException {
+abstract class FuzzzyLawRestApiExceptionTranslator extends HttpClientException {
   static HttpClientException translateToHttpClientException(DioException exception) {
     if (exception.response != null) {
       return translateResponseError(response: exception.response!, exceptionMessage: exception.message);

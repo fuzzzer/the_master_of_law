@@ -1,4 +1,4 @@
-# Current Steps — კანონის ოსტატი Project Tracker
+# Current Steps — ბუნდოვანი კანონი Project Tracker
 
 > **Last updated:** 2026-05-05
 
@@ -51,9 +51,9 @@
 
 ### 3b. Flutter App Setup
 - ✅ `frontend` project cloned and configured
-- ✅ Renamed: `themasteroflaw` → `master_of_law`
-- ✅ Bundle ID: `ge.fuzzycore.masteroflaw` (+ `.stg`, `.dev` flavors)
-- ✅ Class names: `MasterOfLawApp`, `MasterOfLawHttpClient`, `MasterOfLawLocalizations`
+- ✅ Renamed: `fuzzzy_law` → `fuzzzy_law`
+- ✅ Bundle ID: `ge.fuzzycore.fuzzzylaw` (+ `.stg`, `.dev` flavors)
+- ✅ Class names: `FuzzzyLawApp`, `FuzzzyLawHttpClient`, `FuzzzyLawLocalizations`
 - ✅ All barrel exports regenerated via `./exp.sh`
 - ✅ Georgian (ka) + English (en) localization already configured
 - [ ] Inject design tokens into ui_kit (UiKitColors, UiTextStyles, UiFormStyles)
@@ -61,7 +61,7 @@
 - [ ] Implement 5-tab bottom navigation with GoRouter
 - [ ] Connect to backend API
 
-**Location:** `frontend/` (package name: `master_of_law`)
+**Location:** `frontend/` (package name: `fuzzzy_law`)
 
 ---
 
@@ -78,7 +78,7 @@
 
 | File | Purpose |
 |------|---------|
-| `packages/open-design/design-systems/kanonis-ostati/DESIGN.md` | Complete design system for open-design tool |
+| `packages/open-design/design-systems/fuzzzy-law/DESIGN.md` | Complete design system for open-design tool |
 | `master_plan/04_feature_roadmap.md` | Feature roadmap (6 phases) + user needs |
 | `master_plan/03_design_system_prompt.md` | Original design system spec |
 | `master_plan/design/open_design_brief.md` | Screen-by-screen prompts for open-design |
@@ -89,7 +89,7 @@
 ## Project Structure (Current)
 
 ```
-the_master_of_law/
+fuzzzy_law/
 ├── master_plan/                    # Design specs + roadmap
 │   ├── 01_law_corpus_agent_prompt.md   # ✅ Step 1 spec (DONE)
 │   ├── 02_backend_system_prompt.md     # ✅ Step 2 spec (DONE)
@@ -99,7 +99,7 @@ the_master_of_law/
 │   └── README.md
 ├── law_corpus/                     # ✅ COMPLETE — DO NOT MODIFY
 ├── backend/                        # ✅ COMPLETE — FastAPI + 25 endpoints
-├── frontend/                  # 🔄 Flutter app (renamed to master_of_law)
+├── frontend/                  # 🔄 Flutter app (renamed to fuzzzy_law)
 │   ├── packages/ui_kit/            # Design system implementation
 │   └── packages/open-design/       # Open-design tool (cloned)
 ├── AI_GUIDE.md                     # Backend architecture reference

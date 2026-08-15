@@ -2,7 +2,7 @@ import chromadb
 from google import genai
 import json
 
-client = chromadb.PersistentClient(path="/Users/fuzzzer/programming/fuzzzy_organisation/the_master_of_law/law_corpus/data/chroma")
+client = chromadb.PersistentClient(path="/Users/fuzzzer/programming/fuzzzy_organisation/fuzzzy_law/law_corpus/data/chroma")
 coll = client.get_collection("georgian_laws")
 results = coll.query(query_texts=["კანაფის ფისის ნარკოტიკის ზღვრები რაარის"], n_results=5)
 for i in range(len(results["ids"][0])):

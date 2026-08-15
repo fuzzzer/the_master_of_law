@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:fuzzzy_law/src/src.dart';
 import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 import 'package:go_router/go_router.dart';
-import 'package:themasteroflaw/src/src.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ConsultationPage extends StatefulWidget {

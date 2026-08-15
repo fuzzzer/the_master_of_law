@@ -2,9 +2,9 @@ import 'package:bloc/bloc.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:fuzzzy_law/src/src.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:logger/logger.dart';
-import 'package:themasteroflaw/src/src.dart';
 
 class Initializer {
   static Future<void> preAppInit() async {

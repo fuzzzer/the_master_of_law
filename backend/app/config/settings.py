@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     )
 
     # ── App ──────────────────────────────────────────────────
-    app_name: str = Field(default="the-master-of-law")
+    app_name: str = Field(default="fuzzzy-law")
     app_env: str = Field(default="development")
     app_port: int = Field(default=8000)
     app_secret_key: str = Field(default="change-me-in-production")
@@ -58,7 +58,7 @@ class Settings(BaseSettings):
 
     # ── Database ─────────────────────────────────────────────
     database_url: str = Field(
-        default="postgresql+asyncpg://mol_user:corpus_dev_pw@localhost:5432/master_of_law",
+        default="postgresql+asyncpg://fuzzzy_user:corpus_dev_pw@localhost:5432/fuzzzy_law",
     )
     database_pool_size: int = Field(default=10)
 

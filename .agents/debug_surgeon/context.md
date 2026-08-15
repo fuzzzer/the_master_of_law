@@ -123,7 +123,7 @@ print(f'Sample: {collection.peek(1)}')
 # - Is POSTGRES_PASSWORD consistent between .env and docker-compose env override?
 
 # Quick test:
-docker compose exec postgres psql -U mol_user -d master_of_law -c "SELECT count(*) FROM users;"
+docker compose exec postgres psql -U fuzzzy_user -d fuzzzy_law -c "SELECT count(*) FROM users;"
 ```
 
 ### 4. Redis Connection Errors

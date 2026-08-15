@@ -2,7 +2,7 @@
 
 > **Zero-to-running in under 30 minutes.** 
 
-This guide covers both **local development** and **production deployment** for The Master of Law (კანონის ოსტატი).
+This guide covers both **local development** and **production deployment** for Fuzzzy Law (ბუნდოვანი კანონი).
 
 ## System Requirements
 
@@ -18,8 +18,8 @@ Ensure you have the following installed before starting:
 ## 1. Clone and Initial Setup
 
 ```bash
-git clone https://github.com/fuzzzer/the_master_of_law.git
-cd the_master_of_law
+git clone https://github.com/fuzzzer/fuzzzy_law.git
+cd fuzzzy_law
 ```
 
 ## 2. Law Corpus Data Setup
@@ -110,7 +110,7 @@ You should receive a `{"status": "ok", ...}` response.
 
 ## 4. Frontend (Flutter) Setup
 
-The frontend is a Flutter mobile/web application located in the `frontend/` directory (package name `master_of_law`).
+The frontend is a Flutter mobile/web application located in the `frontend/` directory (package name `fuzzzy_law`).
 
 ```bash
 cd ../frontend

@@ -20,7 +20,7 @@ curl -s -X POST "http://127.0.0.1:8000/api/v1/chat/$CONV/send" -H "Content-Type:
 Expected: HTTP 200, Georgian answer citing ადმინისტრაციულ სამართალდარღვევათა კოდექსი მუხლი 125.
 Then confirm the trace recorded:
 ```bash
-docker exec backend-postgres-1 psql -U mol_user -d master_of_law -c \
+docker exec backend-postgres-1 psql -U fuzzzy_user -d fuzzzy_law -c \
  "SELECT id, status, jsonb_array_length(steps), duration_ms FROM pipeline_traces ORDER BY created_at DESC LIMIT 1;"
 ```
 Expected: status `completed`, ≥12 steps. If this fails, fix the environment before anything else
@@ -37,7 +37,7 @@ post-implementation behavior against it.
    (retry on 429 after 30s — free tier).
 4. **Trace inspection** (the actual verification):
 ```bash
-TID=$(docker exec backend-postgres-1 psql -U mol_user -d master_of_law -t -c \
+TID=$(docker exec backend-postgres-1 psql -U fuzzzy_user -d fuzzzy_law -t -c \
  "SELECT id FROM pipeline_traces ORDER BY created_at DESC LIMIT 1;" | tr -d ' \n')
 curl -s "http://127.0.0.1:8000/api/v1/traces/$TID" | python3 -c "
 import json,sys

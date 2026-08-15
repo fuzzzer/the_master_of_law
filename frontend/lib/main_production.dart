@@ -6,5 +6,5 @@ Future<void> main() async {
   appEnvironment = Environment.production;
   await Environment.initialize();
 
-  ThemasteroflawApp.run();
+  FuzzzyLawApp.run();
 }

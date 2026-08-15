@@ -45,7 +45,7 @@ async def test_atomic_deduction_concurrency():
         user_repo = UserRepository(db)
         user = await user_repo.create_or_update(
             firebase_uid="concurrent-test-uid",
-            email="concurrent@masteroflaw.ge",
+            email="concurrent@fuzzzylaw.ge",
             display_name="Concurrent Tester"
         )
         user_id = user.id
@@ -119,7 +119,7 @@ def test_websocket_requires_credits_and_deducts():
             user_repo = UserRepository(db)
             user = await user_repo.create_or_update(
                 firebase_uid=firebase_uid,
-                email="ws-test@masteroflaw.ge",
+                email="ws-test@fuzzzylaw.ge",
                 display_name="WS Tester"
             )
             # Ensure credits initialized to 4 used (1 remaining)
@@ -147,7 +147,7 @@ def test_websocket_requires_credits_and_deducts():
     client = TestClient(app)
     
     # Mock verify_id_token to return our test user
-    with patch("app.integrations.firebase_client.verify_id_token", return_value={"uid": firebase_uid, "email": "ws-test@masteroflaw.ge"}), \
+    with patch("app.integrations.firebase_client.verify_id_token", return_value={"uid": firebase_uid, "email": "ws-test@fuzzzylaw.ge"}), \
          patch("app.services.agent_pipeline_service.AgentPipelineService.run", new_callable=AsyncMock, return_value=mock_result):
               
         # Connect to WebSocket

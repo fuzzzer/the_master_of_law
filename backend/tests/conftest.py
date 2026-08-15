@@ -14,7 +14,7 @@ import pytest
 # ── Mock identifiers ─────────────────────────────────────────
 
 MOCK_USER_UID = "test-user-001"
-MOCK_USER_EMAIL = "test@masteroflaw.ge"
+MOCK_USER_EMAIL = "test@fuzzzylaw.ge"
 MOCK_USER_ID = uuid.uuid4()
 MOCK_CONVERSATION_ID = uuid.uuid4()
 

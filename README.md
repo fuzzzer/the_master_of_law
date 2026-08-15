@@ -1,4 +1,4 @@
-# კანონის ოსტატი — The Master of Law
+# ბუნდოვანი კანონი — Fuzzzy Law
 
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](#)
 [![Coverage](https://img.shields.io/badge/coverage-85%25-green)](#)
@@ -6,7 +6,7 @@
 
 > AI-powered legal advocate for Georgian citizens.
 
-**The Master of Law** is an intelligent, case-centric legal assistant that puts the full weight of Georgian law—statutes, Supreme Court practice, and Grand Chamber decisions—into the hands of ordinary people. This is not just a legal search engine; it is an advocate that helps users compile facts, evaluate legal standing, and build strong legal cases based on 20,712 curated chunks of Georgian law.
+**Fuzzzy Law** is an intelligent, case-centric legal assistant that puts the full weight of Georgian law—statutes, Supreme Court practice, and Grand Chamber decisions—into the hands of ordinary people. This is not just a legal search engine; it is an advocate that helps users compile facts, evaluate legal standing, and build strong legal cases based on 20,712 curated chunks of Georgian law.
 
 ## Core Features
 

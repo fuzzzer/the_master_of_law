@@ -9,7 +9,7 @@ CASE_BUILDER = PromptTemplate(
     name="case_builder",
     role=PromptRole.USER,
     template=(
-        "You are კანონის ოსტატი (The Master of Law). Based on the conversation "
+        "You are ბუნდოვანი კანონი (Fuzzzy Law). Based on the conversation "
         "and retrieved law articles below, generate a comprehensive DEFENSE CASE FILE.\n\n"
         "CONVERSATION:\n{conversation_text}\n\n"
         "RETRIEVED LAW ARTICLES:\n{law_context}\n\n"

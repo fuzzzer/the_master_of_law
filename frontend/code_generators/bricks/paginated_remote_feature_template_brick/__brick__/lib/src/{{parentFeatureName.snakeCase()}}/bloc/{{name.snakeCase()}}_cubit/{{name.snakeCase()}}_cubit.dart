@@ -1,5 +1,5 @@
 import 'package:bloc/bloc.dart';
-import 'package:themasteroflaw/src/src.dart';
+import 'package:fuzzzy_law/src/src.dart';
 
 part '{{name.snakeCase()}}_state.dart';
 

@@ -1,12 +1,12 @@
 # 🖥️ Prompt 02 — Backend System (Python/FastAPI + Vertex AI)
 
-> **Purpose:** Build the production-grade FastAPI backend that powers The Master of Law — an AI legal advocate that helps Georgian citizens defend themselves in court. The backend handles conversations, RAG retrieval, defense strategy generation via Gemini 3.1 Pro, Firebase auth, credit-based access control, and serves the Flutter app.
+> **Purpose:** Build the production-grade FastAPI backend that powers Fuzzzy Law — an AI legal advocate that helps Georgian citizens defend themselves in court. The backend handles conversations, RAG retrieval, defense strategy generation via Gemini 3.1 Pro, Firebase auth, credit-based access control, and serves the Flutter app.
 
 ---
 
 ## System Identity
 
-You are **LegalBackendArchitect**, an expert Python backend engineer specializing in AI-powered legal technology. Build a production-grade FastAPI application that serves as the brain of "The Master of Law" — an AI legal advocate focused on criminal defense, grounded entirely in Georgian legislation.
+You are **LegalBackendArchitect**, an expert Python backend engineer specializing in AI-powered legal technology. Build a production-grade FastAPI application that serves as the brain of "Fuzzzy Law" — an AI legal advocate focused on criminal defense, grounded entirely in Georgian legislation.
 
 ---
 
@@ -253,7 +253,7 @@ The core Gemini integration. This service:
 **Gemini System Prompt for Legal Analysis:**
 
 ```
-You are კანონის ოსტატი (The Master of Law) — the fiercest, most knowledgeable 
+You are ბუნდოვანი კანონი (Fuzzzy Law) — the fiercest, most knowledgeable 
 legal advocate in Georgia. You fight for the user's rights with every legal 
 tool available.
 
@@ -654,7 +654,7 @@ GET    /api/v1/health/ready            # Readiness (DB + Vector Store + Gemini)
 ```bash
 # .env.example
 # App
-APP_NAME=the-master-of-law
+APP_NAME=fuzzzy-law
 APP_ENV=development  # development | staging | production
 APP_PORT=8000
 APP_SECRET_KEY=your-secret-key-here
@@ -679,7 +679,7 @@ VERTEX_VECTOR_SEARCH_INDEX_ID=
 VERTEX_VECTOR_SEARCH_ENDPOINT_ID=
 
 # Database
-DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/master_of_law
+DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/fuzzzy_law
 DATABASE_POOL_SIZE=10
 
 # Redis (for rate limiting + credit cache)
@@ -733,7 +733,7 @@ services:
       - "127.0.0.1:8000:8000"   # Only exposed to localhost
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://mol_user:${POSTGRES_PASSWORD}@postgres:5432/master_of_law
+      DATABASE_URL: postgresql+asyncpg://fuzzzy_user:${POSTGRES_PASSWORD}@postgres:5432/fuzzzy_law
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
     depends_on:
       postgres:
@@ -747,13 +747,13 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: master_of_law
-      POSTGRES_USER: mol_user
+      POSTGRES_DB: fuzzzy_law
+      POSTGRES_USER: fuzzzy_user
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}   # Set in .env, NEVER hardcoded
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mol_user"]
+      test: ["CMD-SHELL", "pg_isready -U fuzzzy_user"]
       interval: 5s
       timeout: 3s
       retries: 5

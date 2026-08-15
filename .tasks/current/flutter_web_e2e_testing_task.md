@@ -11,7 +11,7 @@
 The project uses FVM with Flutter `3.32.0`. All flutter commands should use the FVM-managed SDK.
 
 ```bash
-cd /Users/fuzzzer/programming/fuzzzy_organisation/the_master_of_law/frontend
+cd /Users/fuzzzer/programming/fuzzzy_organisation/fuzzzy_law/frontend
 
 # Verify FVM is installed and correct version is active
 fvm use 3.32.0
@@ -21,7 +21,7 @@ fvm flutter --version  # Should show 3.32.0
 ### 2. Dependencies
 
 ```bash
-cd /Users/fuzzzer/programming/fuzzzy_organisation/the_master_of_law/frontend
+cd /Users/fuzzzer/programming/fuzzzy_organisation/fuzzzy_law/frontend
 fvm flutter pub get
 ```
 
@@ -30,7 +30,7 @@ fvm flutter pub get
 If you need to test features that call the backend API (chat, laws browser, etc.):
 
 ```bash
-cd /Users/fuzzzer/programming/fuzzzy_organisation/the_master_of_law/backend
+cd /Users/fuzzzer/programming/fuzzzy_organisation/fuzzzy_law/backend
 source .venv/bin/activate
 uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
@@ -41,7 +41,7 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ### 4. Launch Flutter Web
 
 ```bash
-cd /Users/fuzzzer/programming/fuzzzy_organisation/the_master_of_law/frontend
+cd /Users/fuzzzer/programming/fuzzzy_organisation/fuzzzy_law/frontend
 fvm flutter run -d chrome --web-port 8080
 ```
 
@@ -70,7 +70,7 @@ flutter run -d chrome --web-port 8080
 
 ### 1.2 — Initial rendering
 
-- [ ] App title visible: **კანონის ოსტატი**
+- [ ] App title visible: **ბუნდოვანი კანონი**
 - [ ] Bottom navigation bar renders with 3 tabs
 - [ ] Correct tab labels: **საქმეები** (Cases), **კანონები** (Laws), **პროფილი** (Profile)
 - [ ] Tab icons render (folder, book, person)
@@ -330,7 +330,7 @@ Test at different browser widths:
 After completing all phases, write a comprehensive report:
 
 ```markdown
-# Flutter Web E2E Test Report — კანონის ოსტატი
+# Flutter Web E2E Test Report — ბუნდოვანი კანონი
 
 ## Environment
 - Flutter version: X.X.X
@@ -376,8 +376,8 @@ Save report to: `.tasks/reports/flutter_web_e2e_report.md`
 | File | Purpose |
 |------|---------|
 | `frontend/lib/main.dart` | Entry point (dev) |
-| `frontend/lib/src/app/themasteroflaw_app.dart` | App widget |
-| `frontend/lib/src/app/navigation/themasteroflaw_router.dart` | GoRouter config (3 tabs) |
+| `frontend/lib/src/app/fuzzzy_law_app.dart` | App widget |
+| `frontend/lib/src/app/navigation/fuzzzy_law_router.dart` | GoRouter config (3 tabs) |
 | `frontend/lib/src/app/navigation/main_shell.dart` | Bottom nav shell |
 | `frontend/lib/src/features/cases/` | Cases feature (full scaffold) |
 | `frontend/lib/src/features/laws/` | Laws browser feature |
@@ -412,9 +412,9 @@ Save report to: `.tasks/reports/flutter_web_e2e_report.md`
 
 ## Important Notes
 
-- The project is named `themasteroflaw` in pubspec but displayed as `კანონის ოსტატი`
-- Bundle ID: `ge.fuzzycore.masteroflaw`
-- Package name in imports: `package:themasteroflaw/`
+- The project is named `fuzzzy_law` in pubspec but displayed as `ბუნდოვანი კანონი`
+- Bundle ID: `ge.fuzzycore.fuzzzylaw`
+- Package name in imports: `package:fuzzzy_law/`
 - The app currently has **3 tabs** (Cases, Laws, Profile), not the 5 originally planned (Chat and Notes tabs not yet added)
 - Consultation feature exists as a feature module but may not be routed to a tab yet
 - Backend runs in **dev mode** — no Firebase auth needed, uses mock ADMIN user

@@ -1,4 +1,4 @@
-# fuzzzy_ui_kit consumer-guard allow-list — the_master_of_law
+# fuzzzy_ui_kit consumer-guard allow-list — fuzzzy_law
 #
 #   fvm dart run fuzzzy_ui_kit:guard lib --allow=.fuzzzy_guard_allow
 #

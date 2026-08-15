@@ -1,4 +1,4 @@
-# Open Design — Business Brief for კანონის ოსტატი
+# Open Design — Business Brief for ბუნდოვანი კანონი
 
 ## What to do once open-design is running
 
@@ -6,10 +6,10 @@
 
 Copy `DESIGN.md` (the one created below) into:
 ```
-open-design/design-systems/kanonis-ostati/DESIGN.md
+open-design/design-systems/fuzzzy-law/DESIGN.md
 ```
 
-Then select **"კანონის ოსტატი"** from the Design System dropdown in the UI.
+Then select **"ბუნდოვანი კანონი"** from the Design System dropdown in the UI.
 
 ### 2. Use the `mobile-app` skill
 
@@ -20,11 +20,11 @@ to generate each screen. Generate them one at a time.
 
 #### Prompt 1 — Chat Screen (Main)
 ```
-Design the main chat screen for "კანონის ოსტატი" (The Master of Law), a Georgian AI legal assistant app. 
+Design the main chat screen for "ბუნდოვანი კანონი" (Fuzzzy Law), a Georgian AI legal assistant app. 
 The screen shows a conversation between a user and an AI legal advisor. 
 - User messages are right-aligned bubbles
 - AI responses are left-aligned with a thin accent left border, containing structured legal advice with tappable citation chips like "§ მუხ. 316 სამოქ. კოდ."
-- AI thinking indicator: 3 pulsing dots with text "კანონის ოსტატი ფიქრობს..."
+- AI thinking indicator: 3 pulsing dots with text "ბუნდოვანი კანონი ფიქრობს..."
 - Bottom: pill-shaped chat input with send button, placeholder "აღწერეთ თქვენი სიტუაცია..."
 - Bottom navigation bar: Chat (active), Laws, Notes, Profile
 - The tone is premium, trustworthy, and Georgian-rooted
@@ -45,7 +45,7 @@ Design the law browser screen for a Georgian legal assistant app.
 #### Prompt 3 — Conversation List / Home
 ```
 Design the home/conversation list screen for a Georgian AI legal assistant.
-- App bar: app logo + "კანონის ოსტატი" title
+- App bar: app logo + "ბუნდოვანი კანონი" title
 - Search bar
 - List of past AI consultations, each showing:
   - Auto-generated title from first message
@@ -117,4 +117,4 @@ Once you're happy with the generated designs, I will:
 
 ## The design system file to create
 
-See: `open-design/design-systems/kanonis-ostati/DESIGN.md` (create this manually or I'll create it once the repo is cloned)
+See: `open-design/design-systems/fuzzzy-law/DESIGN.md` (create this manually or I'll create it once the repo is cloned)

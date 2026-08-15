@@ -1,6 +1,6 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:fuzzzy_law/src/src.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:themasteroflaw/src/src.dart';
 
 // Conditional import: web has no file system, native does.
 import 'dependency_injection_web.dart' if (dart.library.io) 'dependency_injection_native.dart' as platform_di;
@@ -16,10 +16,10 @@ class DependencyInjection {
 
     sl.safeRegisterSingleton<SecureStorageService>(SecureStorageService(const FlutterSecureStorage()));
 
-    final themasteroflawHttpClient = ThemasteroflawHttpClient(packageInfo: packageInfo);
-    sl.safeRegisterSingleton<ThemasteroflawHttpClient>(themasteroflawHttpClient);
+    final fuzzzyLawHttpClient = FuzzzyLawHttpClient(packageInfo: packageInfo);
+    sl.safeRegisterSingleton<FuzzzyLawHttpClient>(fuzzzyLawHttpClient);
 
-    final themasteroflawPublicHttpClient = ThemasteroflawPublicHttpClient(packageInfo: packageInfo);
-    sl.safeRegisterSingleton<ThemasteroflawPublicHttpClient>(themasteroflawPublicHttpClient);
+    final fuzzzyLawPublicHttpClient = FuzzzyLawPublicHttpClient(packageInfo: packageInfo);
+    sl.safeRegisterSingleton<FuzzzyLawPublicHttpClient>(fuzzzyLawPublicHttpClient);
   }
 }

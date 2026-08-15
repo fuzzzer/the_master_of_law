@@ -1,8 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:fuzzzy_law/src/src.dart';
 import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
-import 'package:themasteroflaw/src/src.dart';
 
 class AdminPanelFloatingHead extends StatefulWidget {
   const AdminPanelFloatingHead({super.key, required this.child});
@@ -30,7 +30,7 @@ class _AdminPanelFloatingHeadState extends State<AdminPanelFloatingHead> {
 
       if (key == null || key.isEmpty) return;
 
-      final publicClient = sl.get<ThemasteroflawPublicHttpClient>();
+      final publicClient = sl.get<FuzzzyLawPublicHttpClient>();
 
       final response = await publicClient.get(
         Uri.parse('http://127.0.0.1:8000/api/v1/api-keys/check'),
@@ -51,7 +51,7 @@ class _AdminPanelFloatingHeadState extends State<AdminPanelFloatingHead> {
 
   Future<void> _generateApiKey() async {
     try {
-      final publicClient = sl.get<ThemasteroflawPublicHttpClient>();
+      final publicClient = sl.get<FuzzzyLawPublicHttpClient>();
       final response = await publicClient.post(
         Uri.parse('http://127.0.0.1:8000/api/v1/api-keys'),
         options: Options(headers: {'X-Admin-Key': _adminKey}),

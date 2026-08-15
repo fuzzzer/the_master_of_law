@@ -5,7 +5,7 @@
 cd "$(dirname "$0")/.." || exit 1
 
 echo "=========================================="
-echo "📊 CODEBASE STATS - THE MASTER OF LAW 📊"
+echo "📊 CODEBASE STATS - FUZZZY LAW 📊"
 echo "=========================================="
 echo ""
 

@@ -7,7 +7,7 @@
 
 ## Purpose
 
-Execute a staged release plan for The Master of Law. Deploy in phases to minimize risk:
+Execute a staged release plan for Fuzzzy Law. Deploy in phases to minimize risk:
 1. **Phase 1: Web** — Deploy Flutter web to a public URL. Fastest to ship, easiest to iterate.
 2. **Phase 2: Mobile** — Release Android (Google Play) and iOS (App Store) after web is validated.
 
@@ -25,8 +25,8 @@ Each phase has its own checklist, infrastructure requirements, and go/no-go crit
    - SSL/TLS configured for API domain
    - CORS configured for web domain
 3. Verify domain setup:
-   - API domain: `api.masteroflaw.ge` (or equivalent)
-   - Web domain: `masteroflaw.ge` (or equivalent)
+   - API domain: `api.fuzzzylaw.ge` (or equivalent)
+   - Web domain: `fuzzzylaw.ge` (or equivalent)
    - DNS records pointing to VPS
 4. **Verify:** `curl https://api.domain/api/v1/health` returns 200
 
@@ -51,7 +51,7 @@ Each phase has its own checklist, infrastructure requirements, and go/no-go crit
    rsync -avz build/web/ deploy@vps:/opt/master-of-law/web/
    ssh deploy@vps "sudo systemctl reload nginx"
    ```
-5. **Verify:** Website loads at `https://masteroflaw.ge`, API calls work, chat produces a response
+5. **Verify:** Website loads at `https://fuzzzylaw.ge`, API calls work, chat produces a response
 
 ### Milestone 3: Pre-Launch Checklist (Web)
 1. Security:
@@ -90,12 +90,12 @@ Each phase has its own checklist, infrastructure requirements, and go/no-go crit
 
 ### Milestone 5: Mobile Build Configuration
 1. Android:
-   - Verify `android/app/build.gradle` has correct `applicationId`: `ge.fuzzycore.masteroflaw`
+   - Verify `android/app/build.gradle` has correct `applicationId`: `ge.fuzzycore.fuzzzylaw`
    - Configure signing keys (keystore)
    - Build: `flutter build appbundle --release`
    - Test on physical device via `flutter install`
 2. iOS:
-   - Verify `ios/Runner.xcodeproj` has correct bundle ID: `ge.fuzzycore.masteroflaw`
+   - Verify `ios/Runner.xcodeproj` has correct bundle ID: `ge.fuzzycore.fuzzzylaw`
    - Configure signing certificates and provisioning profiles
    - Build: `flutter build ios --release`
    - Test on physical device via Xcode

@@ -9,7 +9,7 @@ from app.main import create_app
 class TestAppFactory:
     def test_create_app(self):
         app = create_app()
-        assert app.title == "The Master of Law API"
+        assert app.title == "Fuzzzy Law API"
 
     def test_routes_registered(self):
         app = create_app()

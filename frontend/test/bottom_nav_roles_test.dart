@@ -2,13 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fuzzzy_law/src/src.dart';
 // The `context.fuzzzyTextStyles` role accessor is an extension declared in the
 // kit; an extension only applies where it is imported, so without this line
 // the three role assertions below do not compile.
 import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:themasteroflaw/src/src.dart';
 
 /// Phase M · Unit A · **M16 — the `T-0259` regression lock.**
 ///
@@ -134,7 +134,7 @@ void main() {
 
     late ThemeData theme;
     runZonedGuarded(
-      () => theme = ThemasteroflawTheme.dark(),
+      () => theme = FuzzzyLawTheme.dark(),
       (e, _) {
         if (!isFontLoaderNoise(e)) unexpectedZoneErrors.add(e);
       },

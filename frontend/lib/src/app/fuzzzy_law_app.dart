@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:themasteroflaw/src/src.dart';
+import 'package:fuzzzy_law/src/src.dart';
 
-class ThemasteroflawApp extends StatelessWidget {
-  const ThemasteroflawApp({super.key});
+class FuzzzyLawApp extends StatelessWidget {
+  const FuzzzyLawApp({super.key});
 
   static Future<void> run() async {
     await Initializer.preAppInit();
-    runApp(const ThemasteroflawApp());
+    runApp(const FuzzzyLawApp());
     await Initializer.postAppInit();
   }
 
@@ -20,7 +20,7 @@ class ThemasteroflawApp extends StatelessWidget {
               return LocalizationStateBuilder(
                 builder: (locale) {
                   return MaterialApp.router(
-                    routerConfig: AppRouter.themasteroflawRouter,
+                    routerConfig: AppRouter.fuzzzyLawRouter,
                     // No `scaffoldMessengerKey:` — the app-wide
                     // `GlobalKey<ScaffoldMessengerState>` that used to live at
                     // the top of this file was deleted at M12. M11 replaced
@@ -29,14 +29,14 @@ class ThemasteroflawApp extends StatelessWidget {
                     // had zero readers. `MaterialApp` creates its own
                     // `ScaffoldMessenger` when none is supplied.
                     theme: switch (themeBrightness) {
-                      Brightness.dark => ThemasteroflawTheme.dark(),
-                      Brightness.light => ThemasteroflawTheme.light(),
+                      Brightness.dark => FuzzzyLawTheme.dark(),
+                      Brightness.light => FuzzzyLawTheme.light(),
                     },
                     locale: Locale(locale.languageCode),
                     localizationsDelegates:
-                        ThemasteroflawLocalizations.localizationsDelegates,
+                        FuzzzyLawLocalizations.localizationsDelegates,
                     supportedLocales:
-                        ThemasteroflawLocalizations.supportedLocales,
+                        FuzzzyLawLocalizations.supportedLocales,
                     builder: (context, child) => AdminPanelFloatingHead(
                       child: OnPhoneShakeDevPanelLauncherWidget(
                         child: child ?? const SizedBox.shrink(),

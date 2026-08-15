@@ -1,4 +1,4 @@
-# კანონის ოსტატი — The Master of Law
+# ბუნდოვანი კანონი — Fuzzzy Law
 
 > Georgian AI Legal Assistant — from raw legislation to production app.
 
@@ -206,7 +206,7 @@ Build the Flutter mobile app using the design system from Step 3 and connecting 
 ## Project Map
 
 ```
-the_master_of_law/
+fuzzzy_law/
 ├── init.md                    ← You are here
 ├── master_plan/
 │   ├── 01_law_corpus_agent_prompt.md    # Spec for Step 1

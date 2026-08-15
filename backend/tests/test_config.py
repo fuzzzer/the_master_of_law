@@ -51,7 +51,7 @@ class TestDisclaimers:
 class TestSettings:
     def test_defaults(self):
         from app.config.settings import settings
-        assert settings.app_name == "the-master-of-law"
+        assert settings.app_name == "fuzzzy-law"
         assert settings.free_tier_daily_credits == 5
         assert settings.is_production is False
         assert isinstance(settings.cors_origins, list)

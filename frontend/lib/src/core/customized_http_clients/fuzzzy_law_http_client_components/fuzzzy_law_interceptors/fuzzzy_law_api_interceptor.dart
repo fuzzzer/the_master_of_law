@@ -1,13 +1,13 @@
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:fuzzzy_law/src/src.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:themasteroflaw/src/src.dart';
 
-class ThemasteroflawApiInterceptor implements Interceptor {
+class FuzzzyLawApiInterceptor implements Interceptor {
   final PackageInfo packageInfo;
 
-  ThemasteroflawApiInterceptor({required this.packageInfo});
+  FuzzzyLawApiInterceptor({required this.packageInfo});
 
   @override
   Future<void> onRequest(

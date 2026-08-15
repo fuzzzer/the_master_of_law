@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:fuzzzy_law/src/src.dart';
 import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:themasteroflaw/src/src.dart';
 
 /// Home screen: List of all user's cases.
 /// Empty state with CTA when no cases exist.
@@ -31,7 +31,7 @@ class _MyCasesPageState extends State<MyCasesPage> {
         // title. Ink has no decorative-accent text role: emphasis is weight
         // and size, and the colour stays `ink` (MAPPING §2.2 judgement 1).
         // Style + colour now come from appBarTheme.
-        title: const Text('კანონის ოსტატი'),
+        title: const Text('ბუნდოვანი კანონი'),
         actions: [
           IconButton(
             icon: const Icon(Icons.search),

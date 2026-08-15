@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:fuzzzy_law/src/src.dart';
 import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:themasteroflaw/src/src.dart';
 
-/// The Master of Law — the ONE bridge from `fuzzzy_ui_kit` to Flutter's
+/// Fuzzzy Law — the ONE bridge from `fuzzzy_ui_kit` to Flutter's
 /// [ThemeData].
 ///
 /// Phase M · Unit A. Replaces the forked `UiKitTheme.dark()/light()`. Three
@@ -36,7 +36,7 @@ import 'package:themasteroflaw/src/src.dart';
 /// it** (together with its tripwire group in `test/theme_roles_test.dart`).
 /// This class is now the app's only source of `ThemeData`, and every value in
 /// it comes from `fuzzzy_ui_kit` or from [LegalDomainColors].
-abstract final class ThemasteroflawTheme {
+abstract final class FuzzzyLawTheme {
   /// Ink · night skin. The app's default (the fork's dark mode).
   static ThemeData dark() => _build(FuzzzySkin.night);
 

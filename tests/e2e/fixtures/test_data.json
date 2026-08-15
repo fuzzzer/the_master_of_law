@@ -2,7 +2,7 @@
   "base_url": "http://localhost:8080",
   "api_base_url": "http://localhost:8000",
   "test_user": {
-    "email": "tester@masteroflaw.ge",
+    "email": "tester@fuzzzylaw.ge",
     "password": "test_password_123",
     "uid": "test-e2e-user-001"
   },

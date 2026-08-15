@@ -1,13 +1,13 @@
-import 'package:themasteroflaw/src/src.dart';
+import 'package:fuzzzy_law/src/src.dart';
 
 class {{name.pascalCase()}}DataSource {
-  final {{name.camelCase()}}BaseUrl = '${themasteroflawApiNetworkConfiguration.themasteroflawBaseUri}/api/{{name.camelCase()}}';
-  final themasteroflawHttpClient = sl.get<themasteroflawHttpClient>();
+  final {{name.camelCase()}}BaseUrl = '${fuzzzyLawApiNetworkConfiguration.fuzzzyLawBaseUri}/api/{{name.camelCase()}}';
+  final fuzzzyLawHttpClient = sl.get<fuzzzyLawHttpClient>();
 
   Future<{{modelName.pascalCase()}}> {{functionName.camelCase()}}({{#hasRequestData}}{
       required {{requestDataName.pascalCase()}} {{requestDataName.camelCase()}},
     }{{/hasRequestData}}) async {
-    final response = await themasteroflawHttpClient.post(
+    final response = await fuzzzyLawHttpClient.post(
       Uri.parse('${{name.camelCase()}}BaseUrl/{{functionName.camelCase()}}'),
       {{#hasRequestData}}body: _turn{{requestDataName.pascalCase()}}ToBody({{requestDataName.camelCase()}}),{{/hasRequestData}}
     );

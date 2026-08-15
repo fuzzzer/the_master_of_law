@@ -465,7 +465,7 @@ async def _authenticate(websocket: WebSocket, token: str | None) -> dict[str, An
             if settings.app_env == "development":
                 user = await user_repo.create_or_update(
                     firebase_uid=uid,
-                    email="mock@masteroflaw.ge",
+                    email="mock@fuzzzylaw.ge",
                     display_name="Mock User"
                 )
                 await db.commit()

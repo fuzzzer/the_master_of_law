@@ -11,8 +11,8 @@
 
 import 'dart:io';
 
+import 'package:fuzzzy_law/src/src.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:themasteroflaw/src/src.dart';
 
 /// Mobile/Desktop — registers real file system directories.
 Future<void> registerPlatformDependencies() async {

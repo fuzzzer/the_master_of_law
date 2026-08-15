@@ -1,4 +1,4 @@
-import 'package:themasteroflaw/src/src.dart';
+import 'package:fuzzzy_law/src/src.dart';
 
 class QuestionnaireRepository {
   final QuestionnaireRemoteDataSource _remoteDataSource;

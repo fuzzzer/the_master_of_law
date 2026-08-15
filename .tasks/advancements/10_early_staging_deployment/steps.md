@@ -97,7 +97,7 @@
 1. **Create a dedicated service account:**
    ```bash
    gcloud iam service-accounts create master-of-law-backend \
-     --display-name="Master of Law Backend"
+     --display-name="Fuzzzy Law Backend"
    ```
 2. **Grant Vertex AI access:**
    ```bash
@@ -127,8 +127,8 @@
    sudo mkdir -p /var/www
    sudo chown fuzzzer:fuzzzer /var/www
    cd /var/www
-   git clone https://github.com/fuzzzer/the_master_of_law.git
-   cd the_master_of_law
+   git clone https://github.com/fuzzzer/fuzzzy_law.git
+   cd fuzzzy_law
    ```
 
 ### 4B. Transfer Gitignored Secrets (from Mac)
@@ -137,7 +137,7 @@ Always use the **server IP** (not domain) for SSH/SCP.
 
 1. **Backend `.env`:**
    ```bash
-   scp backend/.env fuzzzer@<SERVER_IP>:/var/www/the_master_of_law/backend/.env
+   scp backend/.env fuzzzer@<SERVER_IP>:/var/www/fuzzzy_law/backend/.env
    ```
    Then SSH in and update the production-specific values:
    - `APP_ENV=production`
@@ -165,12 +165,12 @@ Always use the **server IP** (not domain) for SSH/SCP.
 3. **Law Corpus Data** (ChromaDB collections):
    ```bash
    # From Mac: sync the law corpus data directory
-   rsync -avz --progress law_corpus/data/ fuzzzer@<SERVER_IP>:/var/www/the_master_of_law/law_corpus/data/
+   rsync -avz --progress law_corpus/data/ fuzzzer@<SERVER_IP>:/var/www/fuzzzy_law/law_corpus/data/
    ```
 
 ### 4C. First Launch (on server)
 ```bash
-cd /var/www/the_master_of_law/backend
+cd /var/www/fuzzzy_law/backend
 docker compose up -d --build
 # Verify all 3 services are running:
 docker compose ps
@@ -180,15 +180,15 @@ docker compose logs -f api
 ### 4D. Initialize Database Tables
 The database starts empty — tables must be created manually using the provided initialization script:
 ```bash
-cd /var/www/the_master_of_law/backend
+cd /var/www/fuzzzy_law/backend
 docker compose exec api python scripts/init_db.py
 ```
 
 ### 4E. Server-Side Redeploy Script
-Create `/var/www/the_master_of_law/redeploy.sh` on the server:
+Create `/var/www/fuzzzy_law/redeploy.sh` on the server:
 ```bash
 #!/bin/bash
-cd /var/www/the_master_of_law || exit 1
+cd /var/www/fuzzzy_law || exit 1
 echo "📥 Pulling latest code..."
 git pull origin main
 echo "🔨 Rebuilding backend..."
@@ -198,7 +198,7 @@ docker compose up -d
 echo "✅ Redeployed. Checking status..."
 docker compose ps
 ```
-Make it executable: `chmod +x /var/www/the_master_of_law/redeploy.sh`
+Make it executable: `chmod +x /var/www/fuzzzy_law/redeploy.sh`
 
 ### 4F. Deployment Workflow (from Mac)
 Two options — both work:
@@ -214,7 +214,7 @@ Two options — both work:
 # On Mac:
 git push origin main
 # On server (SSH in):
-cd /var/www/the_master_of_law && ./redeploy.sh
+cd /var/www/fuzzzy_law && ./redeploy.sh
 ```
 
 ## Phase 5: Nginx & SSL (Backend Proxy)
@@ -225,7 +225,7 @@ cd /var/www/the_master_of_law && ./redeploy.sh
 2. **Configure Nginx:**
    ```bash
    # Copy the provided nginx configuration example
-   sudo cp /var/www/the_master_of_law/backend/scripts/nginx.conf.example /etc/nginx/sites-available/api.zrdai.work
+   sudo cp /var/www/fuzzzy_law/backend/scripts/nginx.conf.example /etc/nginx/sites-available/api.zrdai.work
    ```
 3. **Enable the site:**
    ```bash

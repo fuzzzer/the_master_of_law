@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# run_tests.sh — Run the full E2E test suite for The Master of Law.
+# run_tests.sh — Run the full E2E test suite for Fuzzzy Law.
 #
 # Prerequisites:
 #   - Docker & docker-compose installed
@@ -23,7 +23,7 @@ if [[ "${1:-}" == "--headed" ]]; then
 fi
 
 echo "═══════════════════════════════════════════════"
-echo "  The Master of Law — E2E Test Runner"
+echo "  Fuzzzy Law — E2E Test Runner"
 echo "═══════════════════════════════════════════════"
 
 # ── Step 1: Start backend ──────────────────────────

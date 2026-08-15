@@ -1,4 +1,4 @@
-# Backend Context — The Master of Law
+# Backend Context — Fuzzzy Law
 
 > FastAPI backend with multi-source RAG pipeline + Gemini 3.1 Pro legal analysis.
 > **Last verified:** 2026-07-19

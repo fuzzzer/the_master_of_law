@@ -24,7 +24,7 @@ Use the `browser_subagent` tool with the following prompt configuration.
 
 **Task Prompt:**
 ```text
-Navigate to http://localhost:8080. You are acting as a strict Human QA Tester evaluating the "Master of Law" application. Your job is to test complex interaction flows and hunt for bugs.
+Navigate to http://localhost:8080. You are acting as a strict Human QA Tester evaluating the "Fuzzzy Law" application. Your job is to test complex interaction flows and hunt for bugs.
 
 Perform the following flows sequentially:
 1. **Navigation Check**: Click through all the main bottom navigation tabs (Chat, Cases, Laws, Notes, Profile). Ensure the transitions are smooth and the correct pages load.

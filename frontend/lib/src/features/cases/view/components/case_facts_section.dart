@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:fuzzzy_law/src/src.dart';
 import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
-import 'package:themasteroflaw/src/src.dart';
 
 /// Facts management with three-segment categorization: Favorable/Unfavorable/Neutral.
 class CaseFactsSection extends StatefulWidget {

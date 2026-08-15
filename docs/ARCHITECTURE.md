@@ -1,6 +1,6 @@
 # Architecture Overview
 
-> High-level system design and decisions for The Master of Law.
+> High-level system design and decisions for Fuzzzy Law.
 
 ## System Diagram
 
@@ -75,7 +75,7 @@ erDiagram
 
 ## RAG Pipeline (5 Stages)
 
-The core feature of The Master of Law is its highly accurate Retrieval-Augmented Generation pipeline:
+The core feature of Fuzzzy Law is its highly accurate Retrieval-Augmented Generation pipeline:
 
 1. **Stage 0 (Query Expansion)**: Gemini is used to expand the user's query into 5-10 formal Georgian legal terms.
 2. **Stage 1 (Vector Search)**: Multi-query search against ChromaDB using `gemini-embedding-001`. Retrieves top-50 results per query across the selected collections.

@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:fuzzzy_law/src/src.dart';
 import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 import 'package:logger/web.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:themasteroflaw/src/src.dart';
 
 void openDevPanel() {
   Navigator.of(navigatorKey.currentContext!).push(

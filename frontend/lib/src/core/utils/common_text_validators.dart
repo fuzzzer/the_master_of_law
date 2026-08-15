@@ -1,9 +1,9 @@
-import 'package:themasteroflaw/src/src.dart';
+import 'package:fuzzzy_law/src/src.dart';
 
 class CommonTextValidators {
   static String? validateLatinText({
     required String text,
-    required ThemasteroflawLocalizations localizations,
+    required FuzzzyLawLocalizations localizations,
     int minLength = 2,
   }) {
     if (text.length < minLength) {
@@ -19,7 +19,7 @@ class CommonTextValidators {
 
   static String? validateEmail({
     required String email,
-    required ThemasteroflawLocalizations localizations,
+    required FuzzzyLawLocalizations localizations,
   }) {
     if (!RegExp(emailRegexMatcher).hasMatch(email)) {
       return localizations.wrongFormat;
@@ -30,7 +30,7 @@ class CommonTextValidators {
 
   static String? validatePassword({
     required String password,
-    required ThemasteroflawLocalizations localizations,
+    required FuzzzyLawLocalizations localizations,
   }) {
     if (password.isNotEmpty && !RegExp(onlyPrintableASCIICharactersRegexMatcher).hasMatch(password)) {
       return localizations.useOnlyLatinLetters;
@@ -42,7 +42,7 @@ class CommonTextValidators {
   static String? validateOtpCode({
     required String otpCode,
     int otpLength = 6,
-    required ThemasteroflawLocalizations localizations,
+    required FuzzzyLawLocalizations localizations,
   }) {
     if (otpCode.isNotEmpty && otpCode.length != otpLength || !RegExp(onlyNumbersRegexMatcher).hasMatch(otpCode)) {
       return localizations.wrongFormat;

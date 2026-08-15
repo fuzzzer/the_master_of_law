@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:fuzzzy_law/src/src.dart';
 import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 import 'package:go_router/go_router.dart';
-import 'package:themasteroflaw/src/src.dart';
 
 class ApiKeyPromptPage extends StatefulWidget {
   const ApiKeyPromptPage({super.key});

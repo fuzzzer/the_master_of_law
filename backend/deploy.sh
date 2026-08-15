@@ -35,7 +35,7 @@ fi
 source "$DEPLOY_ENV"
 
 VPS_USER="${VPS_USER:-fuzzzer}"
-VPS_DIR="${VPS_DIR:-/var/www/the_master_of_law}"
+VPS_DIR="${VPS_DIR:-/var/www/fuzzzy_law}"
 
 ssh -o StrictHostKeyChecking=no ${VPS_USER}@${VPS_HOST} "cd ${VPS_DIR} && git pull origin main && cd backend && docker compose build && docker compose up -d"
 

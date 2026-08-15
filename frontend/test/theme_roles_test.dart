@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fuzzzy_law/src/src.dart';
 import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:themasteroflaw/src/src.dart';
 
 /// Phase M · Unit A · **the first test in this repo.**
 ///
@@ -33,7 +33,7 @@ import 'package:themasteroflaw/src/src.dart';
 /// one at **M13**, once M10b/M11/M12 have cleared the 14 remaining blocking
 /// literals. Until then this file is the whole `test` gate — say so honestly.
 void main() {
-  // 🔴 Required, and not optional boilerplate. `ThemasteroflawTheme` resolves
+  // 🔴 Required, and not optional boilerplate. `FuzzzyLawTheme` resolves
   // the Georgian fallback through `GoogleFonts.notoSansGeorgian`, and that call
   // reaches `ServicesBinding.instance` to read the asset manifest. Building a
   // theme before the binding exists throws `checkInstance` from every test at
@@ -45,7 +45,7 @@ void main() {
   // plumbing. Neither Ink's families nor Noto Sans Georgian is bundled as an
   // asset: `GoogleFonts` fetches them over HTTP on first use and caches them on
   // the device. Under `flutter test` that fetch fails and THROWS out of
-  // `ThemasteroflawTheme.dark()`. Turning runtime fetching off makes the
+  // `FuzzzyLawTheme.dark()`. Turning runtime fetching off makes the
   // resolver fall back instead of throwing, which is exactly what happens on a
   // cold, offline device — see JOURNAL M10 §B for what M14 must check.
   GoogleFonts.config.allowRuntimeFetching = false;
@@ -78,8 +78,8 @@ void main() {
   }
 
   final builders = <String, ThemeData Function()>{
-    'dark (night)': ThemasteroflawTheme.dark,
-    'light (paper)': ThemasteroflawTheme.light,
+    'dark (night)': FuzzzyLawTheme.dark,
+    'light (paper)': FuzzzyLawTheme.light,
   };
 
   builders.forEach((name, build) {
@@ -165,7 +165,7 @@ void main() {
         // `analyze` and to every role count.
         //
         // Counts re-measured at M18 (`T-0262`) — the doc-comments in
-        // `themasteroflaw_theme.dart` used to carry M1-era numbers:
+        // `fuzzzy_law_theme.dart` used to carry M1-era numbers:
         //   appBar 14 (12 live) · card 1 · divider 6 (5 live) ·
         //   input 18 (16 live) · bottomNav 1
         expect(theme.appBarTheme.backgroundColor, isNotNull);
@@ -199,7 +199,7 @@ void main() {
               'a chipTheme is back. Before restoring it: are there really '
               'stock Material chips now, and does the label take `control` '
               'rather than the Latin-only `label` role? See the M18 note in '
-              'themasteroflaw_theme.dart.',
+              'fuzzzy_law_theme.dart.',
         );
       });
 

@@ -1,10 +1,10 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:themasteroflaw/src/src.dart';
+import 'package:fuzzzy_law/src/src.dart';
 
 class QuestionnaireRemoteDataSource {
-  final ThemasteroflawHttpClient _httpClient;
+  final FuzzzyLawHttpClient _httpClient;
 
-  QuestionnaireRemoteDataSource() : _httpClient = sl.get<ThemasteroflawHttpClient>();
+  QuestionnaireRemoteDataSource() : _httpClient = sl.get<FuzzzyLawHttpClient>();
 
   Uri _uri(String path) => Uri.parse(
     '${dotenv.env['API_BASE_URL'] ?? 'http://127.0.0.1:8000'}$path',

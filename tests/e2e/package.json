@@ -1,7 +1,7 @@
 {
-  "name": "master-of-law-e2e",
+  "name": "fuzzzy-law-e2e",
   "version": "1.0.0",
-  "description": "E2E tests for The Master of Law (Flutter web)",
+  "description": "E2E tests for Fuzzzy Law (Flutter web)",
   "scripts": {
     "test": "playwright test",
     "test:headed": "playwright test --headed",

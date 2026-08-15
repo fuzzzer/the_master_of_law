@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:themasteroflaw/src/core/services/dev_panel/ui/screens/dev_panel_screen.dart';
-import 'package:themasteroflaw/src/core/services/dev_panel/ui/ui.dart';
+import 'package:fuzzzy_law/src/core/services/dev_panel/ui/screens/dev_panel_screen.dart';
+import 'package:fuzzzy_law/src/core/services/dev_panel/ui/ui.dart';
 
 // Conditionally import shake — only on native platforms with accelerometer.
 import 'shake_web.dart' if (dart.library.io) 'shake_native.dart' as shake_impl;

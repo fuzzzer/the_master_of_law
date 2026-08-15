@@ -1,6 +1,6 @@
 # Development Guide
 
-> Guide for contributing to The Master of Law.
+> Guide for contributing to Fuzzzy Law.
 
 ## 1. Code Style and Conventions
 
@@ -66,7 +66,7 @@ The eval pipeline runs 50 real Supreme Court cases through the LLM.
 Always use `holdout_eval.py` to prevent data contamination before running evaluations!
 
 ```bash
-cd the_master_of_law
+cd fuzzzy_law
 
 # 1. Hold out the evaluation cases from ChromaDB
 python3 eval/test_cases/holdout_eval.py holdout

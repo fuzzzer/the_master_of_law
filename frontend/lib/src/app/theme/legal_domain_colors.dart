@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:themasteroflaw/src/src.dart';
+import 'package:fuzzzy_law/src/src.dart';
 
 /// The eight legal-domain colours — **the one sanctioned literal palette in
 /// this app**, and the only place `Color(0x…)` is correct in `lib/`.

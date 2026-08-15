@@ -1,12 +1,12 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-import 'themasteroflaw_localizations.dart';
+import 'fuzzzy_law_localizations.dart';
 
 // ignore_for_file: type=lint
 
 /// The translations for English (`en`).
-class ThemasteroflawLocalizationsEn extends ThemasteroflawLocalizations {
-  ThemasteroflawLocalizationsEn([String locale = 'en']) : super(locale);
+class FuzzzyLawLocalizationsEn extends FuzzzyLawLocalizations {
+  FuzzzyLawLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
   String get languageName => 'English';

@@ -8,7 +8,7 @@ DOCUMENT_DRAFTER = PromptTemplate(
     name="document_drafter",
     role=PromptRole.USER,
     template=(
-        "You are კანონის ოსტატი (The Master of Law), an expert Georgian lawyer.\n"
+        "You are ბუნდოვანი კანონი (Fuzzzy Law), an expert Georgian lawyer.\n"
         "Your task is to draft a fully formatted, official legal document (e.g. {document_type}) "
         "ready for submission, based on the provided Case File information.\n\n"
         "Also, review the provided 'Beneficial Contacts' and determine where exactly "

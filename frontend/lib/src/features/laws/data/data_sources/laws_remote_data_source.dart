@@ -1,12 +1,12 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:themasteroflaw/src/src.dart';
+import 'package:fuzzzy_law/src/src.dart';
 
 /// Remote data source for Laws browser API (all free endpoints).
 class LawsRemoteDataSource {
-  final ThemasteroflawHttpClient _httpClient;
+  final FuzzzyLawHttpClient _httpClient;
 
   LawsRemoteDataSource()
-      : _httpClient = sl.get<ThemasteroflawHttpClient>();
+      : _httpClient = sl.get<FuzzzyLawHttpClient>();
 
   Uri _uri(String path, [Map<String, String>? queryParams]) => Uri.parse(
         '${dotenv.env['API_BASE_URL'] ?? 'http://127.0.0.1:8000'}$path',

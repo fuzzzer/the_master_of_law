@@ -1,4 +1,4 @@
-# 🤖 AI Agent Guide — The Master of Law
+# 🤖 AI Agent Guide — Fuzzzy Law
 
 > **Read this first.** This document gives you everything you need to work on the codebase without reading every file. It's structured for fast onboarding.
 > **Last updated:** 2026-05-05
@@ -7,21 +7,21 @@
 
 ## 1. What Is This Project?
 
-**კანონის ოსტატი (The Master of Law)** — an AI-powered legal advocate that helps Georgian citizens defend themselves in court. The system consists of:
+**ბუნდოვანი კანონი (Fuzzzy Law)** — an AI-powered legal advocate that helps Georgian citizens defend themselves in court. The system consists of:
 
 - **Law Corpus** (✅ DONE) — 9,450 chunks of Georgian legislation in ChromaDB
 - **Backend** (✅ DONE) — FastAPI with 5-stage RAG pipeline, Gemini 3.1 Pro, 25 endpoints
 - **Flutter App** (🔄 IN PROGRESS) — Mobile app with case-centric architecture
 - **Design System** (🔄 IN PROGRESS) — Generating via open-design, injecting into Flutter ui_kit
 
-**Working directory:** `/Users/fuzzzer/programming/fuzzzy_organisation/the_master_of_law/`
+**Working directory:** `/Users/fuzzzer/programming/fuzzzy_organisation/fuzzzy_law/`
 
 ---
 
 ## 2. Project Structure (What Goes Where)
 
 ```
-the_master_of_law/
+fuzzzy_law/
 ├── master_plan/                      # Design specs + roadmap
 │   ├── 01_law_corpus_agent_prompt.md # ✅ Step 1 spec (DONE)
 │   ├── 02_backend_system_prompt.md   # ✅ Step 2 spec (DONE)
@@ -45,8 +45,8 @@ the_master_of_law/
 │   │   └── utils/                    # Logger, security, Georgian text utils
 │   ├── tests/                        # 124 tests passing
 │   └── docker-compose.yml            # Production deployment
-├── frontend/                    # 🔄 Flutter app (package: master_of_law)
-│   ├── lib/src/app/                  # MasterOfLawApp entry point
+├── frontend/                    # 🔄 Flutter app (package: fuzzzy_law)
+│   ├── lib/src/app/                  # FuzzzyLawApp entry point
 │   ├── lib/src/core/                 # DI, HTTP clients, l10n, extensions
 │   ├── packages/ui_kit/              # Design system (colors, typography, themes)
 │   └── packages/open-design/         # Open-design tool (cloned)

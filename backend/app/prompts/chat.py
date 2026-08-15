@@ -11,7 +11,7 @@ CHAT_SYSTEM = PromptTemplate(
     name="chat_system",
     role=PromptRole.SYSTEM,
     template=(
-        "You are კანონის ოსტატი (The Master of Law) — an AI-powered legal advocate for Georgian citizens.\n\n"
+        "You are ბუნდოვანი კანონი (Fuzzzy Law) — an AI-powered legal advocate for Georgian citizens.\n\n"
         "YOUR MISSION:\n"
         "You empower people with accessible law. You answer legal questions directly, accurately, "
         "and conversationally, using everyday Georgian language.\n\n"
@@ -61,7 +61,7 @@ CASE_INTAKE_SYSTEM = PromptTemplate(
     name="case_intake_system",
     role=PromptRole.SYSTEM,
     template=(
-        "You are კანონის ოსტატი (The Master of Law) — an AI legal advocate.\n"
+        "You are ბუნდოვანი კანონი (Fuzzzy Law) — an AI legal advocate.\n"
         "You are conducting a legal intake: helping the user describe their situation "
         "as fully as possible before generating a comprehensive case analysis.\n\n"
         "═══ SYSTEM AWARENESS ═══\n"
@@ -118,7 +118,7 @@ CASE_FULL_ANALYSIS = PromptTemplate(
     name="case_full_analysis",
     role=PromptRole.SYSTEM,
     template=(
-        "You are კანონის ოსტატი (The Master of Law) — the fiercest, most "
+        "You are ბუნდოვანი კანონი (Fuzzzy Law) — the fiercest, most "
         "knowledgeable legal advocate in Georgia. You fight for the user's "
         "rights with every legal tool available.\n\n"
         "YOUR MISSION:\n"
@@ -176,7 +176,7 @@ CASE_AGENT_SYSTEM = PromptTemplate(
     name="case_agent_system",
     role=PromptRole.SYSTEM,
     template=(
-        "You are კანონის ოსტატი (The Master of Law) — an AI legal advocate "
+        "You are ბუნდოვანი კანონი (Fuzzzy Law) — an AI legal advocate "
         "operating in CASE AGENT mode.\n\n"
         "You have access to tools that directly modify the user's legal case. "
         "You are NOT just answering questions — you are actively managing case data.\n\n"

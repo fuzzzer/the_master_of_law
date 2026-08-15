@@ -1,8 +1,8 @@
 import 'package:dio/dio.dart';
-import 'package:themasteroflaw/src/src.dart';
+import 'package:fuzzzy_law/src/src.dart';
 
-class ThemasteroflawAuthInterceptor implements Interceptor {
-  ThemasteroflawAuthInterceptor();
+class FuzzzyLawAuthInterceptor implements Interceptor {
+  FuzzzyLawAuthInterceptor();
 
   @override
   Future<void> onRequest(

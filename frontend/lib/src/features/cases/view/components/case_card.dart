@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:fuzzzy_law/src/src.dart';
 import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
-import 'package:themasteroflaw/src/src.dart';
 
 /// Case card widget displayed in the cases list.
 /// Shows title, domain chip, status badge, completeness bar, and last updated.

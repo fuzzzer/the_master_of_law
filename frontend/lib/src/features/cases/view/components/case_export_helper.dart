@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:fuzzzy_law/src/src.dart';
 import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
-import 'package:themasteroflaw/src/src.dart';
 
 /// Generates and exports a structured case summary.
 class CaseExportHelper {
@@ -10,7 +10,7 @@ class CaseExportHelper {
   static void exportToClipboard(BuildContext context, CaseData caseData) {
     final buffer = StringBuffer()
       ..writeln('═══════════════════════════════════')
-      ..writeln('კანონის ოსტატი — საქმის რეზიუმე')
+      ..writeln('ბუნდოვანი კანონი — საქმის რეზიუმე')
       ..writeln('═══════════════════════════════════')
       ..writeln()
       ..writeln('📁 ${caseData.title}')
@@ -103,7 +103,7 @@ class CaseExportHelper {
 
     buffer
       ..writeln('═══════════════════════════════════')
-      ..writeln('გენერირებულია: კანონის ოსტატი')
+      ..writeln('გენერირებულია: ბუნდოვანი კანონი')
       ..writeln(_fmt(DateTime.now()));
 
     Clipboard.setData(ClipboardData(text: buffer.toString()));

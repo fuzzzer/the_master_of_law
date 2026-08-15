@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 // `AppChipParent` — the shared parent-aware surface rule (M17 / T-0261).
-import 'package:themasteroflaw/src/src.dart';
+import 'package:fuzzzy_law/src/src.dart';
+import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 
 /// A tappable inline legal citation, with a **Georgian-safe** label.
 ///

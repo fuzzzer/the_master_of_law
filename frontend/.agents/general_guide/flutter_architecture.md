@@ -216,7 +216,7 @@ the reason; never hand-trim a generated barrel.
 -   **ALWAYS** read roles from the `BuildContext` at the point of use: `context.fuzzzyColors`, `context.fuzzzyTextStyles`, `context.fuzzzySpace`, `context.fuzzzyRadius`, `context.fuzzzyDensity`, `context.fuzzzyMotion`, `context.fuzzzyFormStyles`. The old `context.uiColors` / `uiTextStyles` / `uiFormStyles` getters were deleted at M10 and do not exist.
 -   **ALWAYS** prefer a `Fuzzzy*` widget from the kit (`FuzzzyButton`, `FuzzzyCard`, `FuzzzyTextField`, `FuzzzyToast`, …) over a native Flutter widget. `PrimaryScaffold` / `PrimaryButton` / `PrimaryTextField` and the rest of the fork's widgets are **gone**.
 -   If no kit widget fits, **build it app-side on roles** (`design/RECIPE_NEW_WIDGET.md`) — see `lib/src/features/cases/view/components/app_status_chip.dart` for the worked example. Never add a literal, never fork the kit.
--   `lib/src/app/theme/themasteroflaw_theme.dart` is the **one** bridge from kit roles to `ThemeData`, including the Georgian `fontFamilyFallback` every type role carries (the Ink pack's families have no Georgian block).
+-   `lib/src/app/theme/fuzzzy_law_theme.dart` is the **one** bridge from kit roles to `ThemeData`, including the Georgian `fontFamilyFallback` every type role carries (the Ink pack's families have no Georgian block).
 
 ### 4.4. Error Handling Protocol
 1.  **HTTP Client Level:** The `FuzzyHttpClient` and its `RestApiExceptionTranslator` automatically convert `DioException`s into a rich hierarchy of typed `HttpClientException`s.

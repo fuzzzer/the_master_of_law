@@ -82,7 +82,7 @@ Built 2026-07-19. Every AI request records ordered steps to Postgres `pipeline_t
   `--build` (image copies the code); `.env`-only changes need only `up -d api`.
 - Stack: compose project "backend" — api on 127.0.0.1:8000, postgres + redis internal.
   Backend postgres is NOT on host port 5432 (host 5432 is an unrelated project!).
-  DB access: `docker exec backend-postgres-1 psql -U mol_user -d master_of_law -c "..."`.
+  DB access: `docker exec backend-postgres-1 psql -U fuzzzy_user -d fuzzzy_law -c "..."`.
   Migrations: `docker exec backend-api-1 alembic upgrade head`.
 - **Gemini provider switch** (built 2026-07-19): `create_genai_client()` in
   `app/integrations/vertex_ai_client.py` — `GEMINI_API_KEY` set → free-tier Gemini API;
@@ -102,7 +102,7 @@ Built 2026-07-19. Every AI request records ordered steps to Postgres `pipeline_t
 
 ## 5. Known pre-existing failures (NOT yours to fix, NOT regressions)
 
-- `tests/test_agy_verification.py` — 2 tests need a live postgres on host:5432 with mol_user;
+- `tests/test_agy_verification.py` — 2 tests need a live postgres on host:5432 with fuzzzy_user;
   that port belongs to another project on this machine. They fail with InvalidPasswordError.
   Full suite baseline: **472 passed, 2 failed** (as of 2026-07-19).
 

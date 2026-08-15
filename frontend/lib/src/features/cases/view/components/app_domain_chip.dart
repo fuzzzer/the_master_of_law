@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:fuzzzy_law/src/src.dart';
 import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
-import 'package:themasteroflaw/src/src.dart';
 
 /// The legal-domain pill: an 8 px taxonomy disc and a Georgian short label in
 /// a monochrome outlined box.

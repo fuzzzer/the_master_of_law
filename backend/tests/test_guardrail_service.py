@@ -48,7 +48,7 @@ class TestGuardrailDecision:
     def test_greeting_response_text(self):
         d = GuardrailDecision(category="greeting", confidence=0.9, should_proceed=False)
         assert d.response_text is not None
-        assert "კანონის ოსტატი" in d.response_text
+        assert "ბუნდოვანი კანონი" in d.response_text
 
     def test_off_topic_response_text(self):
         d = GuardrailDecision(category="off_topic", confidence=0.9, should_proceed=False)

@@ -63,7 +63,7 @@ class FirebaseAuthMiddleware(BaseHTTPMiddleware):
                 # Set mock user for development
                 request.state.user = {
                     "uid": "dev-user-001",
-                    "email": "dev@masteroflaw.ge",
+                    "email": "dev@fuzzzylaw.ge",
                     "tier": "ADMIN",
                 }
                 return await call_next(request)
@@ -74,7 +74,7 @@ class FirebaseAuthMiddleware(BaseHTTPMiddleware):
             if settings.app_env == "development" and api_key == settings.admin_api_key:
                 request.state.user = {
                     "uid": "admin-api-key",
-                    "email": "admin@masteroflaw.ge",
+                    "email": "admin@fuzzzylaw.ge",
                     "tier": "SUPERADMIN",
                 }
                 return await call_next(request)
@@ -83,7 +83,7 @@ class FirebaseAuthMiddleware(BaseHTTPMiddleware):
             if is_valid_api_key(api_key):
                 request.state.user = {
                     "uid": f"api-user-{api_key[:8]}",
-                    "email": "tester@masteroflaw.ge",
+                    "email": "tester@fuzzzylaw.ge",
                     "tier": "FREE",
                 }
                 return await call_next(request)

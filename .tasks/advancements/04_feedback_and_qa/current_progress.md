@@ -24,7 +24,7 @@
 - [x] `FeedbackCategory` enum (7 categories) + `FeedbackTargetType` enum
 - [x] `FeedbackSubmitRequestParameters` model with `toMap()`
 - [x] `FeedbackSubmitResponseData` model with `fromMap()`
-- [x] `FeedbackRemoteDataSource` — POST `/api/v1/feedback` via `ThemasteroflawHttpClient`
+- [x] `FeedbackRemoteDataSource` — POST `/api/v1/feedback` via `FuzzzyLawHttpClient`
 - [x] `FeedbackRepository` — sealed class response, never throws
 - [x] `FeedbackCubit` + `FeedbackState` — constructor injection, exhaustive switch
 - [x] `FeedbackSheet` bottom sheet — category chips, star rating, comment field, submit

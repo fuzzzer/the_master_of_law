@@ -1,12 +1,12 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-import 'themasteroflaw_localizations.dart';
+import 'fuzzzy_law_localizations.dart';
 
 // ignore_for_file: type=lint
 
 /// The translations for Georgian (`ka`).
-class ThemasteroflawLocalizationsKa extends ThemasteroflawLocalizations {
-  ThemasteroflawLocalizationsKa([String locale = 'ka']) : super(locale);
+class FuzzzyLawLocalizationsKa extends FuzzzyLawLocalizations {
+  FuzzzyLawLocalizationsKa([String locale = 'ka']) : super(locale);
 
   @override
   String get languageName => 'ქართული';

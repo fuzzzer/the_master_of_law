@@ -1,4 +1,4 @@
-import 'package:themasteroflaw/src/core/services/http_client/http_client_interface/http_client_exceptions/http_client_exception.dart';
+import 'package:fuzzzy_law/src/core/services/http_client/http_client_interface/http_client_exceptions/http_client_exception.dart';
 
 class NetworkException extends HttpClientException {
   final Object? exception;

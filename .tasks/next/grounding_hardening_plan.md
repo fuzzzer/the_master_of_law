@@ -1,4 +1,4 @@
-# Grounding Hardening Plan — კანონის ოსტატი
+# Grounding Hardening Plan — ბუნდოვანი კანონი
 
 > Goal: a **fully grounded, foolproof law master agent**.
 > Context: the law_corpus pipeline (fetch → scrape → parse → chunk → embed, incl.

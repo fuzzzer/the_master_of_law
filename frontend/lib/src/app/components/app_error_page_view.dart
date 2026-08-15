@@ -42,7 +42,7 @@ import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 ///
 /// 1. **A kit `Theme`.** `context.fuzzzyColors` is
 ///    `Theme.of(context).extension<FuzzzyColors>()!`. If the throw happened at
-///    or above `MaterialApp` — and `ThemasteroflawTheme.dark()` itself can
+///    or above `MaterialApp` — and `FuzzzyLawTheme.dark()` itself can
 ///    throw, since `_georgianize` does
 ///    `GoogleFonts.notoSansGeorgian(...).fontFamily!` over an HTTP fetch
 ///    (`T-0252`) — then no `Theme` carrying `FuzzzyColors` exists, the `!`

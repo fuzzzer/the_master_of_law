@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fuzzzy_law/src/src.dart';
 import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:themasteroflaw/src/src.dart';
 
 /// Phase M · Unit A · **M17 — the `T-0261` consolidation lock.**
 ///
@@ -49,7 +49,7 @@ void main() {
   Future<void> pump(WidgetTester tester, Widget child) async {
     late ThemeData theme;
     runZonedGuarded(
-      () => theme = ThemasteroflawTheme.dark(),
+      () => theme = FuzzzyLawTheme.dark(),
       (e, _) {
         if (!isFontLoaderNoise(e)) unexpectedZoneErrors.add(e);
       },
@@ -281,7 +281,7 @@ void main() {
             builder: (_) {
               late ThemeData theme;
               runZonedGuarded(
-                () => theme = ThemasteroflawTheme.dark(),
+                () => theme = FuzzzyLawTheme.dark(),
                 (e, _) {
                   if (!isFontLoaderNoise(e)) unexpectedZoneErrors.add(e);
                 },

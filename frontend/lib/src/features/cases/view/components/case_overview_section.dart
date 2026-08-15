@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:fuzzzy_law/src/src.dart';
 import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
-import 'package:themasteroflaw/src/src.dart';
 
 /// Bird's-eye overview dashboard with summary cards.
 /// Each card tappable → navigates to corresponding tab.

@@ -97,7 +97,7 @@ lib/src/<feature_name>/
 3. Repositories return sealed responses (NEVER throw)
 4. Cubits use exhaustive switch on sealed types (NEVER try/catch)
 5. Data sources access HTTP client via `sl.get<>()`, repos/cubits use constructor injection
-6. Import only `package:themasteroflaw/src/src.dart` — never import individual files
+6. Import only `package:fuzzzy_law/src/src.dart` — never import individual files
 7. Models use `<Name>Data` suffix, request params use `<Name>RequestParameters` suffix
 8. All response parsing wrapped in `parseWithExpectedDeserializationException<T>()`
 9. No hardcoded colors, text styles, or spacing — use `context.uiColors`, `context.uiTextStyles`, `context.uiFormStyles`

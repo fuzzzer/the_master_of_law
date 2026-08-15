@@ -1,1 +1,1 @@
-"""The Master of Law — FastAPI Backend."""
+"""Fuzzzy Law — FastAPI Backend."""
