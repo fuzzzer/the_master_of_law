@@ -337,7 +337,7 @@ class CaseBuilderService:
         analysis = await self.gemini.generate(
             prompt=prompt,
             temperature=CASE_FULL_ANALYSIS.temperature,
-            model_name=settings.gemini_model,
+            model_name=settings.gemini_strong_model,
         )
         return analysis
 
@@ -352,7 +352,7 @@ class CaseBuilderService:
         case_data = await self.gemini.generate_json(
             prompt=prompt,
             temperature=CASE_BUILDER.temperature,
-            model_name=settings.gemini_model,
+            model_name=settings.gemini_strong_model,
         )
         if not isinstance(case_data, dict):
             raise ValueError("Gemini returned invalid case file format")
@@ -453,7 +453,7 @@ class CaseBuilderService:
             queries = await self.gemini.generate_json(
                 prompt=prompt,
                 temperature=0.3,
-                model_name=settings.gemini_chat_model,  # gemini-3-flash-preview (fast)
+                model_name=settings.gemini_cheap_model,  # CHEAP tier
             )
             if isinstance(queries, list):
                 result = [q for q in queries if isinstance(q, str) and q.strip()]

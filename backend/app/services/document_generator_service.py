@@ -75,7 +75,7 @@ class DocumentGeneratorService:
         result = await self.gemini.generate_json(
             prompt=prompt,
             temperature=DOCUMENT_DRAFTER.temperature,
-            model_name=settings.gemini_model,
+            model_name=settings.gemini_strong_model,
         )
 
         if not isinstance(result, dict) or "document_markdown" not in result:

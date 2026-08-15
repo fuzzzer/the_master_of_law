@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pydantic import Field, model_validator
+from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -38,8 +38,29 @@ class Settings(BaseSettings):
     google_cloud_location: str = Field(default="global")
     # Note: Vertex AI authenticates via ADC (GOOGLE_APPLICATION_CREDENTIALS).
     # No API key needed — set GCP_SA_KEY_PATH in .env for Docker.
-    gemini_model: str = Field(default="gemini-3.1-pro-preview")
-    gemini_chat_model: str = Field(default="gemini-3-flash-preview")
+    # ── Model tiers ──────────────────────────────────────────
+    # Two named tiers, both settable from the environment. Every call site
+    # picks a TIER, never a model id, so retargeting the whole app is a
+    # two-line env change and no code edit.
+    #
+    #   STRONG — reasoning that a wrong answer would harm the user:
+    #            phase-2 generation + tools, case analysis, documents.
+    #   CHEAP  — mechanical work whose output is checked or discarded:
+    #            guardrail, planning, rerank, verification, guard passes.
+    #
+    # They currently resolve to the same model (gemini-3.7-flash). The split
+    # is kept because it is a COST and TRUST boundary, not a model-name alias:
+    # the moment the tiers diverge again, every call site is already correct.
+    gemini_strong_model: str = Field(
+        default="gemini-3.7-flash",
+        validation_alias=AliasChoices("GEMINI_STRONG_MODEL", "GEMINI_MODEL"),
+        description="Model for high-stakes generation (phase 2, case analysis, documents).",
+    )
+    gemini_cheap_model: str = Field(
+        default="gemini-3.7-flash",
+        validation_alias=AliasChoices("GEMINI_CHEAP_MODEL", "GEMINI_CHAT_MODEL"),
+        description="Model for planning, reranking, verification and guard passes.",
+    )
     embedding_model: str = Field(default="gemini-embedding-001")
     embedding_dimensions: int = Field(default=768)
     gemini_api_key: str = Field(
@@ -90,11 +111,17 @@ class Settings(BaseSettings):
     )
 
     # ── Grounding: whole-code context injection (mechanism C) ─
+    # ON by default as of the 3.7-flash retarget. These three were shipped
+    # default-off as opt-in experiments and then run true in dev for months,
+    # which meant the reviewed system and the deployed one enforced different
+    # invariants with nothing surfacing the gap. Defaulting them ON makes the
+    # code the source of truth; set the env var to false to opt OUT.
     full_code_injection: bool = Field(
-        default=False,
+        default=True,
         description="Inject the full text of the classified domain's legal code "
                     "into the prompt (statute retrieval becomes deterministic). "
-                    "No-op when disabled — the prod-default path is unchanged.",
+                    "Only unambiguous domain->code pairs, and only when the code "
+                    "fully fits the char budget.",
     )
     full_code_injection_max_chars: int = Field(
         default=300_000,
@@ -102,16 +129,17 @@ class Settings(BaseSettings):
                     "fully fit are skipped (a truncated code defeats the purpose)",
     )
     faithfulness_check: bool = Field(
-        default=False,
-        description="Run a batched Flash faithfulness pass over each response "
-                    "(sentence-level supported/unsupported check + correction). "
-                    "One extra model call per chat — no-op when disabled.",
+        default=True,
+        description="Run a batched faithfulness pass over each response "
+                    "(sentence-level supported/unsupported check + correction) "
+                    "on the CHEAP tier. One extra model call per chat.",
     )
     anchoring_repair: bool = Field(
-        default=False,
+        default=True,
         description="When the unanchored legal-claim rate is >= 5%, run one "
-                    "Flash pass that anchors claim paragraphs using ONLY the "
-                    "citations already present in the response. No-op when disabled.",
+                    "CHEAP-tier pass that anchors claim paragraphs using ONLY the "
+                    "citations already present in the response. Also gates the "
+                    "court-practice attribution guard.",
     )
 
     # ── Temporary Staging Auth ───────────────────────────────

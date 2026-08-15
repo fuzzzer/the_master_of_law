@@ -105,7 +105,13 @@ GEMINI_TOP_P = 0.8
 
 GUARDRAIL_ENABLED: bool = True
 GUARDRAIL_CONFIDENCE_THRESHOLD: float = 0.7
-GUARDRAIL_MODEL: str = "gemini-2.0-flash"
+
+# There is deliberately NO GUARDRAIL_MODEL here. One was declared and pinned
+# at "gemini-2.0-flash", imported by guardrail_service, and then never read —
+# the classifier has always run on the cheap tier from settings. Dead config
+# that names a model is worse than none: the next person to touch the
+# guardrail would have believed it ran two majors behind everything else.
+# The guardrail is CHEAP-tier work; it uses settings.gemini_cheap_model.
 
 # ── Disclaimer ───────────────────────────────────────────────
 

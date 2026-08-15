@@ -17,7 +17,6 @@ from dataclasses import dataclass
 from app.config.constants import (
     GUARDRAIL_CONFIDENCE_THRESHOLD,
     GUARDRAIL_ENABLED,
-    GUARDRAIL_MODEL,
     UserTier,
 )
 from app.config.settings import settings
@@ -89,7 +88,7 @@ class GuardrailService:
                 temperature=0.0,
                 max_output_tokens=50,
                 response_mime_type="application/json",
-                model_name=settings.gemini_chat_model,  # cheap Flash, not Pro
+                model_name=settings.gemini_cheap_model,  # CHEAP tier
             )
             if not raw:
                 logger.warning("guardrail_classification_empty", message="Empty response from Gemini")

@@ -43,7 +43,7 @@ class VertexAIClient:
     """Wrapper around google-genai SDK for Gemini (Vertex AI or Gemini API)."""
 
     def __init__(self) -> None:
-        self._model = settings.gemini_model
+        self._model = settings.gemini_strong_model
         self._client: genai.Client | None = None
 
     def _get_client(self) -> genai.Client:
