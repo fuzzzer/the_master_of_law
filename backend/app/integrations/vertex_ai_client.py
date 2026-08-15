@@ -7,11 +7,13 @@ Set VERTEX_AI_API_KEY in .env.
 
 from __future__ import annotations
 
+import asyncio
 import json
+import random
 from typing import Any
 
 from google import genai
-from google.genai.types import GenerateContentConfig
+from google.genai.types import GenerateContentConfig, ThinkingConfig
 
 from app.config.constants import (
     GEMINI_MAX_OUTPUT_TOKENS,
@@ -22,6 +24,74 @@ from app.config.settings import settings
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+# ── Transient-failure retry ──────────────────────────────────
+# The provider returns 503 UNAVAILABLE ("high demand") and 429 RESOURCE_EXHAUSTED
+# under load. Without a retry these do NOT surface as errors anywhere the user
+# can see: every caller in this app has a defensive fallback, so a transient
+# blip silently degrades output quality instead. The planner is the worst case —
+# it falls back to searching the raw user message as ONE query instead of the
+# 3-8 it would have planned, and the answer still comes back looking fine.
+RETRY_MAX_ATTEMPTS = 3
+RETRY_BASE_DELAY_S = 0.75
+_TRANSIENT_MARKERS = (
+    "503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED",
+    "500", "INTERNAL", "deadline", "DEADLINE_EXCEEDED",
+)
+
+
+def _is_transient(exc: Exception) -> bool:
+    """True for provider-side blips that are worth retrying verbatim.
+
+    Deliberately string-based: the SDK raises several exception types across
+    the Vertex and Developer-API backends and normalising them is not worth a
+    hard dependency on the SDK's private error hierarchy.
+    """
+    text = f"{type(exc).__name__}: {exc}"
+    return any(m in text for m in _TRANSIENT_MARKERS)
+
+
+async def with_retry(operation, *, what: str):
+    """Await ``operation()``, retrying transient provider failures.
+
+    Quota exhaustion (a hard 429 with no remaining budget) looks identical to
+    rate limiting from here, so attempts are capped low and backoff is short:
+    the goal is to ride out a spike, not to grind against a spent quota.
+    """
+    last: Exception | None = None
+    for attempt in range(RETRY_MAX_ATTEMPTS):
+        try:
+            return await operation()
+        except Exception as exc:  # noqa: BLE001 — re-raised below
+            last = exc
+            if not _is_transient(exc) or attempt == RETRY_MAX_ATTEMPTS - 1:
+                raise
+            delay = RETRY_BASE_DELAY_S * (2 ** attempt) + random.uniform(0, 0.25)
+            logger.warning(
+                "gemini_transient_retry",
+                what=what,
+                attempt=attempt + 1,
+                of=RETRY_MAX_ATTEMPTS,
+                delay_s=round(delay, 2),
+                error=str(exc)[:200],
+            )
+            await asyncio.sleep(delay)
+    raise last  # unreachable; keeps type checkers honest
+
+
+def _apply_thinking(config: GenerateContentConfig, thinking_budget: int | None) -> None:
+    """Set the thinking budget when the caller asked for one.
+
+    WHY THIS EXISTS: on a thinking model, reasoning tokens are drawn from
+    max_output_tokens. A small budget is therefore not "a short answer" — it is
+    NO answer: the model spends the whole allowance thinking, returns
+    finishReason=MAX_TOKENS with empty text, and any caller that treats empty
+    as a soft failure silently stops working. That is exactly what happened to
+    the guardrail on the 3.7-flash retarget (47 of its 50 tokens went to
+    thinking). Mechanical, schema-shaped calls pass thinking_budget=0.
+    """
+    if thinking_budget is not None:
+        config.thinking_config = ThinkingConfig(thinking_budget=thinking_budget)
 
 
 def create_genai_client() -> genai.Client:
@@ -37,6 +107,32 @@ def create_genai_client() -> genai.Client:
         project=settings.google_cloud_project,
         location=settings.google_cloud_location,
     )
+
+
+class _RetryingChat:
+    """Passes ``send_message`` through with_retry; everything else delegates.
+
+    The SDK's chat object is what appends the model's function_call and our
+    function_response to history, so the tool loop must keep talking to THAT
+    object — this wraps it rather than reimplementing it. A transient failure
+    raises before the SDK records the turn, so a retry re-sends against
+    unchanged history rather than duplicating it.
+    """
+
+    __slots__ = ("_chat", "_model")
+
+    def __init__(self, chat: Any, model: str) -> None:
+        self._chat = chat
+        self._model = model
+
+    async def send_message(self, *args: Any, **kwargs: Any) -> Any:
+        return await with_retry(
+            lambda: self._chat.send_message(*args, **kwargs),
+            what=f"chat:{self._model}",
+        )
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._chat, name)
 
 
 class VertexAIClient:
@@ -60,8 +156,12 @@ class VertexAIClient:
         max_output_tokens: int = GEMINI_MAX_OUTPUT_TOKENS,
         response_mime_type: str | None = None,
         model_name: str | None = None,
+        thinking_budget: int | None = None,
     ) -> str:
-        """Generate text using Gemini."""
+        """Generate text using Gemini.
+
+        thinking_budget: 0 disables reasoning tokens — see _apply_thinking.
+        """
         client = self._get_client()
 
         config = GenerateContentConfig(
@@ -76,11 +176,35 @@ class VertexAIClient:
         if response_mime_type:
             config.response_mime_type = response_mime_type
 
-        response = await client.aio.models.generate_content(
-            model=model_name or self._model,
-            contents=prompt,
-            config=config,
+        _apply_thinking(config, thinking_budget)
+
+        model = model_name or self._model
+        response = await with_retry(
+            lambda: client.aio.models.generate_content(
+                model=model,
+                contents=prompt,
+                config=config,
+            ),
+            what=f"generate:{model}",
         )
+
+        # An empty body on a thinking model almost always means the output
+        # budget was eaten by reasoning. Say so, rather than leaving each
+        # caller to guess from a bare empty string.
+        if not response.text:
+            finish = None
+            if response.candidates:
+                finish = getattr(response.candidates[0], "finish_reason", None)
+            logger.warning(
+                "gemini_empty_response",
+                model=model,
+                finish_reason=str(finish),
+                max_output_tokens=max_output_tokens,
+                thinking_budget=thinking_budget,
+                hint=("output budget exhausted by reasoning tokens — raise "
+                      "max_output_tokens or pass thinking_budget=0")
+                     if str(finish).endswith("MAX_TOKENS") else None,
+            )
 
         return response.text
 
@@ -123,6 +247,7 @@ class VertexAIClient:
         max_output_tokens: int = GEMINI_MAX_OUTPUT_TOKENS,
         model_name: str | None = None,
         response_mime_type: str | None = None,
+        thinking_budget: int | None = None,
     ) -> Any:
         """Create a native multi-turn chat session.
 
@@ -157,11 +282,15 @@ class VertexAIClient:
         if response_mime_type:
             config.response_mime_type = response_mime_type
 
-        return client.aio.chats.create(
-            model=model_name or self._model,
+        _apply_thinking(config, thinking_budget)
+
+        model = model_name or self._model
+        chat = client.aio.chats.create(
+            model=model,
             config=config,
             history=history or [],
         )
+        return _RetryingChat(chat, model)
 
     async def generate_with_tools(
         self,

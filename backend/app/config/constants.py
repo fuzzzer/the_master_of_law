@@ -106,6 +106,12 @@ GEMINI_TOP_P = 0.8
 GUARDRAIL_ENABLED: bool = True
 GUARDRAIL_CONFIDENCE_THRESHOLD: float = 0.7
 
+# Headroom, not a target: the classifier emits ~11 tokens of JSON with thinking
+# disabled. The old value was 50, which is fine for the ANSWER and fatal on a
+# thinking model, where reasoning is drawn from the same allowance. Sized so
+# that re-enabling thinking here could not silently empty the response again.
+GUARDRAIL_MAX_OUTPUT_TOKENS: int = 256
+
 # There is deliberately NO GUARDRAIL_MODEL here. One was declared and pinned
 # at "gemini-2.0-flash", imported by guardrail_service, and then never read —
 # the classifier has always run on the cheap tier from settings. Dead config

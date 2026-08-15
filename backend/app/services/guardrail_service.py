@@ -17,11 +17,13 @@ from dataclasses import dataclass
 from app.config.constants import (
     GUARDRAIL_CONFIDENCE_THRESHOLD,
     GUARDRAIL_ENABLED,
+    GUARDRAIL_MAX_OUTPUT_TOKENS,
     UserTier,
 )
 from app.config.settings import settings
 from app.integrations.vertex_ai_client import VertexAIClient, get_vertex_ai_client
 from app.prompts.guardrail import GUARDRAIL_CLASSIFIER
+from app.services.trace_service import record_step
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -43,7 +45,7 @@ GUARDRAIL_RESPONSES = {
 @dataclass(frozen=True)
 class GuardrailDecision:
     category: str       # "legal" | "greeting" | "off_topic" | "harmful"
-    confidence: float   # 0.0 – 1.0
+    confidence: float | None   # 0.0 – 1.0; None = classifier unavailable
     should_proceed: bool  # True = run RAG pipeline, False = return canned response
 
     @property
@@ -86,19 +88,24 @@ class GuardrailService:
             raw = await self.gemini.generate(
                 prompt=prompt,
                 temperature=0.0,
-                max_output_tokens=50,
+                # Budget and thinking are set TOGETHER on purpose. This is a
+                # four-way label plus a float; there is nothing here to reason
+                # about, so reasoning is off and the whole allowance belongs to
+                # the answer. Leaving thinking on made this call return empty on
+                # EVERY request under gemini-3.7-flash (47 of 50 tokens spent
+                # thinking) and the guardrail silently stopped classifying.
+                max_output_tokens=GUARDRAIL_MAX_OUTPUT_TOKENS,
+                thinking_budget=0,
                 response_mime_type="application/json",
                 model_name=settings.gemini_cheap_model,  # CHEAP tier
             )
             if not raw:
-                logger.warning("guardrail_classification_empty", message="Empty response from Gemini")
-                return GuardrailDecision(category="legal", confidence=0.0, should_proceed=True)
+                return self._fail_open("empty_response", "Empty response from Gemini")
             parsed = json.loads(raw)
             category = parsed.get("category", "legal")
             confidence = float(parsed.get("confidence", 0.5))
         except Exception as e:
-            logger.error("guardrail_classification_failed", error=str(e))
-            return GuardrailDecision(category="legal", confidence=0.0, should_proceed=True)
+            return self._fail_open("exception", str(e))
 
         if category not in ("legal", "greeting", "off_topic", "harmful"):
             category = "legal"
@@ -114,6 +121,22 @@ class GuardrailService:
             confidence=confidence,
             should_proceed=should_proceed,
         )
+
+    @staticmethod
+    def _fail_open(reason: str, detail: str) -> GuardrailDecision:
+        """Let the request through when the classifier itself failed.
+
+        Failing OPEN is the right call — refusing a real legal question because
+        our classifier blipped is worse than letting an off-topic one through.
+        But it must never be MISTAKEN for a successful classification: the old
+        code returned a plain (legal, 0.0) here, which is exactly what a real
+        low-confidence verdict looks like, so a guardrail that had stopped
+        working for every single request read as normal in the trace. It now
+        records its own step and carries a confidence of None.
+        """
+        logger.warning("guardrail_unavailable", reason=reason, detail=detail[:300])
+        record_step("guardrail_unavailable", reason=reason, detail=detail[:300])
+        return GuardrailDecision(category="legal", confidence=None, should_proceed=True)
 
     def _log_decision(
         self,

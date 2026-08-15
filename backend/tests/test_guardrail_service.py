@@ -149,3 +149,58 @@ class TestGuardrailFixtures:
                 f"Message: {msg['text']} — expected proceed={expected_proceed}, "
                 f"got proceed={decision.should_proceed} (category={decision.category})"
             )
+
+
+class TestGuardrailCallContract:
+    """How we CALL the model — the part a mocked test can still hold honest.
+
+    Every other test in this file mocks `generate` wholesale, which is why 15
+    green tests coexisted with a guardrail that had stopped classifying on
+    every single request: the mock cannot know that a 50-token output budget
+    is entirely consumed by reasoning on a thinking model, leaving empty text.
+    These assert the two properties that keep that from recurring.
+    """
+
+    @pytest.mark.asyncio
+    async def test_disables_thinking_and_leaves_room_for_the_answer(self, guardrail_service):
+        guardrail_service._gemini.generate.return_value = _mock_gemini_response("legal", 0.9)
+        await guardrail_service.classify("სამსახურიდან გამათავისუფლეს")
+
+        kwargs = guardrail_service._gemini.generate.call_args.kwargs
+        # Reasoning tokens come out of max_output_tokens. This call has nothing
+        # to reason about, so thinking is off and the budget is all answer.
+        assert kwargs["thinking_budget"] == 0, (
+            "guardrail must disable thinking — with it on, a small output "
+            "budget yields finishReason=MAX_TOKENS and empty text"
+        )
+        assert kwargs["max_output_tokens"] >= 128, (
+            "budget must have headroom over the ~11 tokens of JSON actually "
+            "emitted, so re-enabling thinking cannot silently empty it"
+        )
+
+    @pytest.mark.asyncio
+    async def test_empty_response_is_distinguishable_from_a_real_verdict(self, guardrail_service):
+        guardrail_service._gemini.generate.return_value = ""
+        decision = await guardrail_service.classify("სამსახურიდან გამათავისუფლეს")
+
+        # Still fails OPEN — refusing a real legal question is the worse error.
+        assert decision.category == "legal"
+        assert decision.should_proceed is True
+        # But it must NOT look like a successful low-confidence classification,
+        # which is what (legal, 0.0) did: a guardrail that had been dead for
+        # every request read as normal in the trace.
+        assert decision.confidence is None
+
+    @pytest.mark.asyncio
+    async def test_exception_is_also_distinguishable(self, guardrail_service):
+        guardrail_service._gemini.generate.side_effect = Exception("503 UNAVAILABLE")
+        decision = await guardrail_service.classify("test")
+        assert decision.should_proceed is True
+        assert decision.confidence is None
+
+    @pytest.mark.asyncio
+    async def test_a_real_verdict_still_carries_its_confidence(self, guardrail_service):
+        guardrail_service._gemini.generate.return_value = _mock_gemini_response("off_topic", 0.95)
+        decision = await guardrail_service.classify("რა ამინდია დღეს?")
+        assert decision.category == "off_topic"
+        assert decision.confidence == 0.95
