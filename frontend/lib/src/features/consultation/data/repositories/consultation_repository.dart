@@ -15,7 +15,18 @@ class ConsultationFailure<T> extends ConsultationResult<T> {
   const ConsultationFailure({required this.type, this.message});
 }
 
-enum ConsultationFailureType { network, unauthorized, noCredits, rateLimited, notFound, serverError, unknown }
+enum ConsultationFailureType {
+  network,
+  unauthorized,
+  noCredits,
+  rateLimited,
+  notFound,
+  /// The AI provider is out of budget or overloaded — distinct from
+  /// [serverError] because waiting actually helps and nothing is broken.
+  serviceUnavailable,
+  serverError,
+  unknown,
+}
 
 class ConsultationRepository {
   final ConsultationRemoteDataSource _remoteDataSource;
@@ -169,6 +180,12 @@ class ConsultationRepository {
     }
     if (e is UnsuccessfulResponseException && e.statusCode == 429) {
       return ConsultationFailureType.rateLimited;
+    }
+    // 503 is the backend saying its own upstream AI budget is spent or the
+    // provider is overloaded. Collapsing it into `serverError` would tell the
+    // user "something broke" when the honest answer is "come back shortly".
+    if (e is UnsuccessfulResponseException && e.statusCode == 503) {
+      return ConsultationFailureType.serviceUnavailable;
     }
     return switch (e) {
       UnauthorizedException() => ConsultationFailureType.unauthorized,

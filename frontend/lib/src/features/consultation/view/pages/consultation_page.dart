@@ -1553,6 +1553,8 @@ class _ConsultationPageState extends State<ConsultationPage>
     ConsultationFailureType.rateLimited =>
       'მოთხოვნების ლიმიტი ამოიწურა, სცადეთ მოგვიანებით',
     ConsultationFailureType.notFound => 'საუბარი ვერ მოიძებნა',
+    ConsultationFailureType.serviceUnavailable =>
+      'AI სერვისი დროებით მიუწვდომელია, სცადეთ მოგვიანებით',
     ConsultationFailureType.serverError => 'სერვერის შეცდომა, სცადეთ ხელახლა',
     ConsultationFailureType.unknown || null => 'უცნობი შეცდომა',
   };

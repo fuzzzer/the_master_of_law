@@ -1004,6 +1004,8 @@ String _failureMessageKa(ConsultationFailureType? type) => switch (type) {
   ConsultationFailureType.rateLimited =>
     'მოთხოვნების ლიმიტი ამოიწურა.\nსცადეთ ცოტა მოგვიანებით.',
   ConsultationFailureType.notFound => 'მოთხოვნილი რესურსი ვერ მოიძებნა.',
+  ConsultationFailureType.serviceUnavailable =>
+    'AI სერვისი დროებით მიუწვდომელია.\nსცადეთ ცოტა მოგვიანებით.',
   ConsultationFailureType.serverError =>
     'სერვერის შეცდომა.\nგთხოვთ ცოტა მოგვიანებით სცადოთ.',
   ConsultationFailureType.unknown ||
