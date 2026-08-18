@@ -24,13 +24,17 @@ class VertexEmbeddingClient:
     def __init__(self) -> None:
         self._model = settings.embedding_model
         self._dimensions = settings.embedding_dimensions
-        self._client: genai.Client | None = None
 
     def _get_client(self) -> genai.Client:
-        if self._client is None:
-            self._client = create_genai_client()
-            logger.info("vertex_embedding_client_init", model=self._model, provider=settings.gemini_provider)
-        return self._client
+        """Resolve the client for the CURRENT request, every time.
+
+        Same reasoning as VertexAIClient._get_client: this object is a
+        process-lifetime singleton, so memoising the client here would spend
+        the first caller's Google quota on every user that followed. Query
+        embedding is on the hot path of every search, hence the per-key
+        lru_cache in create_genai_client rather than a rebuild per call.
+        """
+        return create_genai_client()
 
     def embed_query(self, query: str) -> list[float]:
         """Embed a single search query."""

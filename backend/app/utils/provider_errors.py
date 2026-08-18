@@ -26,6 +26,7 @@ class ProviderErrorKind(str, Enum):
 
     QUOTA_EXHAUSTED = "quota_exhausted"      # billing/limit — waiting helps
     PROVIDER_UNAVAILABLE = "provider_unavailable"  # overload — retrying helps
+    INVALID_KEY = "invalid_key"              # the caller's own key — only they can fix it
     UNKNOWN = "unknown"                      # a real bug — surface as 500
 
 
@@ -45,13 +46,20 @@ class ProviderError:
 # User-facing copy. Georgian, because the app is Georgian — an English string
 # here lands verbatim in the conversation as a chat bubble.
 _QUOTA_KA = (
-    "AI სერვისის დღიური ლიმიტი ამოიწურა. გთხოვთ, სცადოთ მოგვიანებით "
-    "ან დაუკავშირდით ადმინისტრატორს."
+    "AI სერვისის დღიური ლიმიტი ამოიწურა. გთხოვთ, სცადოთ მოგვიანებით."
 )
 _UNAVAILABLE_KA = (
     "AI სერვისი დროებით გადატვირთულია. გთხოვთ, სცადოთ რამდენიმე წამში."
 )
 _UNKNOWN_KA = "დაფიქსირდა შეცდომა. გთხოვთ, სცადოთ თავიდან."
+# Under bring-your-own-key the credential belongs to the USER, so a rejected
+# key is not an outage and waiting will not fix it — the message has to say
+# what they must do. Left unclassified this arrives as "an error occurred",
+# and the user has no way to learn that their key expired.
+_INVALID_KEY_KA = (
+    "თქვენი Google-ის გასაღები არ მუშაობს. გთხოვთ, შეამოწმოთ ან დაამატოთ ახალი "
+    "გასაღები პარამეტრებში."
+)
 
 # Quota and overload BOTH surface as 429 on the Gemini Developer API, so the
 # status code alone cannot separate them — "exceeded your current quota"
@@ -70,6 +78,16 @@ _UNAVAILABLE_MARKERS = (
     "500",
     "INTERNAL",
     "DEADLINE_EXCEEDED",
+)
+
+_INVALID_KEY_MARKERS = (
+    "API_KEY_INVALID",
+    "API key not valid",
+    "API key expired",
+    "UNAUTHENTICATED",
+    "PERMISSION_DENIED",
+    "SERVICE_DISABLED",
+    "has not been used in project",
 )
 
 _RETRY_AFTER_RE = re.compile(r"retryDelay['\"]?\s*[:=]\s*['\"]?(\d+)")
@@ -96,6 +114,19 @@ def classify(exc: BaseException) -> ProviderError:
     into a soothing "try again later" is how defects get shipped.
     """
     text = f"{type(exc).__name__}: {exc}"
+
+    # Checked before quota: a disabled-API error carries PERMISSION_DENIED and
+    # some quota-ish wording, and telling the user to "try later" when their
+    # key will never work is the worse of the two mistakes.
+    if any(m in text for m in _INVALID_KEY_MARKERS):
+        return ProviderError(
+            kind=ProviderErrorKind.INVALID_KEY,
+            # 401, not 503: the request cannot succeed as sent, and the client
+            # keys its "re-prompt for a key" flow off this status.
+            status_code=401,
+            error_code="byok_key_invalid",
+            message_ka=_INVALID_KEY_KA,
+        )
 
     if any(m in text for m in _QUOTA_MARKERS):
         return ProviderError(

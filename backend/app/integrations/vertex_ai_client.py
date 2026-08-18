@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import json
 import random
+from functools import lru_cache
 from typing import Any
 
 from google import genai
@@ -20,6 +21,7 @@ from app.config.constants import (
     GEMINI_TEMPERATURE,
     GEMINI_TOP_P,
 )
+from app.config.request_context import get_byok_key
 from app.config.settings import settings
 from app.utils.logger import get_logger
 
@@ -32,6 +34,11 @@ logger = get_logger(__name__)
 # blip silently degrades output quality instead. The planner is the worst case —
 # it falls back to searching the raw user message as ONE query instead of the
 # 3-8 it would have planned, and the answer still comes back looking fine.
+# How many distinct caller keys keep a live client (and its connection pool).
+# Sized for concurrent ACTIVE users, not registered ones — an evicted key costs
+# one client rebuild on that user's next call, nothing more.
+BYOK_CLIENT_CACHE_SIZE = 64
+
 RETRY_MAX_ATTEMPTS = 3
 RETRY_BASE_DELAY_S = 0.75
 _TRANSIENT_MARKERS = (
@@ -94,19 +101,67 @@ def _apply_thinking(config: GenerateContentConfig, thinking_budget: int | None) 
         config.thinking_config = ThinkingConfig(thinking_budget=thinking_budget)
 
 
-def create_genai_client() -> genai.Client:
-    """Create a google-genai client for the configured provider.
+@lru_cache(maxsize=BYOK_CLIENT_CACHE_SIZE)
+def _client_for_key(api_key: str) -> genai.Client:
+    """One reusable client per distinct API key.
 
-    GEMINI_API_KEY set → Gemini Developer API (free tier, local debugging).
-    Empty (default)    → Vertex AI with ADC, exactly as before.
+    Cached because ``genai.Client`` owns an HTTP connection pool: building one
+    per request would open a fresh pool for every chat turn. Bounded because
+    the keys are supplied by users and an unbounded map would grow with the
+    user base; the LRU evicts the least recently seen key, and the next request
+    from that user simply rebuilds it.
     """
-    if settings.gemini_api_key:
-        return genai.Client(api_key=settings.gemini_api_key)
+    return genai.Client(api_key=api_key)
+
+
+@lru_cache(maxsize=1)
+def _vertex_client() -> genai.Client:
+    """The server's own Vertex AI client (ADC). Used when no key is in play."""
     return genai.Client(
         vertexai=True,
         project=settings.google_cloud_project,
         location=settings.google_cloud_location,
     )
+
+
+def create_genai_client() -> genai.Client:
+    """Create a google-genai client for whoever is paying for this request.
+
+    Resolution order — first match wins:
+      1. The caller's BYOK key from the request context  → their Google quota.
+      2. GEMINI_API_KEY from the environment             → the operator's key.
+      3. Neither                                          → Vertex AI with ADC.
+
+    (1) is what makes bring-your-own-key work: every model call made while
+    serving a request inherits the caller's credential, so their free-tier
+    quota is what gets spent and the operator is never billed for user
+    traffic. (2) and (3) are unchanged and keep local dev, the eval harness
+    and any background job working exactly as before.
+
+    NOTE for callers: this must be called per use, never cached on a
+    long-lived object. Caching the RESULT on a process-lifetime singleton
+    would pin whichever user happened to arrive first and then charge every
+    subsequent request to them. The lru_cache above already makes repeat
+    calls cheap, so there is no reason to hold the client anywhere else.
+    """
+    byok = get_byok_key()
+    if byok:
+        return _client_for_key(byok)
+    if settings.gemini_api_key:
+        return _client_for_key(settings.gemini_api_key)
+    return _vertex_client()
+
+
+def reset_client_cache() -> None:
+    """Drop every cached client, so the next call rebuilds from current config.
+
+    Needed because the caches above are process-global: they outlive any single
+    request by design, which also means they outlive a change to the credential
+    that produced them. Tests reset between cases; operationally this is the
+    hook for picking up a rotated service-account key without a restart.
+    """
+    _client_for_key.cache_clear()
+    _vertex_client.cache_clear()
 
 
 class _RetryingChat:
@@ -139,7 +194,8 @@ class VertexAIClient:
     """Wrapper around google-genai SDK for Gemini (Vertex AI or Gemini API)."""
 
     def __init__(self) -> None:
-        self._client: genai.Client | None = None
+        # No client is held here on purpose — see _get_client.
+        pass
 
     async def _default_model(self) -> str:
         """Model used when a caller names none.
@@ -154,10 +210,14 @@ class VertexAIClient:
         return await strong_model()
 
     def _get_client(self) -> genai.Client:
-        if self._client is None:
-            self._client = create_genai_client()
-            logger.info("vertex_ai_client_init", provider=settings.gemini_provider)
-        return self._client
+        """Resolve the client for the CURRENT request, every time.
+
+        Deliberately not memoised on self: this object is a process-lifetime
+        singleton shared by every request, so a cached client would serve the
+        first caller's key to everyone after them. create_genai_client is
+        lru_cached per key, so this stays a dict lookup in the common case.
+        """
+        return create_genai_client()
 
     async def generate(
         self,
