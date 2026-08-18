@@ -52,6 +52,23 @@ MOCK_CHUNKS = [
 ]
 
 
+@pytest.fixture(autouse=True)
+def _reset_genai_client_cache():
+    """Keep the process-global Gemini client cache from leaking across tests.
+
+    create_genai_client memoises one client per credential so that a per-request
+    BYOK lookup stays cheap. That cache is deliberately process-wide, which
+    makes it shared mutable state between tests: without this, a test that
+    warms it decides what the NEXT test observes, and the failure lands on
+    whichever test happens to run second.
+    """
+    from app.integrations.vertex_ai_client import reset_client_cache
+
+    reset_client_cache()
+    yield
+    reset_client_cache()
+
+
 @pytest.fixture
 def mock_chunks():
     """Sample law chunks for testing."""
