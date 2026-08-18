@@ -263,11 +263,13 @@ class _SettingsTile extends StatelessWidget {
 
 /// The two model tiers, and a picker for each.
 ///
-/// Lives on the profile screen next to theme and language because it is the
-/// same kind of thing to the person using it — a setting that changes how the
-/// app behaves. It is NOT the same kind of thing to the system: theme is
-/// personal and local, while a model change is global and costs money, which
-/// is why the rows go read-only when the server says `can_edit` is false.
+/// Lives on the profile screen next to theme and language because it now IS
+/// the same kind of thing to the system as well as to the person: under
+/// bring-your-own-key the model is paid for by this user's key, out of this
+/// user's quota, so choosing one is as personal as choosing a theme.
+///
+/// It was previously an admin-only global setting, and the read-only path on
+/// `can_edit` is kept for deployments that go back to operator-paid AI.
 class _ModelSection extends StatelessWidget {
   const _ModelSection();
 

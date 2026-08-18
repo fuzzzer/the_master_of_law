@@ -4,6 +4,12 @@ import 'package:fuzzzy_law/src/src.dart';
 part 'model_config_state.dart';
 
 /// Owns the two model tiers shown on the profile screen.
+///
+/// The selection is PERSONAL: the server validates a model against the user's
+/// own key and returns it, this stores it on the device, and the interceptor
+/// attaches it to later requests. Nothing is written server-side, so one user
+/// changing model cannot move anybody else — which matters because the usual
+/// trigger is that user personally running out of quota on a model.
 class ModelConfigCubit extends Cubit<ModelConfigState> {
   final ModelConfigRepository _repository;
 
@@ -41,6 +47,13 @@ class ModelConfigCubit extends Cubit<ModelConfigState> {
         strong: tier == 'strong' ? model : null,
         cheap: tier == 'cheap' ? model : null,
       );
+      // Only persisted AFTER the server validated and smoke-tested it against
+      // this user's own key. Storing first would leave a model the key cannot
+      // call attached to every later request.
+      await sl.get<ModelPreferenceService>().save(
+        strong: tier == 'strong' ? model : null,
+        cheap: tier == 'cheap' ? model : null,
+      );
       emit(
         state.copyWith(
           status: ModelConfigStatus.ready,
@@ -59,6 +72,10 @@ class ModelConfigCubit extends Cubit<ModelConfigState> {
     if (state.pendingTier != null) return;
     emit(state.copyWith(pendingTier: 'reset', clearError: true));
     try {
+      // Cleared before the fetch so the request that reports the new effective
+      // models is itself sent without the old choice attached — otherwise the
+      // screen echoes back the very models the user just discarded.
+      await sl.get<ModelPreferenceService>().clear();
       emit(
         state.copyWith(
           status: ModelConfigStatus.ready,

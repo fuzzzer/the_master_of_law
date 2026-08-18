@@ -32,39 +32,34 @@ class _ApiKeyPromptPageState extends State<ApiKeyPromptPage> {
 
     final secureStorage = sl.get<SecureStorageService>();
     try {
-      // Persist first so the auth interceptor attaches the key, then validate
-      // with a lightweight authenticated ping. This avoids persisting a typo'd
-      // key that would make every subsequent request 401.
+      // Persist first so the auth interceptor attaches the key to the check
+      // itself; a key that fails is deleted again below, so a typo never
+      // survives this screen.
       await secureStorage.saveData('temporary_api_key', key);
 
-      final repository = CreditsRepository(
-        remoteDataSource: CreditsRemoteDataSource(),
-      );
-      final result = await repository.getCredits();
+      final result = await ApiKeyValidationDataSource().validate();
 
       if (!mounted) return;
 
       switch (result) {
-        // notFound = endpoint missing but key accepted; treat as valid so we
-        // don't block access if the credits endpoint isn't deployed yet.
-        case CreditsSuccess<int>():
-        case CreditsFailure<int>(type: CreditsFailureType.notFound):
+        case ApiKeyCheck.valid:
           context.go('/cases');
-        case CreditsFailure<int>(type: CreditsFailureType.unauthorized):
+        case ApiKeyCheck.invalid:
           await secureStorage.deleteData('temporary_api_key');
           if (mounted) {
             setState(
-              () => _error = 'არასწორი გასაღები. შეამოწმეთ და სცადეთ ხელახლა.',
+              () => _error = 'გასაღები არ მუშაობს. დარწმუნდით, რომ სრულად '
+                  'დააკოპირეთ Google AI Studio-დან.',
             );
           }
-        case CreditsFailure<int>(type: CreditsFailureType.network):
+        case ApiKeyCheck.unreachable:
+          // The key is NOT deleted here: the server being down says nothing
+          // about it, and wiping a good key would make an outage look like
+          // the user's mistake.
           if (mounted) {
-            setState(() => _error = 'სერვერთან დაკავშირება ვერ მოხერხდა.');
+            setState(() => _error = 'სერვერთან დაკავშირება ვერ მოხერხდა. '
+                'გთხოვთ, სცადოთ თავიდან.');
           }
-        case CreditsFailure<int>():
-          // Other server-side errors: accept the key (server reachable, key
-          // attached) and let downstream screens surface specifics.
-          context.go('/cases');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -80,19 +75,27 @@ class _ApiKeyPromptPageState extends State<ApiKeyPromptPage> {
     final density = context.fuzzzyDensity;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Staging Access')),
+      appBar: AppBar(title: const Text('დაწყება')),
       body: Padding(
         padding: density.screen,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'Enter your Staging API Key',
+              'შეიყვანეთ Google AI Studio-ს გასაღები',
               // Was `TextStyle(fontSize: 24, fontWeight: bold)` — a BLOCKING
               // literal size AND a hand-rolled weight. A brand pack owns the
               // type scale; 24/bold is `titleM`, the role every other page
               // header in this app took at M3–M9b.
               style: type.titleM.copyWith(color: colors.ink),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: space.m),
+            Text(
+              'აპლიკაცია იყენებს თქვენს პირად Google-ის გასაღებს — ის უფასოა. '
+              'აიღეთ aistudio.google.com/apikey მისამართზე და ჩასვით აქ. '
+              'გასაღები ინახება მხოლოდ ამ მოწყობილობაზე.',
+              style: type.body.copyWith(color: colors.inkMute),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: space.xxl),
@@ -103,7 +106,7 @@ class _ApiKeyPromptPageState extends State<ApiKeyPromptPage> {
               // border states, radius, content padding and hint style come
               // from M1's inputDecorationTheme (RUN_BRIEF §4). The fork's bare
               // outline was the ONE field in the app that opted out.
-              decoration: const InputDecoration(hintText: 'sk_...'),
+              decoration: const InputDecoration(hintText: 'AIza...'),
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _submit(),
             ),
@@ -134,7 +137,7 @@ class _ApiKeyPromptPageState extends State<ApiKeyPromptPage> {
                 ),
                 // Was `TextStyle(fontSize: 16)` — the second BLOCKING literal.
                 // A button label is `control`, always.
-                child: Text('Access Application', style: type.control),
+                child: Text('გაგრძელება', style: type.control),
               ),
             ),
           ],

@@ -16,6 +16,19 @@ class DependencyInjection {
 
     sl.safeRegisterSingleton<SecureStorageService>(SecureStorageService(const FlutterSecureStorage()));
 
+    // Registered before the http clients: the auth interceptor reads the
+    // device id on every outgoing request, so it must already exist by the
+    // time the first one is built.
+    sl.safeRegisterSingleton<DeviceIdService>(
+      DeviceIdService(sl.get<SecureStorageService>()),
+    );
+
+    // Loaded eagerly so the auth interceptor can read the chosen models
+    // synchronously on every request instead of awaiting secure storage.
+    final modelPreferences = ModelPreferenceService(sl.get<SecureStorageService>());
+    await modelPreferences.load();
+    sl.safeRegisterSingleton<ModelPreferenceService>(modelPreferences);
+
     final fuzzzyLawHttpClient = FuzzzyLawHttpClient(packageInfo: packageInfo);
     sl.safeRegisterSingleton<FuzzzyLawHttpClient>(fuzzzyLawHttpClient);
 

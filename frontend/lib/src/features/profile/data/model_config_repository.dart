@@ -6,14 +6,24 @@ class TierModel {
   /// Which model is actually serving this tier right now.
   final String model;
 
-  /// `override` — chosen from this screen; `env` — the deployed default.
+  /// `personal` — this user's own choice; `override` — the admin default for
+  /// the deployment; `env` — what it was deployed with.
   /// Shown to the reader because "the app is on X" and "someone changed it
   /// to X" are different facts and only one of them survives a reset.
   final String source;
 
   const TierModel({required this.model, required this.source});
 
-  bool get isOverride => source == 'override';
+  /// True when this tier is NOT simply what the app was deployed with —
+  /// either this user chose it, or an admin changed the default.
+  ///
+  /// Both call sites ask the same question ("is there something to undo?"),
+  /// so a personal choice has to count. Matching only 'override' hid the
+  /// reset button from the very user who had just picked a model.
+  bool get isOverride => source != 'env';
+
+  /// This user's own choice, as opposed to the deployment's default.
+  bool get isPersonal => source == 'personal';
 
   factory TierModel.fromMap(Map<String, dynamic> m) => TierModel(
     model: m['model']?.toString() ?? '',
@@ -26,9 +36,10 @@ class ModelConfig {
   final TierModel cheap;
   final List<String> available;
 
-  /// The backend decides this, not the client: changing a model changes cost
-  /// and answer quality for every user, so it is an admin action. The UI
-  /// reflects the server's answer rather than deciding for itself.
+  /// The backend decides this, not the client. Under bring-your-own-key it is
+  /// true for everyone, because the choice only affects the caller who made
+  /// it. It goes false only in a deployment where the operator pays for the
+  /// AI, and a model change would spend their money on everyone's behalf.
   final bool canEdit;
 
   const ModelConfig({

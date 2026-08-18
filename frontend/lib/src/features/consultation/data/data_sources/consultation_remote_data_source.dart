@@ -121,8 +121,19 @@ class ConsultationRemoteDataSource {
 
     final secureStorage = sl.get<SecureStorageService>();
     final apiKey = await secureStorage.getData('temporary_api_key');
-    final queryParams = apiKey != null && apiKey.isNotEmpty ? '?api_key=$apiKey' : '';
-    final uri = Uri.parse('$wsUrl/api/v1/chat/$conversationId/ws$queryParams');
+    final deviceId = await sl.get<DeviceIdService>().get();
+
+    // Browsers cannot set headers on a WebSocket handshake, so what the auth
+    // interceptor sends as headers has to travel in the query string here.
+    // Uri handles the escaping; string interpolation would corrupt any key
+    // containing a reserved character.
+    final uri = Uri.parse('$wsUrl/api/v1/chat/$conversationId/ws').replace(
+      queryParameters: <String, String>{
+        if (apiKey != null && apiKey.isNotEmpty) 'api_key': apiKey,
+        'device_id': deviceId,
+        ...sl.get<ModelPreferenceService>().queryParameters,
+      },
+    );
     
     final channel = WebSocketChannel.connect(uri);
 
