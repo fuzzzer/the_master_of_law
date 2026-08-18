@@ -476,7 +476,19 @@ async def _authenticate(websocket: WebSocket, token: str | None) -> dict[str, An
     uid = None
     tier = "FREE"
 
-    if api_key:
+    # ── No-login mode ─────────────────────────────────────────
+    # Checked before the api_key branch below: in this mode the api_key query
+    # parameter carries the caller's GOOGLE key (ByokMiddleware has already
+    # validated and bound it), not an invite code, so running it through
+    # is_valid_api_key would reject every legitimate connection.
+    if not settings.auth_enabled:
+        from app.utils.anonymous_identity import anonymous_uid
+
+        uid = anonymous_uid(
+            websocket.query_params.get("device_id"),
+            websocket.client.host if websocket.client else None,
+        )
+    elif api_key:
         if settings.app_env == "development" and api_key == settings.admin_api_key:
             uid = "admin-api-key"
             tier = "SUPERADMIN"
@@ -516,11 +528,11 @@ async def _authenticate(websocket: WebSocket, token: str | None) -> dict[str, An
         user = await user_repo.get_by_firebase_uid(uid)
 
         if not user:
-            if settings.app_env == "development":
+            if settings.app_env == "development" or not settings.auth_enabled:
                 user = await user_repo.create_or_update(
                     firebase_uid=uid,
-                    email="mock@fuzzzylaw.ge",
-                    display_name="Mock User"
+                    email=None if not settings.auth_enabled else "mock@fuzzzylaw.ge",
+                    display_name=None if not settings.auth_enabled else "Mock User",
                 )
                 await db.commit()
             else:

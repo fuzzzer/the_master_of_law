@@ -21,6 +21,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config.settings import settings
 from app.integrations.chroma_client import get_chroma_client
+from app.middleware.byok_middleware import ByokMiddleware
 from app.middleware.credit_gate_middleware import CreditGateMiddleware
 from app.middleware.error_handler_middleware import ErrorHandlerMiddleware
 from app.middleware.firebase_auth_middleware import FirebaseAuthMiddleware
@@ -57,6 +58,8 @@ async def lifespan(app: FastAPI):
         app_name=settings.app_name,
         env=settings.app_env,
         port=settings.app_port,
+        auth_enabled=settings.auth_enabled,
+        byok_required=settings.byok_required,
     )
 
     # Initialize database engine (validates connection string)
@@ -110,6 +113,11 @@ def create_app() -> FastAPI:
     app.add_middleware(CreditGateMiddleware)
     # 3. Firebase auth (authenticates user, populates request.state.user)
     app.add_middleware(FirebaseAuthMiddleware)
+    # 3b. BYOK — binds the caller's own Google key to the request context.
+    #     Sits OUTSIDE auth so a request with no usable key is rejected before
+    #     any database work, and is plain ASGI so it also covers the chat
+    #     WebSocket, which the BaseHTTPMiddleware layers above never see.
+    app.add_middleware(ByokMiddleware)
     # 4. Error handler (outermost app layer, catches all unhandled exceptions)
     app.add_middleware(ErrorHandlerMiddleware)
     # 5. CORS (always outermost for browser requests)

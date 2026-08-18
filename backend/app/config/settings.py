@@ -100,6 +100,12 @@ class Settings(BaseSettings):
     rate_limit_free_per_minute: int = Field(default=5)
     rate_limit_pro_per_minute: int = Field(default=30)
     rate_limit_admin_per_minute: int = Field(default=120)
+    rate_limit_anon_per_minute: int = Field(
+        default=20,
+        description="Per-device limit when auth is disabled. This is abuse "
+                    "protection only — with BYOK the real ceiling is the "
+                    "caller's own Google quota, so it can be generous.",
+    )
 
     # ── Logging ──────────────────────────────────────────────
     log_level: str = Field(default="INFO")
@@ -140,6 +146,38 @@ class Settings(BaseSettings):
                     "CHEAP-tier pass that anchors claim paragraphs using ONLY the "
                     "citations already present in the response. Also gates the "
                     "court-practice attribution guard.",
+    )
+
+    # ── Access model: login and bring-your-own-key ───────────
+    # These two switches decide WHO may call the API and WHOSE Google quota
+    # pays for the model calls. They are independent on purpose.
+    #
+    #   auth_enabled=True,  byok_required=False  → Firebase login, operator pays.
+    #   auth_enabled=False, byok_required=True   → open access, each user pays
+    #                                              with their own Google key.
+    #                                              This is the v1 launch mode.
+    #
+    # With auth_enabled=False the backend never imports firebase_admin, so no
+    # Firebase service-account credential is needed on the server at all.
+    auth_enabled: bool = Field(
+        default=True,
+        description="Require a verified Firebase ID token (or a valid access "
+                    "key) on protected routes. False = open access: callers "
+                    "are identified only by their device id, which is enough "
+                    "to keep their cases and conversations separate.",
+    )
+    byok_required: bool = Field(
+        default=False,
+        description="Require every caller to supply their own Google AI Studio "
+                    "key, which is then used for all model calls made while "
+                    "serving their request. Requests without one are rejected "
+                    "before any work is done.",
+    )
+    byok_key_header: str = Field(
+        default="X-API-Key",
+        description="Header carrying the caller's Google key. Defaults to the "
+                    "header the Flutter app already sends, so enabling BYOK "
+                    "needs no client change.",
     )
 
     # ── Temporary Staging Auth ───────────────────────────────

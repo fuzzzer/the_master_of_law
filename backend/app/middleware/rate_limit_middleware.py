@@ -104,9 +104,19 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             except ValueError:
                 tier = UserTier.FREE
 
-            limit = TIER_RATE_LIMITS.get(tier, 5)
+            # In no-login mode everyone is nominally FREE, but the FREE
+            # limit exists to ration the operator's AI budget — which BYOK
+            # callers are not spending. Rationing them at 5/min would break
+            # normal use of an app they are funding themselves, so the
+            # anonymous limit applies instead and serves only as abuse
+            # protection.
+            if not settings.auth_enabled:
+                limit = settings.rate_limit_anon_per_minute
+                tier_name = "ANONYMOUS"
+            else:
+                limit = TIER_RATE_LIMITS.get(tier, 5)
+                tier_name = tier.value
             rate_limit_key = f"rate_limit:http:{user_id}"
-            tier_name = tier.value
         
         allowed, retry_after = await check_redis_rate_limit(rate_limit_key, limit)
         if not allowed:

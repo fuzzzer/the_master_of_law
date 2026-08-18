@@ -30,6 +30,16 @@ class CreditGateMiddleware(BaseHTTPMiddleware):
     """Block AI requests when user has no credits remaining."""
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint):
+        # ── No-login / BYOK mode ──────────────────────────────
+        # Credits meter the OPERATOR's spend on the user's behalf. When each
+        # caller supplies their own Google key there is no operator spend to
+        # meter: the ceiling is their own free-tier quota, enforced by Google
+        # and surfaced by provider_errors. Charging a local credit balance on
+        # top would deny users access to an API they are paying for
+        # themselves.
+        if not settings.auth_enabled:
+            return await call_next(request)
+
         path = request.url.path
 
         # Only check credit-consuming routes
