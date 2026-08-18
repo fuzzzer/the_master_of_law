@@ -43,12 +43,12 @@ Flutter App (fuzzzy_law, ge.fuzzycore.fuzzzylaw)
 FastAPI Backend (~10K lines, 90 files)
   │ 15 routers → 45 endpoints
   │ 19 services, 8 repositories, 9 models, 9 schemas
-  │ Firebase Auth → Credit Gate → Rate Limit → Error Handler
+  │ BYOK (caller's own Google key) → Auth → Credit Gate → Rate Limit → Errors
   │ 5-stage RAG: Expand → Vector (per-collection quotas) → FullText → Merge → Rerank
   │ Grounding: article store (SQLite+FTS5) + get_article/browse_code tools + retrieval repair
   │ Gemini 3.1 Pro legal analysis + source-specific prompt injection
   │ Pipeline transparency traces (per-request step log + admin dashboard)
-  │ 564 tests across 37 test files (562 passing; 2 pre-existing infra failures)
+  │ 647 tests across 38 test files (645 passing; 2 pre-existing infra failures)
   ▼
 Data: PostgreSQL + ChromaDB (3 collections, 20,712 chunks) + Redis
   │ georgian_laws: 15,338 (12 legal codes)
@@ -101,7 +101,7 @@ After completing any task that changes the codebase structure, you MUST:
 
 ## Current Status
 
-> **Last verified:** 2026-05-12
+> **Last verified:** 2026-08-19
 
 | Component | Status | Location |
 |-----------|--------|----------|
@@ -110,4 +110,5 @@ After completing any task that changes the codebase structure, you MUST:
 | Eval Pipeline (50 cases) | ✅ Done | `eval/` |
 | Design System | 🔄 In Progress | `packages/open-design/` |
 | Flutter App | 🔄 In Progress | `frontend/` |
-| Production (Hetzner VPS) | 🔄 Deployed | `.agents/context/production.md` |
+| Production (Hetzner VPS) | ⏸️ Not deployed | `.agents/context/production.md` |
+| Local + Tailscale test deploy | 🔄 Running | `AUTH_ENABLED=false`, `BYOK_REQUIRED=true` |

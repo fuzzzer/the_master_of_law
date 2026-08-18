@@ -39,6 +39,21 @@ services:
       - "127.0.0.1:8000:8000"
     env_file: .env
     environment:
+      # Container-only overrides. These beat env_file, which holds the values
+      # that are correct OUTSIDE the container — the test suite reads the same
+      # .env, and a container hostname or a production APP_ENV there makes
+      # local runs fail in ways that have nothing to do with the code.
+      APP_ENV: production
+      # The deployment's access model: open access, each caller paying with
+      # their own Google key. Set here rather than in .env because .env is
+      # also the local/test config, where these must keep their defaults.
+      AUTH_ENABLED: "false"
+      BYOK_REQUIRED: "true"
+      BYOK_KEY_HEADER: X-API-Key
+      # No server key in the container ON PURPOSE. A fallback here would
+      # quietly serve any request that lost its caller key, spending the
+      # operator's quota and hiding the bug. .env keeps one for local runs.
+      GEMINI_API_KEY: ""
       # Override DB/Redis URLs to use Docker internal hostnames
       DATABASE_URL: postgresql+asyncpg://fuzzzy_user:${POSTGRES_PASSWORD}@postgres:5432/fuzzzy_law
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
@@ -55,7 +70,12 @@ services:
       # GCP credentials — path controlled by .env, mounted READ-ONLY
       # Local dev:  GCP_SA_KEY_PATH=~/.config/gcloud/application_default_credentials.json
       # VPS prod:   GCP_SA_KEY_PATH=/etc/master-of-law/gcp-sa-key.json (chmod 600)
-      - ${GCP_SA_KEY_PATH}:/app/secrets/gcp-sa-key.json:ro
+      # Defaulted so the stack still starts with no GCP credential at all,
+      # which is the normal case under BYOK_REQUIRED=true: model calls are
+      # authenticated per request with the caller's own key and Vertex is
+      # never reached. Without the default, compose refuses to start over a
+      # file the deployment does not use.
+      - ${GCP_SA_KEY_PATH:-/dev/null}:/app/secrets/gcp-sa-key.json:ro
       # Persist temporary API keys
       - ./api_keys.json:/app/api_keys.json:rw
     depends_on:

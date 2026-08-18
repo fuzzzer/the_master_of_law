@@ -1,17 +1,52 @@
 # Backend Context — Fuzzzy Law
 
-> FastAPI backend with multi-source RAG pipeline + Gemini 3.1 Pro legal analysis.
-> **Last verified:** 2026-07-19
+> FastAPI backend with multi-source RAG pipeline + Gemini legal analysis.
+> **Last verified:** 2026-08-19
 
 ---
 
 ## Architecture
 
 ```
-Flutter App → HTTP/WS with Firebase ID token (or API key)
-  → CORS → Firebase Auth → Credit Gate → Rate Limit → Error Handler
+Flutter App → HTTP/WS with the caller's own Google key + device id
+  → CORS → Error Handler → BYOK → Firebase Auth → Credit Gate → Rate Limit
   → Route Handler → Service → Repository → Response
 ```
+
+### Access model (AUTH_ENABLED / BYOK_REQUIRED)
+
+Two independent switches decide who may call and whose quota pays:
+
+| AUTH_ENABLED | BYOK_REQUIRED | Result |
+|---|---|---|
+| true  | false | Firebase login; the operator's key pays. Original model. |
+| false | true  | Open access; each caller pays with their own Google key. **Current deployment.** |
+
+With `AUTH_ENABLED=false` the backend never imports `firebase_admin`, so no
+Firebase credential is needed on the server. Callers are identified by the
+`X-Device-Id` header they generate once — enough to keep each install's cases
+separate, and NOT a credential (see `utils/anonymous_identity.py`).
+
+With `BYOK_REQUIRED=true` the caller's key arrives on every request
+(`X-API-Key` header; `?api_key=` on the WebSocket, which cannot carry headers)
+and is bound to a ContextVar by `middleware/byok_middleware.py`. It is read at
+exactly one choke point — `create_genai_client()` — so every model call made
+while serving that request runs on the caller's credential. The key is never
+written to disk and is redacted from logs (`utils/logger.py`), because it
+travels in the WebSocket URL and uvicorn's access logger writes request lines.
+
+Credits are bypassed in this mode: they meter the OPERATOR's spend, and there
+is none. Rate limiting falls back to `RATE_LIMIT_ANON_PER_MINUTE`.
+
+### Model selection is per-caller
+
+Precedence: caller's choice (`X-Model-Strong` / `X-Model-Cheap` headers, or
+`model_strong` / `model_cheap` on the WebSocket) → admin default in Redis →
+environment. The server stores nothing per user: `PUT /api/v1/models`
+validates and smoke-tests a model against the CALLER's key and hands it back
+for the client to keep. Global, because a user switching after exhausting
+their own quota must not move everyone else — including users whose key
+cannot call their choice.
 
 ### RAG Pipeline (core feature)
 ```
@@ -297,7 +332,7 @@ cd backend && docker compose up --build -d
 docker compose exec api alembic upgrade head
 
 # Tests
-.venv/bin/python -m pytest tests/ -v  # 564 tests (562 pass; 2 pre-existing infra failures)
+.venv/bin/python -m pytest tests/ -v  # 647 tests (645 pass; 2 pre-existing infra failures)
 ```
 
 ---
@@ -311,6 +346,7 @@ docker compose exec api alembic upgrade head
 | DB queries | `repositories/` |
 | Add DB table | `models/` → `alembic/env.py` → run migration |
 | Change auth | `middleware/firebase_auth_middleware.py` |
+| Change BYOK / caller key | `middleware/byok_middleware.py`, `config/request_context.py` |
 | Change credits | `config/constants.py` → `CreditAction` |
 | Change RAG | `config/constants.py` → `RAG_*` |
 | Gemini prompts | `app/prompts/` |
