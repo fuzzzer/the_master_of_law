@@ -7,8 +7,15 @@ compare models against real Georgian legal questions without a redeploy. This
 adds a runtime OVERRIDE on top of the env value.
 
 Precedence, highest first:
-    1. runtime override   (set from the UI, stored in Redis)
-    2. environment        (GEMINI_STRONG_MODEL / GEMINI_CHEAP_MODEL)
+    1. per-caller choice  (sent with the request; personal to one user)
+    2. runtime override   (admin default for the deployment, stored in Redis)
+    3. environment        (GEMINI_STRONG_MODEL / GEMINI_CHEAP_MODEL)
+
+(1) exists because under bring-your-own-key the model is not a deployment
+setting at all: the caller pays for it with their own key and against their
+own quota, and their key exposes its own model list. A user who exhausts one
+model has to be able to move themselves to another WITHOUT moving everyone
+else — including users whose key cannot call their choice.
 
 Redis rather than process memory because the API runs as one container today
 but is not promised to stay that way — an override held in a worker's globals
@@ -26,6 +33,7 @@ import json
 import time
 from dataclasses import dataclass
 
+from app.config.request_context import get_model_choice
 from app.config.settings import settings
 from app.utils.logger import get_logger
 
@@ -45,7 +53,7 @@ TIERS = ("strong", "cheap")
 class TierModel:
     tier: str
     model: str
-    source: str  # "override" | "env"
+    source: str  # "personal" | "override" | "env"
 
 
 class ModelConfigService:
@@ -87,6 +95,12 @@ class ModelConfigService:
     async def resolve(self, tier: str) -> TierModel:
         if tier not in TIERS:
             raise ValueError(f"unknown tier {tier!r}")
+
+        # The caller's own choice outranks everything: they are paying.
+        personal = get_model_choice().for_tier(tier)
+        if personal:
+            return TierModel(tier=tier, model=personal, source="personal")
+
         override = (await self._overrides()).get(tier)
         if override:
             return TierModel(tier=tier, model=override, source="override")

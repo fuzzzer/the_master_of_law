@@ -1,10 +1,25 @@
 """
 Model router — read the effective tier models, and change them at runtime.
 
-GET  /api/v1/models   any authenticated caller — the UI shows what is running
-PUT  /api/v1/models   admin only — changing a model changes cost and answer
-                      quality for EVERY user, so it is not a personal setting
-DELETE /api/v1/models admin only — drop overrides, back to the environment
+GET    /api/v1/models          what is serving THIS caller, plus what their
+                               key could be switched to
+PUT    /api/v1/models          any caller — validate and smoke-test a model,
+                               then hand it back for the client to store and
+                               send on later requests. Personal: it changes
+                               nothing for anybody else.
+DELETE /api/v1/models          any caller — clear their personal choice
+
+PUT    /api/v1/models/default  admin only — the deployment-wide default, for
+                               callers who have expressed no preference
+DELETE /api/v1/models/default  admin only — drop it, back to the environment
+
+WHY PERSONAL RATHER THAN GLOBAL: under bring-your-own-key each caller pays
+with their own key, against their own quota, and their key exposes its own
+model list — a measured free key 404s the whole 2.5 family. The reason a user
+changes model is usually that they personally ran out of one, and making that
+switch global would drag every other user onto it, including the ones whose
+key cannot call it. The server therefore stores nothing per user: the choice
+travels on the request, exactly like the key that pays for it.
 """
 
 from __future__ import annotations
@@ -13,7 +28,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from app.services.model_config_service import get_model_config_service
+from app.services.model_config_service import TierModel, get_model_config_service
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -118,8 +133,10 @@ async def _smoke_test(model: str) -> tuple[bool, str]:
     return True, ""
 
 
-def _payload(current: dict, available: list[str], can_edit: bool) -> dict:
+def _payload(current: dict, available: list[str], can_edit: bool = True) -> dict:
     return {
+        # can_edit stays true for everyone: choosing your own model is a
+        # personal setting now, so there is nobody to withhold it from.
         "strong": {"model": current["strong"].model, "source": current["strong"].source},
         "cheap": {"model": current["cheap"].model, "source": current["cheap"].source},
         "available": available,
@@ -127,25 +144,13 @@ def _payload(current: dict, available: list[str], can_edit: bool) -> dict:
     }
 
 
-@router.get("")
-async def get_models(request: Request):
-    """Current tier selection, plus what else could be chosen."""
-    svc = get_model_config_service()
-    return _payload(await svc.current(), await _available_models(), _is_admin(request))
+async def _validate_choice(body: "ModelSelection") -> JSONResponse | None:
+    """Reject a selection the caller's own key cannot actually run.
 
-
-@router.put("")
-async def set_models(request: Request, body: ModelSelection):
-    if not _is_admin(request):
-        return _forbidden()
-    if not body.strong and not body.cheap:
-        return JSONResponse(
-            status_code=400,
-            content={"error": "bad_request", "message": "მოდელი მითითებული არ არის."},
-        )
-
-    # Validate against what the provider offers, so a typo becomes a 400 here
-    # rather than a 404 from the provider on the user's next legal question.
+    Both checks use the CALLER's credential — the available list and the smoke
+    test are asked of their key, not the server's — so "usable" means usable
+    for them. Returns None when the selection is good.
+    """
     available = await _available_models()
     if available:
         unknown = [m for m in (body.strong, body.cheap) if m and m not in available]
@@ -158,9 +163,9 @@ async def set_models(request: Request, body: ModelSelection):
                 },
             )
 
-    # A bad choice here breaks EVERY user's next question, so prove the model
-    # answers before committing it. One ~10-token call turns "the app is down
-    # and nobody knows why" into a 400 on the screen that caused it.
+    # Prove the model answers before the client commits to it. One ~10-token
+    # call turns "every question fails and I do not know why" into a message
+    # on the screen that caused it.
     for candidate in filter(None, (body.strong, body.cheap)):
         ok, detail = await _smoke_test(candidate)
         if not ok:
@@ -171,22 +176,107 @@ async def set_models(request: Request, body: ModelSelection):
                     "message": f"მოდელი {candidate} ვერ გამოიყენება: {detail}",
                 },
             )
+    return None
+
+
+@router.get("")
+async def get_models(request: Request):
+    """What is serving THIS caller, plus what their own key could be switched to.
+
+    can_edit is true for everyone: the selection is personal now, so there is
+    nobody to withhold it from. It was _is_admin here while the setting was
+    global, which in a deployment with no accounts made the picker read-only
+    for every single user — including the one who had just run out of quota
+    and needed it most.
+    """
+    svc = get_model_config_service()
+    return _payload(await svc.current(), await _available_models(), can_edit=True)
+
+
+@router.put("")
+async def choose_models(request: Request, body: ModelSelection):
+    """Validate a personal model choice and hand it back to the client to keep.
+
+    Deliberately writes nothing on the server. The choice is returned so the
+    client can store it and send it on subsequent requests, which keeps it
+    scoped to one user without the backend having to hold per-user state for
+    a deployment that has no accounts.
+    """
+    if not body.strong and not body.cheap:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "bad_request", "message": "მოდელი მითითებული არ არის."},
+        )
+
+    rejection = await _validate_choice(body)
+    if rejection is not None:
+        return rejection
+
+    svc = get_model_config_service()
+    current = dict(await svc.current())
+    # Overlay the accepted choice so the response describes the world the
+    # client is about to create by storing it — echoing the pre-change value
+    # reads as "it did not work".
+    for tier, chosen in (("strong", body.strong), ("cheap", body.cheap)):
+        if chosen:
+            current[tier] = TierModel(tier=tier, model=chosen, source="personal")
+
+    logger.info(
+        "model_choice_accepted",
+        uid=(getattr(request.state, "user", None) or {}).get("uid"),
+        strong=body.strong,
+        cheap=body.cheap,
+    )
+    return _payload(current, await _available_models())
+
+
+@router.delete("")
+async def clear_choice(request: Request):
+    """Fall back to the deployment default. The client drops what it stored."""
+    svc = get_model_config_service()
+    # Resolved with the caller's choice deliberately ignored, so the response
+    # shows what they will actually get once the client stops sending it.
+    from app.config.request_context import ModelChoice, reset_model_choice, set_model_choice
+
+    token = set_model_choice(ModelChoice())
+    try:
+        current = await svc.current()
+        available = await _available_models()
+    finally:
+        reset_model_choice(token)
+    return _payload(current, available)
+
+
+@router.put("/default")
+async def set_default_models(request: Request, body: ModelSelection):
+    """The deployment-wide default, for callers with no preference of their own."""
+    if not _is_admin(request):
+        return _forbidden()
+    if not body.strong and not body.cheap:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "bad_request", "message": "მოდელი მითითებული არ არის."},
+        )
+
+    rejection = await _validate_choice(body)
+    if rejection is not None:
+        return rejection
 
     svc = get_model_config_service()
     current = await svc.set_models(strong=body.strong, cheap=body.cheap)
     logger.info(
-        "model_config_changed",
+        "model_default_changed",
         by=(getattr(request.state, "user", None) or {}).get("uid"),
         strong=current["strong"].model,
         cheap=current["cheap"].model,
     )
-    return _payload(current, available, True)
+    return _payload(current, await _available_models())
 
 
-@router.delete("")
-async def reset_models(request: Request):
+@router.delete("/default")
+async def reset_default_models(request: Request):
     if not _is_admin(request):
         return _forbidden()
     svc = get_model_config_service()
     current = await svc.reset()
-    return _payload(current, await _available_models(), True)
+    return _payload(current, await _available_models())
