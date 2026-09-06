@@ -110,7 +110,7 @@ After completing any task that changes the codebase structure, you MUST:
 | Eval Pipeline (50 cases) | ✅ Done | `eval/` |
 | Design System | 🔄 In Progress | `packages/open-design/` |
 | Flutter App | 🔄 In Progress | `frontend/` |
-| Production (Hetzner VPS) | ⚠️ Was deployed, now GONE | see `LAUNCH.md` |
+| Production (Hetzner VPS) | ⚠️ Was deployed, now GONE | see `.user_tasks/production_preparation.md` |
 | CI (GitHub Actions) | ✅ Added, never run | `.github/workflows/ci.yml` |
 | Privacy policy / Terms | 🔄 Drafted, unapproved | `frontend/…/legal_documents_data.dart` |
 | Local + Tailscale test deploy | 🔄 Running | `AUTH_ENABLED=false`, `BYOK_REQUIRED=true` |
@@ -135,7 +135,7 @@ passing, `fvm flutter analyze` = 0 errors / 2 known infos.
 
 ### Before touching deployment
 
-Read `LAUNCH.md` first. The VPS this project used to deploy to answers ping but
+Read `.user_tasks/production_preparation.md` first. The VPS this project used to deploy to answers ping but
 presents a **different SSH host key** than the one in `known_hosts`, and
 `api.zrdai.work` times out through Cloudflare. Treat the server as gone until
 proven otherwise.

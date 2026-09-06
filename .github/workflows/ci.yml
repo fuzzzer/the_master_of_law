@@ -117,7 +117,8 @@ jobs:
         # `frontend/pubspec.yaml` depends on `fuzzzy_ui_kit` by RELATIVE PATH
         # (`../../fuzzy_design`), a sibling of this repo. Nothing but this
         # checkout makes that resolve — a plain clone of fuzzzy_law alone
-        # cannot build the app. See LAUNCH.md for the git-dependency
+        # cannot build the app. See .user_tasks/production_preparation.md for
+        # the git-dependency
         # alternative if you want release builds to stop depending on
         # directory layout.
         #

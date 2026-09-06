@@ -15,7 +15,8 @@
 /// is worse than shipping nothing, because it reads as a policy while
 /// answering none of the questions a policy exists to answer.
 ///
-/// See LAUNCH.md → "Legal texts" for what has to be filled in and by whom.
+/// See `.user_tasks/production_preparation.md` §5 step 7 for what has to be
+/// filled in, and by whom.
 library;
 
 /// One heading plus its paragraphs.
@@ -29,7 +30,8 @@ typedef LegalDocument = ({
   List<LegalSection> sections,
 });
 
-/// Substitute the real values before release — see LAUNCH.md.
+/// Substitute the real values before release — see
+/// `.user_tasks/production_preparation.md` §5 step 7.
 const String legalOperatorName = '[ოპერატორის სახელი]';
 const String legalOperatorContact = '[კონტაქტის ელფოსტა]';
 const String legalLastUpdated = '[თარიღი]';

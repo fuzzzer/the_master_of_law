@@ -136,7 +136,8 @@ async def test_atomic_deduction_concurrency():
         "rather than shipped. Until it is understood, this is a skip with the "
         "evidence attached, not a deletion: the behaviour it covers (a second "
         "message on ONE open socket) is real and belongs in the launch smoke "
-        "test against a live server. See LAUNCH.md."
+        "test against a live server. See "
+        ".user_tasks/production_preparation.md §10."
     )
 )
 def test_websocket_requires_credits_and_deducts():

@@ -4,7 +4,8 @@
 #
 # A backup nobody has restored is a hypothesis, not a backup. Run this once
 # against a throwaway database BEFORE launch — the checklist item is in
-# LAUNCH.md — so the first restore is not the one performed during an outage.
+# .user_tasks/production_preparation.md — so the first restore is not the one
+# performed during an outage.
 #
 #   ./scripts/restore-db.sh /var/backups/fuzzzy-law/fuzzzy_law-20260906T030000Z.sql.gz
 #

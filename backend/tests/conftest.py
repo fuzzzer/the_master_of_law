@@ -348,7 +348,7 @@ def pytest_collection_modifyitems(config, items):
 
     skip = pytest.mark.skip(
         reason="needs the law corpus (law_corpus/data/, 907 MB, not in git) — "
-               "see LAUNCH.md 'Corpus transfer'"
+               "see .user_tasks/production_preparation.md 'Corpus transfer'"
     )
     for item in items:
         if item.nodeid in CORPUS_DEPENDENT_TESTS:
