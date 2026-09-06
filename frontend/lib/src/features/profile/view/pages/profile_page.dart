@@ -158,6 +158,27 @@ class ProfilePage extends StatelessWidget {
               style: type.control.copyWith(color: colors.inkMute),
             ),
           ),
+          SizedBox(height: space.xl),
+
+          // Legal section. An app that answers legal questions and sends the
+          // user's words to a third-party model has to say so somewhere the
+          // user can actually reach — these two screens are that somewhere,
+          // and `_ToolTile` is reused rather than a new row type invented.
+          Text('სამართლებრივი', style: type.titleS.copyWith(color: colors.ink)),
+          SizedBox(height: space.m),
+          _ToolTile(
+            icon: Icons.privacy_tip_outlined,
+            title: 'კონფიდენციალურობის პოლიტიკა',
+            subtitle: 'რა ინფორმაცია იგზავნება და სად ინახება',
+            onTap: () => context.go('/profile/privacy'),
+          ),
+          SizedBox(height: space.s),
+          _ToolTile(
+            icon: Icons.description_outlined,
+            title: 'მომსახურების პირობები',
+            subtitle: 'ეს არ არის იურიდიული კონსულტაცია',
+            onTap: () => context.go('/profile/terms'),
+          ),
         ],
       ),
     );

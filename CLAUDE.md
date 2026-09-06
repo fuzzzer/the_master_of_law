@@ -41,16 +41,16 @@ Flutter App (fuzzzy_law, ge.fuzzycore.fuzzzylaw)
   │ HTTPS / WebSocket + RAGCollectionConfig (feature flags)
   ▼
 FastAPI Backend (~10K lines, 90 files)
-  │ 15 routers → 45 endpoints
-  │ 19 services, 8 repositories, 9 models, 9 schemas
+  │ 16 routers → 50 operations across 42 paths
+  │ 21 services, 8 repositories, 9 models, 9 schemas
   │ BYOK (caller's own Google key) → Auth → Credit Gate → Rate Limit → Errors
   │ 5-stage RAG: Expand → Vector (per-collection quotas) → FullText → Merge → Rerank
   │ Grounding: article store (SQLite+FTS5) + get_article/browse_code tools + retrieval repair
   │ Gemini 3.1 Pro legal analysis + source-specific prompt injection
   │ Pipeline transparency traces (per-request step log + admin dashboard)
-  │ 647 tests across 38 test files (645 passing; 2 pre-existing infra failures)
+  │ 647 tests across 41 test files — 646 pass, 1 skipped (see below)
   ▼
-Data: PostgreSQL + ChromaDB (3 collections, 20,712 chunks) + Redis
+Data: PostgreSQL + ChromaDB (3 collections, 20,513 docs live) + Redis
   │ georgian_laws: 15,338 (12 legal codes)
   │ court_practice: 5,197 (Supreme Court rulings)
   │ grand_chamber: 177 (binding decisions)
@@ -64,7 +64,7 @@ Route (thin, HTTP only) → Service (business logic) → Repository (DB) → Mod
 ### Tech Stack (non-negotiable)
 - **Backend**: Python 3.11 + FastAPI + SQLAlchemy 2.x async
 - **AI SDK**: `google-genai` (NOT `google-cloud-aiplatform` or `vertexai`)
-- **Vector DB**: ChromaDB (local, 20,712 docs)
+- **Vector DB**: ChromaDB (local, 20,513 docs as reported by `/api/v1/health/ready`)
 - **Database**: PostgreSQL 16 via asyncpg
 - **Cache**: Redis 7
 - **Auth**: Firebase Authentication
@@ -101,14 +101,41 @@ After completing any task that changes the codebase structure, you MUST:
 
 ## Current Status
 
-> **Last verified:** 2026-08-19
+> **Last verified:** 2026-09-06
 
 | Component | Status | Location |
 |-----------|--------|----------|
-| Law Corpus (20,712 chunks, 3 collections) | ✅ Done | `law_corpus/data/chroma/` |
-| Backend (36 endpoints, 14 services) | ✅ Done | `backend/` |
+| Law Corpus (20,513 docs live, 3 collections) | ✅ Done | `law_corpus/data/chroma/` — **907 MB, NOT in git** |
+| Backend (50 operations, 21 services) | ✅ Done | `backend/` |
 | Eval Pipeline (50 cases) | ✅ Done | `eval/` |
 | Design System | 🔄 In Progress | `packages/open-design/` |
 | Flutter App | 🔄 In Progress | `frontend/` |
-| Production (Hetzner VPS) | ⏸️ Not deployed | `.agents/context/production.md` |
+| Production (Hetzner VPS) | ⚠️ Was deployed, now GONE | see `LAUNCH.md` |
+| CI (GitHub Actions) | ✅ Added, never run | `.github/workflows/ci.yml` |
+| Privacy policy / Terms | 🔄 Drafted, unapproved | `frontend/…/legal_documents_data.dart` |
 | Local + Tailscale test deploy | 🔄 Running | `AUTH_ENABLED=false`, `BYOK_REQUIRED=true` |
+
+### Reading the test numbers
+
+`pytest tests/ -q` needs a reachable Postgres carrying the migrated schema, or
+three tests fail on whatever else owns `:5432`. Start one with
+`backend/scripts/test-db.sh up`, which prints the `DATABASE_URL` to use.
+
+| Where it runs | Result |
+|---|---|
+| With corpus + test DB | 646 passed, 1 skipped |
+| Without the corpus (CI) | 634 passed, 13 skipped |
+
+The 12 extra skips are corpus-dependent tests, named one by one in
+`tests/conftest.py`; a name that stops matching fails the run rather than
+silently dropping coverage. The 13th is
+`test_websocket_requires_credits_and_deducts`, which HANGS — the reason string
+on the skip carries the full evidence. Frontend: `fvm flutter test` = 115
+passing, `fvm flutter analyze` = 0 errors / 2 known infos.
+
+### Before touching deployment
+
+Read `LAUNCH.md` first. The VPS this project used to deploy to answers ping but
+presents a **different SSH host key** than the one in `known_hosts`, and
+`api.zrdai.work` times out through Cloudflare. Treat the server as gone until
+proven otherwise.

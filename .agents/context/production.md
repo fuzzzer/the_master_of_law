@@ -184,23 +184,23 @@ sudo certbot --nginx -d api.fuzzzy-law.ge --email your@email.ge --agree-tos --no
 
 ```bash
 # Create app directory
-sudo mkdir -p /opt/master-of-law
-sudo chown deploy:deploy /opt/master-of-law
-cd /opt/master-of-law
+sudo mkdir -p /var/www/fuzzzy_law
+sudo chown deploy:deploy /var/www/fuzzzy_law
+cd /var/www/fuzzzy_law
 
 # Clone repo (or rsync from local)
 git clone https://github.com/YOUR_REPO/fuzzzy_law.git .
 # OR: rsync from local machine
-# rsync -avz --exclude='.venv' --exclude='.git' ./ deploy@VPS_IP:/opt/master-of-law/
+# rsync -avz --exclude='.venv' --exclude='.git' ./ deploy@VPS_IP:/var/www/fuzzzy_law/
 ```
 
 ### 3.2 — GCP Service Account Setup
 
 ```bash
 # Create directory for secrets (not in the repo!)
-sudo mkdir -p /etc/master-of-law
-sudo chmod 700 /etc/master-of-law
-sudo chown deploy:deploy /etc/master-of-law
+sudo mkdir -p /etc/fuzzzy-law
+sudo chmod 700 /etc/fuzzzy-law
+sudo chown deploy:deploy /etc/fuzzzy-law
 
 # === ON YOUR LOCAL MACHINE ===
 # Option A: Create a service account (recommended for production)
@@ -218,10 +218,10 @@ gcloud iam service-accounts keys create /tmp/mol-sa-key.json \
   --iam-account=mol-backend@gen-lang-client-0225498420.iam.gserviceaccount.com
 
 # Copy to VPS
-scp -i ~/.ssh/mol_vps /tmp/mol-sa-key.json deploy@YOUR_VPS_IP:/etc/master-of-law/gcp-sa-key.json
+scp -i ~/.ssh/mol_vps /tmp/mol-sa-key.json deploy@YOUR_VPS_IP:/etc/fuzzzy-law/gcp-sa-key.json
 
 # Secure it
-ssh -i ~/.ssh/mol_vps deploy@YOUR_VPS_IP "chmod 600 /etc/master-of-law/gcp-sa-key.json"
+ssh -i ~/.ssh/mol_vps deploy@YOUR_VPS_IP "chmod 600 /etc/fuzzzy-law/gcp-sa-key.json"
 
 # Clean up local copy
 rm /tmp/mol-sa-key.json
@@ -235,7 +235,7 @@ rm /tmp/mol-sa-key.json
 
 ```bash
 # === ON THE VPS ===
-cd /opt/master-of-law/backend
+cd /var/www/fuzzzy_law/backend
 
 # Create production .env
 cp .env.example .env
@@ -262,7 +262,7 @@ EMBEDDING_MODEL=gemini-embedding-001
 EMBEDDING_DIMENSIONS=768
 
 # ── GCP Auth (ADC via mounted service account key) ──
-GCP_SA_KEY_PATH=/etc/master-of-law/gcp-sa-key.json
+GCP_SA_KEY_PATH=/etc/fuzzzy-law/gcp-sa-key.json
 
 # ── Vector Store ──
 CHROMA_PERSIST_DIR=/app/law_corpus_data/chroma
@@ -301,7 +301,7 @@ chmod 600 .env
 ### 3.4 — Launch
 
 ```bash
-cd /opt/master-of-law/backend
+cd /var/www/fuzzzy_law/backend
 
 # Build and start all containers
 docker compose up -d --build
@@ -348,7 +348,7 @@ docker compose logs api > /tmp/api-logs-$(date +%Y%m%d).txt
 Create a simple uptime monitor:
 
 ```bash
-# /opt/master-of-law/scripts/healthcheck.sh
+# /var/www/fuzzzy_law/scripts/healthcheck.sh
 #!/bin/bash
 HEALTH_URL="http://localhost:8000/api/v1/health"
 RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" $HEALTH_URL)
@@ -356,16 +356,16 @@ RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" $HEALTH_URL)
 if [ "$RESPONSE" != "200" ]; then
     echo "$(date): HEALTH CHECK FAILED (HTTP $RESPONSE)" >> /var/log/mol-health.log
     # Restart the API container
-    cd /opt/master-of-law/backend && docker compose restart api
+    cd /var/www/fuzzzy_law/backend && docker compose restart api
     # Optional: send notification (webhook, email, Telegram bot)
 fi
 ```
 
 ```bash
-chmod +x /opt/master-of-law/scripts/healthcheck.sh
+chmod +x /var/www/fuzzzy_law/scripts/healthcheck.sh
 
 # Run every 2 minutes via cron
-(crontab -l 2>/dev/null; echo "*/2 * * * * /opt/master-of-law/scripts/healthcheck.sh") | crontab -
+(crontab -l 2>/dev/null; echo "*/2 * * * * /var/www/fuzzzy_law/scripts/healthcheck.sh") | crontab -
 ```
 
 ### 4.3 — External Monitoring (Recommended)
@@ -383,13 +383,13 @@ chmod +x /opt/master-of-law/scripts/healthcheck.sh
 ### 5.1 — Database Backups
 
 ```bash
-# /opt/master-of-law/scripts/backup-db.sh
+# /var/www/fuzzzy_law/scripts/backup-db.sh
 #!/bin/bash
-BACKUP_DIR="/opt/master-of-law/backups/db"
+BACKUP_DIR="/var/www/fuzzzy_law/backups/db"
 mkdir -p $BACKUP_DIR
 
 # Dump PostgreSQL
-docker compose -f /opt/master-of-law/backend/docker-compose.yml \
+docker compose -f /var/www/fuzzzy_law/backend/docker-compose.yml \
   exec -T postgres pg_dump -U fuzzzy_user -d fuzzzy_law \
   | gzip > "$BACKUP_DIR/mol_$(date +%Y%m%d_%H%M%S).sql.gz"
 
@@ -400,10 +400,10 @@ echo "$(date): DB backup completed" >> /var/log/mol-backup.log
 ```
 
 ```bash
-chmod +x /opt/master-of-law/scripts/backup-db.sh
+chmod +x /var/www/fuzzzy_law/scripts/backup-db.sh
 
 # Daily backup at 3 AM
-(crontab -l 2>/dev/null; echo "0 3 * * * /opt/master-of-law/scripts/backup-db.sh") | crontab -
+(crontab -l 2>/dev/null; echo "0 3 * * * /var/www/fuzzzy_law/scripts/backup-db.sh") | crontab -
 ```
 
 ### 5.2 — Offsite Backup (GCS)
@@ -416,7 +416,7 @@ curl https://sdk.cloud.google.com | bash
 gsutil mb -l us-central1 gs://mol-backups-prod
 
 # Sync backups daily (add to cron after the local backup)
-gsutil -m rsync -r /opt/master-of-law/backups/ gs://mol-backups-prod/
+gsutil -m rsync -r /var/www/fuzzzy_law/backups/ gs://mol-backups-prod/
 ```
 
 ---
@@ -426,7 +426,7 @@ gsutil -m rsync -r /opt/master-of-law/backups/ gs://mol-backups-prod/
 ### 6.1 — Deploy New Version
 
 ```bash
-cd /opt/master-of-law
+cd /var/www/fuzzzy_law
 
 # Pull latest code
 git pull origin main
@@ -446,7 +446,7 @@ curl http://localhost:8000/api/v1/health
 
 ```bash
 # If something breaks:
-cd /opt/master-of-law
+cd /var/www/fuzzzy_law
 git log --oneline -5        # Find last good commit
 git checkout <GOOD_COMMIT>
 
@@ -509,7 +509,7 @@ docker system prune -f  # Clean unused images/containers
 
 ```bash
 # Start everything
-cd /opt/master-of-law/backend && docker compose up -d
+cd /var/www/fuzzzy_law/backend && docker compose up -d
 
 # Stop everything
 docker compose down

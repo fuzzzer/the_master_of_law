@@ -24,10 +24,28 @@ if [[ "$CURRENT_VERSION" == "$LAST_VERSION" ]]; then
 fi
 
 echo "🌐 Deploying Frontend to Firebase..."
-flutter build web --release \
+
+# The SDK is pinned by fvm (.fvm/fvm_config.json → 3.32.0) and there is no
+# `flutter` on PATH on the machine this is run from, so a bare `flutter`
+# here failed before it built anything. Prefer fvm, fall back to a global
+# install for anyone who has one.
+if command -v fvm >/dev/null 2>&1; then
+    FLUTTER="fvm flutter"
+elif command -v flutter >/dev/null 2>&1; then
+    FLUTTER="flutter"
+else
+    echo "❌ No Flutter SDK found (looked for fvm, then flutter)"; exit 1
+fi
+
+$FLUTTER build web --release \
     --target lib/main_production.dart \
     || { echo "❌ Build failed"; exit 1; }
-firebase deploy --only hosting || { echo "❌ Firebase deploy failed"; exit 1; }
+
+# Which project this lands in is decided by .firebaserc (currently
+# `fuzzzylaws`). Named explicitly so a stale `firebase use` in the shell
+# cannot redirect a release to another project.
+firebase deploy --only hosting --project "$(python3 -c 'import json;print(json.load(open(".firebaserc"))["projects"]["default"])')" \
+    || { echo "❌ Firebase deploy failed"; exit 1; }
 
 echo "$CURRENT_VERSION" > "$STATE_FILE"
 echo "✅ Frontend deployed successfully! Updated state to $CURRENT_VERSION."

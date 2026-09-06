@@ -1,0 +1,158 @@
+name: CI
+
+# Every gate this project already runs by hand, run on every push instead.
+#
+# WHAT THIS CANNOT SEE, stated up front so nobody reads a green tick as more
+# than it is:
+#
+#   * The law corpus (`law_corpus/data/`, 907 MB) is git-ignored, so the 12
+#     tests that need the article store are SKIPPED here, not run. They are
+#     named one by one in `backend/tests/conftest.py` and a stale name fails
+#     the run. Corpus-backed grounding is verified by `eval/`, on a machine
+#     that has the data.
+#   * No end-to-end test touches a real Gemini call — BYOK means the caller's
+#     key pays, and CI has no caller.
+#   * `flutter analyze` runs with `--no-fatal-infos`. Two `use_build_context_
+#     synchronously` infos are known and tracked; errors and warnings still
+#     fail the job.
+
+on:
+  push:
+    branches: [main, "feat/**", "agent/**", "stabilize/**"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: backend · pytest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    services:
+      # Three tests talk to a real database. On a developer machine :5432 is
+      # usually taken by something unrelated, which is what produced the
+      # long-standing "2 pre-existing infra failures" — see
+      # backend/scripts/test-db.sh. On a CI runner the port is ours, and the
+      # credentials below are the ones the suite's default URL expects.
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: fuzzzy_law
+          POSTGRES_USER: fuzzzy_user
+          POSTGRES_PASSWORD: corpus_dev_pw
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fuzzzy_user -d fuzzzy_law"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://fuzzzy_user:corpus_dev_pw@localhost:5432/fuzzzy_law
+      # Point the corpus lookup at a path that does not exist, so the skip in
+      # conftest fires deliberately rather than by accident of the runner's
+      # layout. An empty-but-present directory is the state a half-finished
+      # transfer leaves, and it must not read as "corpus available".
+      CHROMA_PERSIST_DIR: /nonexistent/chroma
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Lint (errors only)
+        # Deliberately NOT the project's full ruff config, which reports 448
+        # findings today — 227 line-too-long, 80 unsorted imports, 73 unused
+        # imports, 47 trailing-whitespace. Turning those red on day one buys a
+        # 448-line reformat of every file on the eve of launch and teaches the
+        # team to skip the job; none of them can break a request.
+        #
+        # This subset is the one that can: E9 syntax errors, F82 undefined
+        # names, F63/F7 broken comparisons and statements. It passes clean
+        # right now, so a red mark here means something real was introduced.
+        # Widen it (drop `--select`) once the style backlog is paid down —
+        # `ruff check app tests --fix` clears 203 of them mechanically.
+        #
+        # One known false positive if you do widen it: E711 at
+        # credit_repository.py:141 is a SQLAlchemy expression, where
+        # `== None` compiles to `IS NULL` and `is None` would be evaluated in
+        # Python instead. It is correct as written.
+        run: ruff check --select E9,F63,F7,F82 app tests
+
+      - name: Migrate
+        # Also the only automated proof that the two migrations build the
+        # whole schema from nothing, which is exactly what a rebuilt VPS does.
+        run: alembic upgrade head
+
+      - name: Test
+        run: pytest tests/ -q
+
+  frontend:
+    name: frontend · analyze + test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout app
+        uses: actions/checkout@v4
+        with:
+          path: fuzzzy_law
+
+      - name: Checkout design system
+        # `frontend/pubspec.yaml` depends on `fuzzzy_ui_kit` by RELATIVE PATH
+        # (`../../fuzzy_design`), a sibling of this repo. Nothing but this
+        # checkout makes that resolve — a plain clone of fuzzzy_law alone
+        # cannot build the app. See LAUNCH.md for the git-dependency
+        # alternative if you want release builds to stop depending on
+        # directory layout.
+        #
+        # 🔴 NEEDS A SECRET. fuzzzy-bot/fuzzy_design is PRIVATE and belongs to
+        # a different owner than this repo, so the job's built-in GITHUB_TOKEN
+        # cannot read it. Create a fine-grained PAT with read access to that
+        # one repository and save it as the DESIGN_REPO_TOKEN secret, or this
+        # job fails at checkout. (Its default branch is `master`, not `main`.)
+        uses: actions/checkout@v4
+        with:
+          repository: fuzzzy-bot/fuzzy_design
+          ref: master
+          token: ${{ secrets.DESIGN_REPO_TOKEN }}
+          path: fuzzy_design
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.32.0"
+          channel: stable
+          cache: true
+
+      - name: Pub get
+        working-directory: fuzzzy_law/frontend
+        run: flutter pub get
+
+      - name: Analyze
+        working-directory: fuzzzy_law/frontend
+        run: flutter analyze --no-fatal-infos
+
+      - name: Test
+        working-directory: fuzzzy_law/frontend
+        run: flutter test
+
+      - name: Build web
+        # The release artifact itself. If this breaks, the deploy breaks, and
+        # that is worth knowing before deploy day rather than on it.
+        working-directory: fuzzzy_law/frontend
+        run: flutter build web --release --target lib/main_production.dart

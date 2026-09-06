@@ -1,5 +1,5 @@
 [project]
-name = "master-of-law-backend"
+name = "fuzzzy-law-backend"
 version = "0.1.0"
 description = "AI-powered legal advocate backend for Georgian citizens"
 requires-python = ">=3.11"

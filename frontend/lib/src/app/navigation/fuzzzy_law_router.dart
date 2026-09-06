@@ -114,6 +114,14 @@ class AppRouter {
                     path: 'contacts',
                     builder: (context, state) => const UsefulContactsPage(),
                   ),
+                  GoRoute(
+                    path: 'privacy',
+                    builder: (context, state) => const PrivacyPolicyPage(),
+                  ),
+                  GoRoute(
+                    path: 'terms',
+                    builder: (context, state) => const TermsOfServicePage(),
+                  ),
                 ],
               ),
             ],

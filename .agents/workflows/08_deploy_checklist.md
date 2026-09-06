@@ -35,9 +35,9 @@ Read `PRODUCTION_SETUP.md` for deployment reference.
 
 ### Deployment Steps
 1. SSH to VPS: `ssh -i ~/.ssh/mol_vps deploy@VPS_IP`
-2. Pull latest: `cd /opt/master-of-law && git pull origin main`
+2. Pull latest: `cd /var/www/fuzzzy_law && git pull origin main`
 3. Check diff: `git log --oneline -5` — verify expected changes
-4. Backup DB: `/opt/master-of-law/scripts/backup-db.sh`
+4. Backup DB: `/var/www/fuzzzy_law/scripts/backup-db.sh`
 5. Rebuild: `cd backend && docker compose up -d --build`
 6. Run migrations: `docker compose exec api alembic upgrade head`
 7. Health check: `curl http://localhost:8000/api/v1/health`
@@ -47,7 +47,7 @@ Read `PRODUCTION_SETUP.md` for deployment reference.
 
 ### Rollback Plan (if something breaks)
 ```bash
-cd /opt/master-of-law
+cd /var/www/fuzzzy_law
 git checkout HEAD~1  # Go back one commit
 cd backend
 docker compose up -d --build

@@ -69,7 +69,7 @@ services:
       - ../law_corpus/data/chroma:/app/law_corpus_data/chroma:rw
       # GCP credentials — path controlled by .env, mounted READ-ONLY
       # Local dev:  GCP_SA_KEY_PATH=~/.config/gcloud/application_default_credentials.json
-      # VPS prod:   GCP_SA_KEY_PATH=/etc/master-of-law/gcp-sa-key.json (chmod 600)
+      # VPS prod:   GCP_SA_KEY_PATH=/etc/fuzzzy-law/gcp-sa-key.json (chmod 600)
       # Defaulted so the stack still starts with no GCP credential at all,
       # which is the normal case under BYOK_REQUIRED=true: model calls are
       # authenticated per request with the caller's own key and Vertex is
