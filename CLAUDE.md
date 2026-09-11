@@ -13,6 +13,7 @@
 
 | Your task involves… | MUST read first |
 |---------------------|-----------------|
+| **Any answer or deliverable to the owner (remote)** | `~/FuzzyCore_HQ/company/snippets/remote_delivery_kernel.md` (rev 1) — deliver content and attachments, never a Mac path; canonical `~/FuzzyCore_HQ/company/OWNER_COMMS.md` §8 |
 | **Backend** (endpoints, services, DB, RAG) | `.agents/context/backend.md` |
 | **Flutter / UI** | `frontend/.agents/orchestrator.md` → `frontend/.agents/general_guide/flutter_architecture.md` |
 | **Production deploy** | `.agents/context/production.md` |
