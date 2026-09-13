@@ -78,7 +78,7 @@ if you give me the IP.
 
 ```bash
 # 1 · Create the server — Hetzner console: CX22, Ubuntu 24.04, your SSH key, backups on
-# 2 · Point DNS at it — Cloudflare: fuzzzylaw-api.fuzzzycore.com → <NEW_IP>, proxy OFF until TLS works
+# 2 · Point DNS at it — Cloudflare: law-api.fuzzzycore.com → <NEW_IP>, proxy OFF until TLS works
 # 3 · Trust the new host key (the old server's key changed — this is expected)
 ssh-keygen -R <NEW_IP> && ssh root@<NEW_IP> 'echo ok'
 
@@ -101,7 +101,7 @@ ssh root@<NEW_IP> 'cd /var/www/fuzzzy_law/backend && docker compose up -d && doc
 ssh root@<NEW_IP> 'docker run -d --name caddy --restart unless-stopped --network host -v /etc/caddy/Caddyfile:/etc/caddy/Caddyfile:ro -v caddy_data:/data caddy:2-alpine'
 
 # 10 · Prove it works
-./scripts/smoke-test.sh https://fuzzzylaw-api.fuzzzycore.com
+./scripts/smoke-test.sh https://law-api.fuzzzycore.com
 ```
 
 Then: nightly backups, and ship the web build.

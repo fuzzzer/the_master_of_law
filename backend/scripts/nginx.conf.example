@@ -19,7 +19,7 @@ log_format fuzzzy_noquery '$http_cf_connecting_ip - [$time_local] '
 server {
     listen 80;
     listen [::]:80;
-    server_name fuzzzylaw-api.fuzzzycore.com;
+    server_name law-api.fuzzzycore.com;
     return 301 https://$host$request_uri;
 }
 
@@ -27,7 +27,7 @@ server {
     listen 443 ssl;
     listen [::]:443 ssl;
     http2 on;
-    server_name fuzzzylaw-api.fuzzzycore.com;
+    server_name law-api.fuzzzycore.com;
 
     # Cloudflare Origin CA certificate. Only Cloudflare trusts it, which is
     # the point: it authenticates the Cloudflare → origin hop under

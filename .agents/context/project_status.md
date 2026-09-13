@@ -36,7 +36,7 @@
 
 ### Step 2c — Production Deployment ✅
 - Hetzner VPS deployed with Nginx reverse proxy + SSL (Certbot)
-- Domain: `fuzzzylaw-api.fuzzzycore.com`
+- Domain: `law-api.fuzzzycore.com`
 - Firebase + API key authentication working
 - Docker Compose (api + postgres + redis)
 - Deploy script: `deploy.sh`

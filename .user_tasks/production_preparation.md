@@ -136,12 +136,12 @@ Answer these before §5; everything downstream depends on them.
 ### 3.1 What is the domain? — DECIDED 2026-09-13
 
 ```
-  Web app:  https://fuzzzylaw.fuzzzycore.com       (Firebase Hosting, Cloudflare DNS-only)
-  API:      https://fuzzzylaw-api.fuzzzycore.com   (OVH via Cloudflare proxy)
+  Web app:  https://law.fuzzzycore.com       (Firebase Hosting, Cloudflare DNS-only)
+  API:      https://law-api.fuzzzycore.com   (OVH via Cloudflare proxy)
 ```
 
 `fuzzzycore.com` is yours and already on Cloudflare. The API name is flat
-(`fuzzzylaw-api`, not `api.fuzzzylaw`) because Cloudflare's free certificate
+(`law-api`, not `api.law`) because Cloudflare's free certificate
 covers subdomains one level deep only — see `ovh_hosting_guide.md`, "The two
 names". Already applied to `frontend/env/env.production`,
 `backend/scripts/nginx.conf.example` and the docs. The old names —
@@ -244,7 +244,7 @@ BASE_URI=https://api.<your domain>
 API_BASE_URL=https://api.<your domain>
 ```
 
-Set to `https://fuzzzylaw-api.fuzzzycore.com`. There are three env files —
+Set to `https://law-api.fuzzzycore.com`. There are three env files —
 `env.development` (127.0.0.1:8000), `env.staging` (the Tailscale MacBook) and
 `env.production` — selected by which `main_*.dart` you build.
 
