@@ -54,6 +54,19 @@ services:
       # quietly serve any request that lost its caller key, spending the
       # operator's quota and hiding the bug. .env keeps one for local runs.
       GEMINI_API_KEY: ""
+      # Trust X-Forwarded-For / X-Forwarded-Proto from the reverse proxy.
+      # uvicorn reads this env var and defaults it to 127.0.0.1 — but nginx
+      # on the host reaches this container from the Docker bridge gateway
+      # (172.20.0.1 on this stack), so with the default every request looks
+      # like it came from the gateway. Under AUTH_ENABLED=false that is not
+      # cosmetic: anonymous_uid() falls back to hashing the client IP when a
+      # device id is missing, so one gateway address means every id-less
+      # caller shares ONE identity and ONE pile of cases — the exact failure
+      # DeviceIdService's docstring exists to prevent — and the IP rate-limit
+      # fallback becomes a single bucket for the whole internet.
+      # "*" is safe here and only here: the port is bound to 127.0.0.1, so
+      # the only thing that can reach it is the proxy we are trusting.
+      FORWARDED_ALLOW_IPS: "*"
       # Override DB/Redis URLs to use Docker internal hostnames
       DATABASE_URL: postgresql+asyncpg://fuzzzy_user:${POSTGRES_PASSWORD}@postgres:5432/fuzzzy_law
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0

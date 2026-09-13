@@ -306,7 +306,10 @@ git push origin main
 
 ### Step 3 — Stand up the server
 
-Reference: `.agents/context/production.md` (paths corrected). Short form:
+**Hosting decision (2026-09-13): OVH VPS + Cloudflare proxy + nginx.** The
+exact walkthrough with every real value is
+[`ovh_hosting_guide.md`](ovh_hosting_guide.md) — follow that for steps 3–6
+and come back here for 7–9. The short form below is kept for orientation:
 
 ```bash
 # On the VPS, as the deploy user
@@ -336,16 +339,12 @@ rsync -avz --progress law_corpus/data/ deploy@VPS:/var/www/fuzzzy_law/law_corpus
 
 ### Step 5 — TLS and the reverse proxy
 
-Caddy config is in `.agents/context/production.md` §2.2 — auto-TLS, security
-headers, 10 MB body cap.
+**nginx + Cloudflare Origin CA**, per `ovh_hosting_guide.md` Parts 6–9. The
+nginx site is `backend/scripts/nginx.conf.example`, copied verbatim; it was
+validated with `nginx -t`. (`.agents/context/production.md` §2.2 still shows
+the older Caddy alternative — not used.)
 
-```bash
-sudo tee /etc/caddy/Caddyfile   # see production.md
-docker run -d --name caddy --restart unless-stopped --network host \
-  -v /etc/caddy/Caddyfile:/etc/caddy/Caddyfile:ro \
-  -v caddy_data:/data -v caddy_config:/config \
-  caddy:2-alpine
-```
+See the OVH guide, Part 8, for the four nginx commands.
 
 🔴 **One deployment note that is easy to miss.** Under BYOK the caller's Google
 key arrives **in the WebSocket query string** — browsers cannot set headers on a

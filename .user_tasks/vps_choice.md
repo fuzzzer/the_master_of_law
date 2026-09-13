@@ -1,5 +1,11 @@
 # 🖥 Which VPS to buy — and the 10 one-liners to set it up
 
+> **Decision taken 2026-09-13: OVH VPS + Cloudflare + nginx.** The exact,
+> project-specific walkthrough is [`ovh_hosting_guide.md`](ovh_hosting_guide.md).
+> This file keeps the sizing measurements (they apply to any host) and the
+> Hetzner comparison for the record. The one-liners below assumed Caddy and a
+> root user; the OVH guide supersedes them.
+
 > Companion to [`production_preparation.md`](production_preparation.md), which
 > has the full detail. This file answers one question: **what to buy, and what
 > to run once you have it.**
@@ -23,7 +29,7 @@ Under real traffic the API rises well above idle, and the single hungriest
 moment is `docker compose build` on the server — compiling the Python image
 wants more RAM than serving ever does. Budget for that, not for the idle number.
 
-**Verdict: 4 GB RAM and 40 GB disk is comfortable. You do not need $15/month.**
+**Verdict: 4 GB RAM and 40 GB disk is comfortable, on any provider. You do not need $15/month.**
 
 ---
 
