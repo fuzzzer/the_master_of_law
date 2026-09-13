@@ -133,22 +133,21 @@ used. `.tasks/` and `.stash/` keep theirs; they are a record of what happened.
 
 Answer these before §5; everything downstream depends on them.
 
-### 3.1 What is the domain?
-
-You currently have three names for one product:
-
-| Name | Where it appears |
-|---|---|
-| `fuzzzy-law.ge` | `.agents/context/production.md`, the Caddy example |
-| `api.zrdai.work` | `frontend/env/env.production` — what the shipped app actually calls |
-| `fuzzzylaws` | the Firebase project in `frontend/.firebaserc` |
-
-Pick one. The others should redirect. Write your choice here:
+### 3.1 What is the domain? — DECIDED 2026-09-13
 
 ```
-  Web app:  https://______________________
-  API:      https://api.__________________
+  Web app:  https://fuzzzylaw.fuzzzycore.com       (Firebase Hosting, Cloudflare DNS-only)
+  API:      https://fuzzzylaw-api.fuzzzycore.com   (OVH via Cloudflare proxy)
 ```
+
+`fuzzzycore.com` is yours and already on Cloudflare. The API name is flat
+(`fuzzzylaw-api`, not `api.fuzzzylaw`) because Cloudflare's free certificate
+covers subdomains one level deep only — see `ovh_hosting_guide.md`, "The two
+names". Already applied to `frontend/env/env.production`,
+`backend/scripts/nginx.conf.example` and the docs. The old names —
+`api.zrdai.work`, `fuzzzy-law.ge` — appear only in historical notes now. The
+Firebase *project id* stays `fuzzzylaws`; project ids cannot be renamed and it
+is never shown to users.
 
 ### 3.2 Who is the operator, legally?
 
@@ -245,7 +244,7 @@ BASE_URI=https://api.<your domain>
 API_BASE_URL=https://api.<your domain>
 ```
 
-Currently `https://api.zrdai.work`. There are three env files —
+Set to `https://fuzzzylaw-api.fuzzzycore.com`. There are three env files —
 `env.development` (127.0.0.1:8000), `env.staging` (the Tailscale MacBook) and
 `env.production` — selected by which `main_*.dart` you build.
 

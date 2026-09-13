@@ -18,7 +18,7 @@
 Flutter app (web / phone)
       │  HTTPS + WebSocket
       ▼
-api.zrdai.work            ← Cloudflare DNS, proxied (orange cloud)
+fuzzzylaw-api.fuzzzycore.com   ← Cloudflare DNS, proxied (orange cloud)
       │
       ▼
 Cloudflare                ← edge TLS · "Full (strict)" · Always Use HTTPS · WebSockets ON
@@ -40,15 +40,28 @@ docker compose            ← /var/www/fuzzzy_law/backend
 
 | Placeholder in the generic guide | This project |
 |---|---|
-| `yourdomain.com` | `zrdai.work` — the domain the shipped app already calls |
-| `api.yourdomain.com` | `api.zrdai.work` — already in `frontend/env/env.production` and `nginx.conf.example` |
+| `yourdomain.com` | `fuzzzycore.com` — your domain, already on Cloudflare |
+| `api.yourdomain.com` | `fuzzzylaw-api.fuzzzycore.com` — set in `frontend/env/env.production` and `nginx.conf.example` |
 | `YOUR_SERVER_IP` | the IPv4 OVH gives you; written `<IP>` below |
 | `APP_PORT` | **8000** — `docker-compose.yml` binds `127.0.0.1:8000:8000` |
 | SSH user | **`ubuntu`** — OVH's default on its Ubuntu image |
 | project directory | **`/var/www/fuzzzy_law`** — what `backend/deploy.sh` and `redeploy.sh` expect |
 | deployment system | **Docker Compose** — already defined; do not add systemd/PM2 on top |
 
-If you choose a different domain, change it in exactly three places:
+**The two names, and why they are flat:**
+
+| Purpose | Name | Served by |
+|---|---|---|
+| Web app | `fuzzzylaw.fuzzzycore.com` | Firebase Hosting (project `fuzzzylaws`), Cloudflare **DNS only** |
+| API | `fuzzzylaw-api.fuzzzycore.com` | OVH via Cloudflare **proxied** |
+
+Not `api.fuzzzylaw.fuzzzycore.com`: Cloudflare's free Universal SSL certificate
+covers `fuzzzycore.com` and `*.fuzzzycore.com` — **one level deep**. A
+two-level name is not on that certificate, so proxied HTTPS to it fails at the
+edge unless you pay for Advanced Certificate Manager. `fuzzzylaw-api` is one
+level and just works.
+
+If you ever change either name, it lives in exactly three places:
 `frontend/env/env.production`, `APP_CORS_ORIGINS` in `backend/.env`, and
 `server_name` in the nginx file.
 
@@ -181,15 +194,16 @@ APP_SECRET_KEY=<paste>        # python3 -c "import secrets; print(secrets.token_
 ADMIN_API_KEY=<paste>         # same generator, a DIFFERENT value
 POSTGRES_PASSWORD=<paste>     # same generator
 REDIS_PASSWORD=<paste>        # same generator
-APP_CORS_ORIGINS=https://fuzzzylaws.web.app,https://api.zrdai.work
+APP_CORS_ORIGINS=https://fuzzzylaw.fuzzzycore.com,https://fuzzzylaws.web.app
 ```
 
 Why these four secrets are not optional: `Settings` **refuses to start** in
 production with the shipped `CHANGE-ME` values (`test_settings_production_guards`
 covers it). Why CORS is not `*`: the web app calls the API from another origin
 and the app sends identifying headers; a wildcard would let any site do the
-same from a visitor's browser. Add your final web domain to the list when you
-have one.
+same from a visitor's browser. `fuzzzylaws.web.app` is Firebase's default
+hostname for the same site; keep it so the app still works if the custom domain
+is ever mid-reconfiguration.
 
 Leave `GEMINI_API_KEY` empty. Under `BYOK_REQUIRED=true` every model call is
 paid for by the caller's own key; a server key here would quietly serve any
@@ -247,25 +261,31 @@ touching Cloudflare.
 
 ## Part 6 — Cloudflare DNS
 
-Cloudflare dashboard → `zrdai.work` → **DNS → Records → Add record**:
+Cloudflare dashboard → `fuzzzycore.com` → **DNS → Records → Add record**.
+
+**The API record** (this guide's subject):
 
 | Field | Value |
 |---|---|
 | Type | `A` |
-| Name | `api` |
+| Name | `fuzzzylaw-api` |
 | IPv4 | `<IP>` |
 | Proxy | **Proxied** (orange cloud) |
 | TTL | Auto |
 
-If an old `api` record exists pointing at `49.12.46.185`, **edit** it rather
-than adding a second.
+**The web app record** is added in Part 13, because Firebase tells you the
+exact values when you register the custom domain — and it must be **DNS only**
+(grey cloud), not proxied. Firebase provisions its own certificate for the
+custom domain by validating the hostname directly; with Cloudflare's proxy in
+front, that validation fails and the site stays on "pending" indefinitely. The
+apex `fuzzzycore.com` is already set up this way for your existing site.
 
 ---
 
 ## Part 7 — Cloudflare Origin certificate
 
 Cloudflare → **SSL/TLS → Origin Server → Create Certificate**. Defaults are fine.
-Hostnames: `api.zrdai.work` (or `zrdai.work` + `*.zrdai.work`). Create.
+Hostnames: `fuzzzylaw-api.fuzzzycore.com` (or `fuzzzycore.com` + `*.fuzzzycore.com`, which covers both names). Create.
 
 Copy **both** values now — the private key is never shown again.
 
@@ -295,7 +315,7 @@ sudo systemctl restart nginx
 sudo systemctl status nginx  # active (running)
 ```
 
-Only edit `server_name` if you chose a domain other than `api.zrdai.work`.
+Only edit `server_name` if you chose a domain other than `fuzzzylaw-api.fuzzzycore.com`.
 
 **What that file does that the generic template does not — and why:**
 
@@ -339,13 +359,13 @@ On the VPS:
 
 ```bash
 curl -s http://127.0.0.1:8000/api/v1/health                          # backend
-curl -sk https://localhost/api/v1/health -H "Host: api.zrdai.work"   # nginx → backend
+curl -sk https://localhost/api/v1/health -H "Host: fuzzzylaw-api.fuzzzycore.com"   # nginx → backend
 ```
 
 From your computer, in the repo root:
 
 ```bash
-./scripts/smoke-test.sh https://api.zrdai.work
+./scripts/smoke-test.sh https://fuzzzylaw-api.fuzzzycore.com
 ```
 
 Eight checks; expect **8 passed, 0 failed**. It verifies the corpus is mounted,
@@ -385,7 +405,7 @@ Reconnect after a minute:
 ```bash
 sudo systemctl status nginx        # active (running)
 docker compose -f /var/www/fuzzzy_law/backend/docker-compose.yml ps   # all Up
-curl -s https://api.zrdai.work/api/v1/health/ready | grep -o '[0-9]* documents'
+curl -s https://fuzzzylaw-api.fuzzzycore.com/api/v1/health/ready | grep -o '[0-9]* documents'
 ```
 
 Nothing should need starting by hand: `restart: unless-stopped` on all three
@@ -395,15 +415,28 @@ containers, Docker and nginx both enabled.
 
 ## Part 13 — Ship the frontend
 
+### 13.1 Deploy to Firebase Hosting
+
 On your computer:
 
 ```bash
-# frontend/env/env.production already says https://api.zrdai.work — change only if you chose another domain
+# frontend/env/env.production already says https://fuzzzylaw-api.fuzzzycore.com
 ./bump.sh                      # deploy.sh refuses to ship an unchanged version
 cd frontend && ./deploy.sh     # fvm flutter build web → Firebase project "fuzzzylaws"
 ```
 
-Then open the hosting URL and make one real request.
+This lands at `https://fuzzzylaws.web.app`. Open it and make one real request
+before touching the domain, so a DNS problem later is not mistaken for an app
+problem.
+
+### 13.2 Attach `fuzzzylaw.fuzzzycore.com`
+
+1. Firebase console → project **fuzzzylaws** → **Hosting → Add custom domain** → `fuzzzylaw.fuzzzycore.com`.
+2. Firebase shows a TXT record for ownership and then the A records (or a CNAME) for the site. Add them in Cloudflare → `fuzzzycore.com` → DNS, **Proxy: DNS only (grey cloud)** — see Part 6 for why.
+3. Wait for Firebase's status to reach **Connected**. Certificate provisioning can take up to a few hours; "Needs setup" or "Pending" for longer than that almost always means the record is proxied.
+
+`APP_CORS_ORIGINS` in Part 5.2 already lists this origin, so no backend change
+is needed when the domain goes live.
 
 ---
 
@@ -445,13 +478,14 @@ they are.
 [ ] corpus rsync'd — /ready shows ~20,513 documents
 [ ] docker compose up · alembic upgrade head · all three containers Up
 [ ] curl 127.0.0.1:8000/api/v1/health → ok
-[ ] Cloudflare A record api → <IP>, Proxied
+[ ] Cloudflare A record fuzzzylaw-api → <IP>, Proxied
 [ ] Origin certificate + key in /etc/nginx/ssl, key chmod 600
 [ ] nginx site from nginx.conf.example · nginx -t ok · default site removed
 [ ] Cloudflare: Full (strict) · Always Use HTTPS · WebSockets on
-[ ] ./scripts/smoke-test.sh https://api.zrdai.work → 8 passed
+[ ] ./scripts/smoke-test.sh https://fuzzzylaw-api.fuzzzycore.com → 8 passed
 [ ] second message on one open chat works (manual)
 [ ] backup cron installed · one dump taken · one restore rehearsed
 [ ] reboot test passed
-[ ] frontend deployed · one real request from the app succeeds
+[ ] frontend deployed to fuzzzylaws.web.app · one real request succeeds
+[ ] fuzzzylaw.fuzzzycore.com attached in Firebase, Cloudflare record DNS-only, status Connected
 ```

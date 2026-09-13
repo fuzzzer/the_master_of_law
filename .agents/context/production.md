@@ -10,7 +10,7 @@
 |-------------|-------------|---------|
 | **VPS** | 4 vCPU, 8 GB RAM, 80 GB SSD | 2 vCPU, 4 GB RAM, 40 GB SSD |
 | **OS** | Ubuntu 24.04 LTS | Ubuntu 22.04 LTS |
-| **Domain** | `fuzzzy-law.ge` or similar | Any domain with DNS control |
+| **Domain** | `fuzzzylaw-api.fuzzzycore.com` (API) · `fuzzzylaw.fuzzzycore.com` (web) | `fuzzzycore.com` is on Cloudflare |
 | **GCP Account** | Active billing + Vertex AI API enabled | Free trial works initially |
 | **Firebase Project** | `gen-lang-client-0225498420` | Any Firebase project |
 
@@ -133,7 +133,7 @@ sudo mkdir -p /etc/caddy
 
 # Create Caddyfile
 sudo tee /etc/caddy/Caddyfile << 'EOF'
-api.fuzzzy-law.ge {
+fuzzzylaw-api.fuzzzycore.com {
     reverse_proxy 127.0.0.1:8000
 
     # Security headers
@@ -173,7 +173,7 @@ docker run -d \
 **Alternative: Nginx + Certbot** (if you prefer Nginx):
 ```bash
 sudo apt install -y nginx certbot python3-certbot-nginx
-sudo certbot --nginx -d api.fuzzzy-law.ge --email your@email.ge --agree-tos --non-interactive
+sudo certbot --nginx -d fuzzzylaw-api.fuzzzycore.com --email your@email.ge --agree-tos --non-interactive
 ```
 
 ---
@@ -252,7 +252,7 @@ APP_NAME=fuzzzy-law
 APP_ENV=production
 APP_PORT=8000
 APP_SECRET_KEY=${APP_SECRET}
-APP_CORS_ORIGINS=https://fuzzzy-law.ge,https://api.fuzzzy-law.ge
+APP_CORS_ORIGINS=https://fuzzzylaw.fuzzzycore.com
 
 # ── Google Cloud / Vertex AI ──
 GOOGLE_CLOUD_PROJECT=gen-lang-client-0225498420
@@ -322,7 +322,7 @@ curl http://localhost:8000/api/v1/health
 # Expected: {"status": "ok", ...}
 
 # Test through the reverse proxy (TLS)
-curl https://api.fuzzzy-law.ge/api/v1/health
+curl https://fuzzzylaw-api.fuzzzycore.com/api/v1/health
 # Expected: same response, over HTTPS
 ```
 
