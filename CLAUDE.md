@@ -2,6 +2,17 @@
 
 > AI-powered legal advocate for Georgian citizens.
 
+## Talking to the owner — plain names, never codes (owner rule, 2026-09-18)
+
+Everything the owner or the business partner reads — a message, a plan, a board card, a
+walkthrough, an approval request — names things by what they are, never by an internal code:
+no wave letters or numbers, no unit codes (E3, C2, U1), no ticket numbers, no decision-record
+numbers, no session ids. Order is described in words — "first the contract, then the backend,
+because the backend needs the contract" — never as a wave or phase label. A code may follow
+once, in brackets, only if the owner will need to quote it. The owner reads remotely and has
+not read our internal documents: a message that needs them to make sense is wrong.
+Full standard: `~/FuzzyCore_HQ/company/OWNER_COMMS.md` §1.
+
 ## ⛔ MANDATORY: Read Before ANY Code
 
 **You MUST complete these steps before writing a single line of code. No exceptions.**
