@@ -22,7 +22,7 @@ class TestUserTiers:
 
 class TestConversationPhases:
     def test_phase_count(self):
-        assert len(ConversationPhase) == 6
+        assert len(ConversationPhase) == 7
 
 class TestCreditActions:
     def test_costs(self):
@@ -39,9 +39,9 @@ class TestRateLimits:
 
 class TestRAGConstants:
     def test_values(self):
-        assert RAG_VECTOR_SEARCH_TOP_K == 50
-        assert RAG_RERANK_TOP_K == 20
-        assert GEMINI_TEMPERATURE == 0.1
+        assert RAG_VECTOR_SEARCH_TOP_K == 75
+        assert RAG_RERANK_TOP_K == 35
+        assert GEMINI_TEMPERATURE == 1
 
 class TestDisclaimers:
     def test_exist(self):
@@ -51,7 +51,7 @@ class TestDisclaimers:
 class TestSettings:
     def test_defaults(self):
         from app.config.settings import settings
-        assert settings.app_name == "the-master-of-law"
+        assert settings.app_name == "fuzzzy-law"
         assert settings.free_tier_daily_credits == 5
         assert settings.is_production is False
         assert isinstance(settings.cors_origins, list)

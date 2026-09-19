@@ -1,110 +1,152 @@
-# კანონის ოსტატი — The Master of Law
+# ბუნდოვანი კანონი — Fuzzzy Law
 
-> AI-powered legal advocate for Georgian citizens. Case-centric architecture.
+> AI-powered legal advocate for Georgian citizens.
 
-## Mindset
+## Talking to the owner — plain names, never codes (owner rule, 2026-09-18)
 
-**Empower people with easily accessible law.** Make it fit real cases. Really help people.
+Everything the owner or the business partner reads — a message, a plan, a board card, a
+walkthrough, an approval request — names things by what they are, never by an internal code:
+no wave letters or numbers, no unit codes (E3, C2, U1), no ticket numbers, no decision-record
+numbers, no session ids. Order is described in words — "first the contract, then the backend,
+because the backend needs the contract" — never as a wave or phase label. A code may follow
+once, in brackets, only if the owner will need to quote it. The owner reads remotely and has
+not read our internal documents: a message that needs them to make sense is wrong.
+Full standard: `~/FuzzyCore_HQ/company/OWNER_COMMS.md` §1.
 
-The law exists to protect everyone — but in practice, it's buried in dense codes, scattered across court rulings, and written in language that shuts ordinary people out. This app exists to change that. We put the full weight of Georgian law — statutes, Supreme Court practice, Grand Chamber decisions — into the hands of the people who need it most, when they need it most.
+## ⛔ MANDATORY: Read Before ANY Code
 
-This is not a legal search engine. This is a legal advocate. Every feature we build must pass one test: **does this help a real person win a real case?** If it doesn't, we don't build it.
+**You MUST complete these steps before writing a single line of code. No exceptions.**
 
-## Principles
+### Step 1: Read the project mindset and coding principles
+→ Read `.agents/context/mindset_and_principles.md` — **STOP** until you've internalized the rules.
 
-### 1. Think Before Coding
-Don't assume. Don't hide confusion. Surface tradeoffs.
+### Step 2: Read the context file for YOUR task type
 
-- State your assumptions explicitly. If uncertain, ask.
-- If multiple interpretations exist, present them — don't pick silently.
-- If a simpler approach exists, say so. Push back when warranted.
-- If something is unclear, stop. Name what's confusing. Ask.
+| Your task involves… | MUST read first |
+|---------------------|-----------------|
+| **Backend** (endpoints, services, DB, RAG) | `.agents/context/backend.md` |
+| **Flutter / UI** | `frontend/.agents/orchestrator.md` → `frontend/.agents/general_guide/flutter_architecture.md` |
+| **Production deploy** | `.agents/context/production.md` |
+| **Debugging** | `.agents/debug_surgeon/context.md` |
+| **Design system** | `packages/open-design/design-systems/fuzzzy-law/DESIGN.md` |
+| **Law corpus / RAG tuning** | `.agents/context/law_corpus.md` + `.agents/rag_specialist/context.md` |
+| **Feature planning** | `master_plan/04_feature_roadmap.md` |
+| **Evaluation** | `eval/steps.md` |
+| **New feature / architecture** | `.agents/code_architect/context.md` |
+| **Security hardening** | `.agents/security_hardener/context.md` |
 
-### 2. Simplicity First
-Minimum code that solves the problem. Nothing speculative.
+### Step 3: Verify current state
 
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No "flexibility" or "configurability" that wasn't requested.
-- No error handling for impossible scenarios.
-- If you write 200 lines and it could be 50, rewrite it.
-- Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
-- Is name understandable for someone who knows noting about the code? If no, refine it, make it more descriptive.
-- Need to add comments? Then it means code is not descriptive enough, refine naming, describe process with methods, talk with code clearly.
-
-### 3. Surgical Changes
-Touch only what you must. Clean up only your own mess.
-
-When editing existing code:
-- Don't "improve" adjacent code, comments, or formatting.
-- Don't refactor things that aren't broken.
-- Match existing style, even if you'd do it differently.
-- If you notice unrelated dead code, mention it — don't delete it.
-
-When your changes create orphans:
-- Remove imports/variables/functions that YOUR changes made unused.
-- Don't remove pre-existing dead code unless asked.
-- The test: every changed line should trace directly to the user's request.
-
-### 4. Goal-Driven Execution
-Define success criteria. Loop until verified.
-
-Transform tasks into verifiable goals:
-- "Add validation" → "Write tests for invalid inputs, then make them pass"
-- "Fix the bug" → "Write a test that reproduces it, then make it pass"
-- "Refactor X" → "Ensure tests pass before and after"
-
-For multi-step tasks, state a brief plan:
-1. [Step] → verify: [check]
-2. [Step] → verify: [check]
-3. [Step] → verify: [check]
-
-Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+Before modifying any file, read it first. Check recent git history if behavior is unclear:
+```bash
+git log --oneline -10 -- <file>
+```
 
 ---
 
-## Status: Step 3 — Design System & Flutter App 🔄
-
-| Component | Status | Key File |
-|-----------|--------|----------|
-| Law Corpus (9,450 chunks) | ✅ Done | `law_corpus/data/chroma/` |
-| Backend (25 endpoints) | ✅ Done | `.agents/context/backend.md` |
-| Design System | 🔄 In Progress | `packages/open-design/design-systems/kanonis-ostati/DESIGN.md` |
-| Flutter App | 🔄 In Progress | `fuzzy_starter/` (package: `master_of_law`) |
-
-## Context Loading — Read by Task
-
-### Always read first:
-- `.agents/context/project_status.md` — Current state, what's done, what's next
-
-### By task:
-| Task | Load These |
-|------|-----------|
-| **Backend work** | `.agents/context/backend.md` |
-| **Flutter / UI** | `fuzzy_starter/.agents/orchestrator.md` → `fuzzy_starter/.agents/general_guide/flutter_architecture.md` |
-| **Design system** | `packages/open-design/design-systems/kanonis-ostati/DESIGN.md` |
-| **Feature planning** | `master_plan/04_feature_roadmap.md` |
-| **Production deploy** | `.agents/context/production.md` |
-| **Law corpus** | `.agents/context/law_corpus.md` |
-| **Original specs** | `master_plan/01_...`, `02_...`, `03_...` |
-
-## Architecture (compact)
+## Architecture
 
 ```
-Flutter App (master_of_law, ge.fuzzycore.masteroflaw)
-  │ 5 tabs: Chat │ Cases ⭐ │ Laws │ Notes │ Profile
-  │ HTTPS / WebSocket
+Flutter App (fuzzzy_law, ge.fuzzycore.fuzzzylaw)
+  │ Features: auth, cases, consultation, feedback, laws, profile
+  │ HTTPS / WebSocket + RAGCollectionConfig (feature flags)
   ▼
-FastAPI Backend (25 endpoints, 10 services)
-  │ Firebase Auth → Credit Gate → Rate Limit
-  │ 5-stage RAG: Expand → Vector → FullText → Merge → Rerank
-  │ Gemini 3.1 Pro legal analysis
+FastAPI Backend (~10K lines, 90 files)
+  │ 16 routers → 50 operations across 42 paths
+  │ 21 services, 8 repositories, 9 models, 9 schemas
+  │ BYOK (caller's own Google key) → Auth → Credit Gate → Rate Limit → Errors
+  │ 5-stage RAG: Expand → Vector (per-collection quotas) → FullText → Merge → Rerank
+  │ Grounding: article store (SQLite+FTS5) + get_article/browse_code tools + retrieval repair
+  │ Gemini 3.1 Pro legal analysis + source-specific prompt injection
+  │ Pipeline transparency traces (per-request step log + admin dashboard)
+  │ 647 tests across 41 test files — 646 pass, 1 skipped (see below)
   ▼
-Data: PostgreSQL + ChromaDB (9,450 law chunks) + Redis
+Data: PostgreSQL + ChromaDB (3 collections, 20,513 docs live) + Redis
+  │ georgian_laws: 15,338 (12 legal codes)
+  │ court_practice: 5,197 (Supreme Court rulings)
+  │ grand_chamber: 177 (binding decisions)
 ```
+
+### Backend Layer Pattern
+```
+Route (thin, HTTP only) → Service (business logic) → Repository (DB) → Model (ORM)
+```
+
+### Tech Stack (non-negotiable)
+- **Backend**: Python 3.11 + FastAPI + SQLAlchemy 2.x async
+- **AI SDK**: `google-genai` (NOT `google-cloud-aiplatform` or `vertexai`)
+- **Vector DB**: ChromaDB (local, 20,513 docs as reported by `/api/v1/health/ready`)
+- **Database**: PostgreSQL 16 via asyncpg
+- **Cache**: Redis 7
+- **Auth**: Firebase Authentication
+- **Frontend**: Flutter (Dart) with BLoC/Cubit pattern
+
+```python
+from google import genai  # ✅ CORRECT — the ONLY way
+import vertexai            # ❌ WRONG — never use this
+```
+
+### Key Identifiers
+- **Package:** `fuzzzy_law` | **Bundle ID:** `ge.fuzzycore.fuzzzylaw`
+- **GCP Project:** `gen-lang-client-0225498420` | **Region:** `us-central1`
+- **LLM:** `gemini-3.1-pro` | **Embeddings:** `gemini-embedding-001` (768 dims)
+
+---
 
 ## Core Decision: Cases = Projects
 
 Every feature serves one purpose: building the strongest legal case.
 Users dump raw info → AI organizes it.
 Everything links to everything (facts ↔ arguments ↔ laws ↔ evidence ↔ conversations).
+
+---
+
+## Post-Task: Update Documentation
+
+After completing any task that changes the codebase structure, you MUST:
+1. Update the relevant context file (e.g., `backend.md` if you added/removed endpoints)
+2. Ensure numbers match reality
+3. See `.agents/workflows/09_doc_sync.md` for the full workflow.
+
+---
+
+## Current Status
+
+> **Last verified:** 2026-09-06
+
+| Component | Status | Location |
+|-----------|--------|----------|
+| Law Corpus (20,513 docs live, 3 collections) | ✅ Done | `law_corpus/data/chroma/` — **907 MB, NOT in git** |
+| Backend (50 operations, 21 services) | ✅ Done | `backend/` |
+| Eval Pipeline (50 cases) | ✅ Done | `eval/` |
+| Design System | 🔄 In Progress | `packages/open-design/` |
+| Flutter App | 🔄 In Progress | `frontend/` |
+| Production (Hetzner VPS) | ⚠️ Was deployed, now GONE | see `.user_tasks/production_preparation.md` |
+| CI (GitHub Actions) | ✅ Added, never run | `.github/workflows/ci.yml` |
+| Privacy policy / Terms | 🔄 Drafted, unapproved | `frontend/…/legal_documents_data.dart` |
+| Local + Tailscale test deploy | 🔄 Running | `AUTH_ENABLED=false`, `BYOK_REQUIRED=true` |
+
+### Reading the test numbers
+
+`pytest tests/ -q` needs a reachable Postgres carrying the migrated schema, or
+three tests fail on whatever else owns `:5432`. Start one with
+`backend/scripts/test-db.sh up`, which prints the `DATABASE_URL` to use.
+
+| Where it runs | Result |
+|---|---|
+| With corpus + test DB | 646 passed, 1 skipped |
+| Without the corpus (CI) | 634 passed, 13 skipped |
+
+The 12 extra skips are corpus-dependent tests, named one by one in
+`tests/conftest.py`; a name that stops matching fails the run rather than
+silently dropping coverage. The 13th is
+`test_websocket_requires_credits_and_deducts`, which HANGS — the reason string
+on the skip carries the full evidence. Frontend: `fvm flutter test` = 115
+passing, `fvm flutter analyze` = 0 errors / 2 known infos.
+
+### Before touching deployment
+
+Read `.user_tasks/production_preparation.md` first. The VPS this project used to deploy to answers ping but
+presents a **different SSH host key** than the one in `known_hosts`, and
+`api.zrdai.work` times out through Cloudflare. Treat the server as gone until
+proven otherwise.

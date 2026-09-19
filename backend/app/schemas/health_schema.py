@@ -10,7 +10,7 @@ from pydantic import BaseModel
 class HealthResponse(BaseModel):
     """Basic liveness response."""
     status: str = "ok"
-    service: str = "the-master-of-law"
+    service: str = "fuzzzy-law"
     version: str = "0.1.0"
 
 

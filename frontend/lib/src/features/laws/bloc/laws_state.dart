@@ -5,11 +5,11 @@ class LawsState {
   final StateStatus searchStatus;
   final StateStatus structureStatus;
   final StateStatus articleStatus;
-  final List<dynamic> codes;
-  final List<dynamic> searchResults;
+  final List<LawCode> codes;
+  final LawSearchResults? searchResults;
   final String searchQuery;
   final Map<String, dynamic>? selectedCodeStructure;
-  final Map<String, dynamic>? selectedArticle;
+  final LawArticleDetail? selectedArticle;
   final String? errorMessage;
 
   const LawsState({
@@ -18,7 +18,7 @@ class LawsState {
     this.structureStatus = StateStatus.initial,
     this.articleStatus = StateStatus.initial,
     this.codes = const [],
-    this.searchResults = const [],
+    this.searchResults,
     this.searchQuery = '',
     this.selectedCodeStructure,
     this.selectedArticle,
@@ -30,11 +30,11 @@ class LawsState {
     StateStatus? searchStatus,
     StateStatus? structureStatus,
     StateStatus? articleStatus,
-    List<dynamic>? codes,
-    List<dynamic>? searchResults,
+    List<LawCode>? codes,
+    LawSearchResults? searchResults,
     String? searchQuery,
     Map<String, dynamic>? selectedCodeStructure,
-    Map<String, dynamic>? selectedArticle,
+    LawArticleDetail? selectedArticle,
     String? errorMessage,
   }) {
     return LawsState(

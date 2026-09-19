@@ -29,8 +29,10 @@ class CaseFile(Base):
     defense_strategies = Column(JSONB, nullable=True)   # Section 4: ranked strategies
     prosecution_args = Column(JSONB, nullable=True)     # Section 5: counter-arguments
     action_checklist = Column(JSONB, nullable=True)     # Section 6: todo items with deadlines
+    unclear_items = Column(JSONB, nullable=True)         # Section 6b: info AI couldn't determine
     lawyer_brief = Column(JSONB, nullable=True)         # Section 7: lawyer summary
     citations = Column(JSONB, nullable=True)            # Section 8: full law citations
+    retrieved_chunks = Column(JSONB, nullable=True)     # Raw RAG chunks with URLs
 
     # Full rendered text (for display and export)
     rendered_text = Column(Text, nullable=True)

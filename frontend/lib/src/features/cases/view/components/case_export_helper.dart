@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:themasteroflaw/src/src.dart';
+import 'package:fuzzzy_law/src/src.dart';
+import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 
 /// Generates and exports a structured case summary.
 class CaseExportHelper {
@@ -9,7 +10,7 @@ class CaseExportHelper {
   static void exportToClipboard(BuildContext context, CaseData caseData) {
     final buffer = StringBuffer()
       ..writeln('═══════════════════════════════════')
-      ..writeln('კანონის ოსტატი — საქმის რეზიუმე')
+      ..writeln('ბუნდოვანი კანონი — საქმის რეზიუმე')
       ..writeln('═══════════════════════════════════')
       ..writeln()
       ..writeln('📁 ${caseData.title}')
@@ -22,9 +23,11 @@ class CaseExportHelper {
     if (caseData.facts.isNotEmpty) {
       buffer.writeln('━━━ ფაქტები (${caseData.facts.length}) ━━━');
       for (final fc in FactClassification.values) {
-        final group = caseData.facts.where((f) => f.classificationIndex == fc.index).toList();
+        final group = caseData.facts
+            .where((f) => f.classificationIndex == fc.index)
+            .toList();
         if (group.isNotEmpty) {
-          buffer.writeln('\n${fc.emoji} ${fc.displayNameKa}:');
+          buffer.writeln('\n${fc.exportGlyph} ${fc.displayNameKa}:');
           for (final f in group) {
             buffer.writeln('  • ${f.text}');
           }
@@ -69,7 +72,9 @@ class CaseExportHelper {
     if (caseData.timeline.isNotEmpty) {
       buffer.writeln('━━━ ვადები ━━━');
       for (final ev in caseData.timeline) {
-        buffer.writeln('  ${ev.type.icon} ${_fmt(ev.date)} — ${ev.title}');
+        buffer.writeln(
+          '  ${ev.type.exportGlyph} ${_fmt(ev.date)} — ${ev.title}',
+        );
       }
       buffer.writeln();
     }
@@ -98,21 +103,21 @@ class CaseExportHelper {
 
     buffer
       ..writeln('═══════════════════════════════════')
-      ..writeln('გენერირებულია: კანონის ოსტატი')
+      ..writeln('გენერირებულია: ბუნდოვანი კანონი')
       ..writeln(_fmt(DateTime.now()));
 
     Clipboard.setData(ClipboardData(text: buffer.toString()));
 
-    final uiColors = context.uiColors;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('საქმე კოპირებულია ბუფერში'),
-        backgroundColor: uiColors.successColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
+    // M11: the raised/lineStrong/radius.m sheet M5 rebuilt by hand IS
+    // FuzzzyToast — the real widget replaces the approximation.
+    FuzzzyToast.show(
+      context,
+      message: 'საქმე კოპირებულია ბუფერში',
+      kind: FuzzzyToastKind.success,
+      qaId: 'case.exported',
     );
   }
 
-  static String _fmt(DateTime d) => '${d.day}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+  static String _fmt(DateTime d) =>
+      '${d.day}.${d.month.toString().padLeft(2, '0')}.${d.year}';
 }

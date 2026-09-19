@@ -25,11 +25,12 @@ logger = get_logger(__name__)
 # Valid phase transitions
 _VALID_TRANSITIONS: dict[ConversationPhase, list[ConversationPhase]] = {
     ConversationPhase.GREETING: [ConversationPhase.INTAKE],
-    ConversationPhase.INTAKE: [ConversationPhase.CLARIFICATION, ConversationPhase.ANALYSIS],
+    ConversationPhase.INTAKE: [ConversationPhase.QUESTIONNAIRE, ConversationPhase.CLARIFICATION, ConversationPhase.ANALYSIS],
+    ConversationPhase.QUESTIONNAIRE: [ConversationPhase.CLARIFICATION, ConversationPhase.ANALYSIS],
     ConversationPhase.CLARIFICATION: [ConversationPhase.ANALYSIS, ConversationPhase.INTAKE],
     ConversationPhase.ANALYSIS: [ConversationPhase.ADVICE],
     ConversationPhase.ADVICE: [ConversationPhase.FOLLOW_UP, ConversationPhase.ANALYSIS],
-    ConversationPhase.FOLLOW_UP: [ConversationPhase.ANALYSIS, ConversationPhase.FOLLOW_UP],
+    ConversationPhase.FOLLOW_UP: [ConversationPhase.ANALYSIS, ConversationPhase.QUESTIONNAIRE, ConversationPhase.FOLLOW_UP],
 }
 
 
@@ -42,6 +43,7 @@ class ConversationService:
     """
 
     def __init__(self, db: AsyncSession) -> None:
+        self._db = db
         self._conv_repo = ConversationRepository(db)
         self._msg_repo = MessageRepository(db)
 
@@ -57,6 +59,13 @@ class ConversationService:
             phase=ConversationPhase.GREETING.value,
         )
         return self._conv_to_dict(conv)
+
+    async def update_title(self, conversation_id: str, title: str) -> None:
+        """Update the title of a conversation."""
+        conv_uuid = self._parse_uuid(conversation_id)
+        if not conv_uuid:
+            return
+        await self._conv_repo.update_title(conv_uuid, title)
 
     async def get_conversation(self, conversation_id: str) -> dict[str, Any] | None:
         """Get conversation with messages."""
@@ -213,6 +222,16 @@ class ConversationService:
         await self._conv_repo.update_phase(conv_uuid, new_phase.value)
         return True
 
+    async def mark_case_ready(self, conversation_id: str) -> None:
+        """Flag a conversation as ready for case file generation."""
+        conv_uuid = self._parse_uuid(conversation_id)
+        if not conv_uuid:
+            return
+        conv = await self._conv_repo.get_by_id(conv_uuid)
+        if conv:
+            conv.case_ready = True
+            await self._db.flush()
+
     async def determine_next_phase(
         self,
         conversation_id: str,
@@ -237,8 +256,11 @@ class ConversationService:
         if current == ConversationPhase.GREETING.value and message_count >= 1:
             return ConversationPhase.INTAKE
 
-        # After enough intake → move to ANALYSIS
-        if current == ConversationPhase.INTAKE.value and message_count >= 3:
+        # INTAKE stays as INTAKE — user explicitly chooses when to proceed
+        # (via questionnaire, free-text extract, or skip-to-analysis)
+
+        # After questionnaire → move to ANALYSIS
+        if current == ConversationPhase.QUESTIONNAIRE.value:
             return ConversationPhase.ANALYSIS
 
         # After analysis → ADVICE
@@ -273,6 +295,7 @@ class ConversationService:
             "title": conv.title or "",
             "phase": conv.phase,
             "legal_domain": conv.legal_domain or "",
+            "case_ready": conv.case_ready if conv.case_ready is not None else False,
             "created_at": conv.created_at.isoformat() if conv.created_at else "",
             "updated_at": conv.updated_at.isoformat() if conv.updated_at else "",
         }

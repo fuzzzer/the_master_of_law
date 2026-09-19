@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'package:fuzzzy_law/src/core/services/logger/logger_components/log_manager/logger_manager.dart';
 import 'package:logger/logger.dart';
-import 'package:themasteroflaw/src/core/services/logger/logger_components/log_manager/logger_manager.dart';
 
 class LogSavingOutput extends LogOutput {
   final LogManager logManager;

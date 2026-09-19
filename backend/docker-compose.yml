@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════════════════════════
-#  THE MASTER OF LAW — Docker Compose (Production)
+#  FUZZZY LAW — Docker Compose (Production)
 #
 #  SECURITY MODEL:
 #  ┌─────────────────────────────────────────────────────────┐
@@ -39,8 +39,36 @@ services:
       - "127.0.0.1:8000:8000"
     env_file: .env
     environment:
+      # Container-only overrides. These beat env_file, which holds the values
+      # that are correct OUTSIDE the container — the test suite reads the same
+      # .env, and a container hostname or a production APP_ENV there makes
+      # local runs fail in ways that have nothing to do with the code.
+      APP_ENV: production
+      # The deployment's access model: open access, each caller paying with
+      # their own Google key. Set here rather than in .env because .env is
+      # also the local/test config, where these must keep their defaults.
+      AUTH_ENABLED: "false"
+      BYOK_REQUIRED: "true"
+      BYOK_KEY_HEADER: X-API-Key
+      # No server key in the container ON PURPOSE. A fallback here would
+      # quietly serve any request that lost its caller key, spending the
+      # operator's quota and hiding the bug. .env keeps one for local runs.
+      GEMINI_API_KEY: ""
+      # Trust X-Forwarded-For / X-Forwarded-Proto from the reverse proxy.
+      # uvicorn reads this env var and defaults it to 127.0.0.1 — but nginx
+      # on the host reaches this container from the Docker bridge gateway
+      # (172.20.0.1 on this stack), so with the default every request looks
+      # like it came from the gateway. Under AUTH_ENABLED=false that is not
+      # cosmetic: anonymous_uid() falls back to hashing the client IP when a
+      # device id is missing, so one gateway address means every id-less
+      # caller shares ONE identity and ONE pile of cases — the exact failure
+      # DeviceIdService's docstring exists to prevent — and the IP rate-limit
+      # fallback becomes a single bucket for the whole internet.
+      # "*" is safe here and only here: the port is bound to 127.0.0.1, so
+      # the only thing that can reach it is the proxy we are trusting.
+      FORWARDED_ALLOW_IPS: "*"
       # Override DB/Redis URLs to use Docker internal hostnames
-      DATABASE_URL: postgresql+asyncpg://mol_user:${POSTGRES_PASSWORD}@postgres:5432/master_of_law
+      DATABASE_URL: postgresql+asyncpg://fuzzzy_user:${POSTGRES_PASSWORD}@postgres:5432/fuzzzy_law
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       CHROMA_PERSIST_DIR: /app/law_corpus_data/chroma
       # Vertex AI auth — ADC auto-discovers this. Billing goes through GCP.
@@ -54,8 +82,15 @@ services:
       - ../law_corpus/data/chroma:/app/law_corpus_data/chroma:rw
       # GCP credentials — path controlled by .env, mounted READ-ONLY
       # Local dev:  GCP_SA_KEY_PATH=~/.config/gcloud/application_default_credentials.json
-      # VPS prod:   GCP_SA_KEY_PATH=/etc/master-of-law/gcp-sa-key.json (chmod 600)
-      - ${GCP_SA_KEY_PATH}:/app/secrets/gcp-sa-key.json:ro
+      # VPS prod:   GCP_SA_KEY_PATH=/etc/fuzzzy-law/gcp-sa-key.json (chmod 600)
+      # Defaulted so the stack still starts with no GCP credential at all,
+      # which is the normal case under BYOK_REQUIRED=true: model calls are
+      # authenticated per request with the caller's own key and Vertex is
+      # never reached. Without the default, compose refuses to start over a
+      # file the deployment does not use.
+      - ${GCP_SA_KEY_PATH:-/dev/null}:/app/secrets/gcp-sa-key.json:ro
+      # Persist temporary API keys
+      - ./api_keys.json:/app/api_keys.json:rw
     depends_on:
       postgres:
         condition: service_healthy
@@ -72,8 +107,8 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: master_of_law
-      POSTGRES_USER: mol_user
+      POSTGRES_DB: fuzzzy_law
+      POSTGRES_USER: fuzzzy_user
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       # Reject connections from non-internal networks
       POSTGRES_HOST_AUTH_METHOD: scram-sha-256
@@ -81,7 +116,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mol_user -d master_of_law"]
+      test: ["CMD-SHELL", "pg_isready -U fuzzzy_user -d fuzzzy_law"]
       interval: 10s
       timeout: 5s
       retries: 5

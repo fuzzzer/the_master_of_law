@@ -17,6 +17,7 @@
 | 6 | [Refactor](./06_refactor.md) | Structural improvement | Tech debt, pattern violations |
 | 7 | [Endpoint Builder](./07_endpoint_builder.md) | New API endpoint soup-to-nuts | Adding REST endpoints |
 | 8 | [Deploy Checklist](./08_deploy_checklist.md) | Pre-deployment verification | Before any production push |
+| 9 | [Doc Sync](./09_doc_sync.md) | Documentation accuracy check | After any structural code change |
 
 ---
 

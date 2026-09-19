@@ -1,4 +1,4 @@
-# 🏛️ Master of Law — Evaluation Pipeline
+# 🏛️ Fuzzzy Law — Evaluation Pipeline
 
 > LLM-as-Judge evaluation: 50 real Georgian Supreme Court cases → AI legal analysis → scoring
 > **Last updated:** 2026-05-07

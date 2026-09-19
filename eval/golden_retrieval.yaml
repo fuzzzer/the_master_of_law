@@ -1,0 +1,349 @@
+# Golden retrieval/grounding suite — plan 4.2, VERIFICATION_PROTOCOL §3
+# Every expected article was validated against the article store (article_store.db,
+# built from the parsed corpus) on 2026-07-19: the article exists, its content
+# contains the validation keyword, and the matsne URL below is the store's URL.
+# Check C2: expected articles must appear in rag_final_selection chunks OR via a
+# tool_executed:get_article / full_code_injected trace step.
+version: 1
+validated_at: '2026-07-19'
+questions:
+  - id: G1
+    domain: labor
+    question: "დამსაქმებელმა სამსახურიდან გამათავისუფლა მას შემდეგ, რაც ვუთხარი რომ ორსულად ვარ. წერილობითი მიზეზი არ მოუწერია. რა უფლებები მაქვს, რა კომპენსაცია მეკუთვნის და სად უნდა ვიჩივლო?"
+    must_ground_in:
+      - code: labour_code
+        code_name: "საქართველოს შრომის კოდექსი"
+        article: '47'
+        article_number: "მუხლი 47"
+        article_title: "შრომითი ხელშეკრულების შეწყვეტის საფუძვლები"
+        matsne_url: https://matsne.gov.ge/ka/document/view/1155567#article_47
+        validation_keyword: "ორსულ"
+      - code: labour_code
+        code_name: "საქართველოს შრომის კოდექსი"
+        article: '48'
+        article_number: "მუხლი 48"
+        article_title: "შრომითი ხელშეკრულების შეწყვეტის წესი"
+        matsne_url: https://matsne.gov.ge/ka/document/view/1155567#article_48
+        validation_keyword: "30 კალენდარული"
+  - id: G2
+    domain: administrative
+    question: "რა ჯარიმა ეკისრება მძღოლს სიჩქარის გადაჭარბებისთვის 40 კმ/სთ-ით?"
+    must_ground_in:
+      - code: admin_offences_code
+        code_name: "საქართველოს ადმინისტრაციულ სამართალდარღვევათა კოდექსი"
+        article: '125'
+        article_number: "მუხლი 125"
+        article_title: "სატრანსპორტო საშუალების მძღოლის მიერ საგზაო მოძრაობის წესების დარღვევა"
+        matsne_url: https://matsne.gov.ge/ka/document/view/28216#article_125
+        validation_keyword: "სიჩქარ"
+  - id: G3
+    domain: labor
+    question: "ყოველდღე ვმუშაობ 10 საათს, მაგრამ ზეგანაკვეთურს არ მიხდიან. რა მეკუთვნის კანონით?"
+    must_ground_in:
+      - code: labour_code
+        code_name: "საქართველოს შრომის კოდექსი"
+        article: '27'
+        article_number: "მუხლი 27"
+        article_title: "ზეგანაკვეთური სამუშაო"
+        matsne_url: https://matsne.gov.ge/ka/document/view/1155567#article_27
+        validation_keyword: "ზეგანაკვეთ"
+  - id: G4
+    domain: labor
+    question: "რამდენი დღე ანაზღაურებადი შვებულება მეკუთვნის წელიწადში?"
+    must_ground_in:
+      - code: labour_code
+        code_name: "საქართველოს შრომის კოდექსი"
+        article: '31'
+        article_number: "მუხლი 31"
+        article_title: "შვებულების ხანგრძლივობა"
+        matsne_url: https://matsne.gov.ge/ka/document/view/1155567#article_31
+        validation_keyword: "შვებულებ"
+  - id: G5
+    domain: labor
+    question: "კვირაში მაქსიმუმ რამდენი საათი შეიძლება ვიმუშაო კანონით?"
+    must_ground_in:
+      - code: labour_code
+        code_name: "საქართველოს შრომის კოდექსი"
+        article: '24'
+        article_number: "მუხლი 24"
+        article_title: "სამუშაო დროის ხანგრძლივობა"
+        matsne_url: https://matsne.gov.ge/ka/document/view/1155567#article_24
+        validation_keyword: "სამუშაო დრო"
+  - id: G6
+    domain: criminal
+    question: "მეზობელმა სახლიდან ტელევიზორი მომპარა. რა ემუქრება ქურდობისთვის?"
+    must_ground_in:
+      - code: criminal_code
+        code_name: "საქართველოს სისხლის სამართლის კოდექსი"
+        article: '177'
+        article_number: "მუხლი 177"
+        article_title: "ქურდობა"
+        matsne_url: https://matsne.gov.ge/ka/document/view/16426#article_177
+        validation_keyword: "ქურდობ"
+  - id: G7
+    domain: criminal
+    question: "მეგობარს 2 გრამი მარიხუანა უპოვეს ჯიბეში. რა სასჯელი ემუქრება ნარკოტიკის შენახვისთვის?"
+    # 2g dried marijuana is a SMALL amount → admin offence 45¹, not criminal 260
+    # (corrected during certification: the pipeline retrieved 45¹ correctly and
+    # the original expectation, though corpus-validated, was legally wrong).
+    must_ground_in:
+      - code: admin_offences_code
+        code_name: "საქართველოს ადმინისტრაციულ სამართალდარღვევათა კოდექსი"
+        article: '451'
+        article_number: "მუხლი 451"
+        article_title: "მცენარე კანაფის ან მარიხუანის მცირე ოდენობით უკანონო შეძენა, შენახვა, გადაზიდვა, გადაგზავნა, მოხმარება ან/და მისი ზემოქმედების ქვეშ ყოფნა"
+        matsne_url: https://matsne.gov.ge/ka/document/view/28216#article_451
+        validation_keyword: "მარიხუან"
+  - id: G8
+    domain: criminal
+    question: "თავს დამესხნენ ქუჩაში და თავის დასაცავად თავდამსხმელს ხელი ვტკინე. დამსჯიან?"
+    must_ground_in:
+      - code: criminal_code
+        code_name: "საქართველოს სისხლის სამართლის კოდექსი"
+        article: '28'
+        article_number: "მუხლი 28"
+        article_title: "აუცილებელი მოგერიება"
+        matsne_url: https://matsne.gov.ge/ka/document/view/16426#article_28
+        validation_keyword: "მოგერიებ"
+  - id: G9
+    domain: criminal
+    question: "ჩხუბში კაცმა სახეში მირტყა და სილურჯეები დამრჩა. რა პასუხისმგებლობა ეკისრება?"
+    must_ground_in:
+      - code: criminal_code
+        code_name: "საქართველოს სისხლის სამართლის კოდექსი"
+        article: '120'
+        article_number: "მუხლი 120"
+        article_title: "ჯანმრთელობის განზრახ მსუბუქი დაზიანება"
+        matsne_url: https://matsne.gov.ge/ka/document/view/16426#article_120
+        validation_keyword: "ჯანმრთელობ"
+  - id: G10
+    domain: administrative
+    question: "პოლიციამ გამაჩერა ნასვამ მდგომარეობაში მართვისთვის. პირველად მომივიდა. რა ჯარიმა ან სასჯელი მელის?"
+    must_ground_in:
+      - code: admin_offences_code
+        code_name: "საქართველოს ადმინისტრაციულ სამართალდარღვევათა კოდექსი"
+        article: '116'
+        article_number: "მუხლი 116"
+        article_title: "სატრანსპორტო საშუალების ალკოჰოლური სიმთვრალის მდგომარეობაში მართვა და სატრანსპორტო საშუალების მართვასთან დაკავშირებული სხვა, ცალკეული ადმინისტრაციული სამართალდარღვევები"
+        matsne_url: https://matsne.gov.ge/ka/document/view/28216#article_116
+        validation_keyword: "ალკოჰოლ"
+  - id: G11
+    domain: administrative
+    question: "ქუჩაში ხმამაღლა გინებისთვის და შეურაცხყოფისთვის რა ჯარიმაა გათვალისწინებული?"
+    must_ground_in:
+      - code: admin_offences_code
+        code_name: "საქართველოს ადმინისტრაციულ სამართალდარღვევათა კოდექსი"
+        article: '166'
+        article_number: "მუხლი 166"
+        article_title: "წვრილმანი ხულიგნობა"
+        matsne_url: https://matsne.gov.ge/ka/document/view/28216#article_166
+        validation_keyword: "ხულიგნ"
+  - id: G12
+    domain: civil
+    question: "მეზობლის მილი გასკდა და ჩემი ბინა დაიტბორა. ვინ და როგორ უნდა ამინაზღაუროს ზიანი?"
+    must_ground_in:
+      - code: civil_code
+        code_name: "საქართველოს სამოქალაქო კოდექსი"
+        article: '992'
+        article_number: "მუხლი 992"
+        article_title: "ცნება"
+        matsne_url: https://matsne.gov.ge/ka/document/view/31702#article_992
+        validation_keyword: "ზიან"
+  - id: G13
+    domain: civil
+    question: "ბინა მაქვს გაქირავებული. რა უფლება-მოვალეობები გვაქვს მე და დამქირავებელს?"
+    must_ground_in:
+      - code: civil_code
+        code_name: "საქართველოს სამოქალაქო კოდექსი"
+        article: '531'
+        article_number: "მუხლი 531"
+        article_title: "ცნება"
+        matsne_url: https://matsne.gov.ge/ka/document/view/31702#article_531
+        validation_keyword: "ქირავნობ"
+  - id: G14
+    domain: civil
+    question: "მეგობარს ფული ვასესხე ხელწერილით და არ მიბრუნებს. როგორ დავიბრუნო სესხი?"
+    must_ground_in:
+      - code: civil_code
+        code_name: "საქართველოს სამოქალაქო კოდექსი"
+        article: '623'
+        article_number: "მუხლი 623"
+        article_title: "ცნება"
+        matsne_url: https://matsne.gov.ge/ka/document/view/31702#article_623
+        validation_keyword: "სესხ"
+  - id: G15
+    domain: family
+    question: "განქორწინება მინდა, მეუღლე კი წინააღმდეგია. რა საფუძვლით შემიძლია ქორწინების შეწყვეტა?"
+    must_ground_in:
+      - code: civil_code
+        code_name: "საქართველოს სამოქალაქო კოდექსი"
+        article: '1122'
+        article_number: "მუხლი 1122"
+        article_title: "ქორწინების შეწყვეტის საფუძვლები"
+        matsne_url: https://matsne.gov.ge/ka/document/view/31702#article_1122
+        validation_keyword: "განქორწინებ"
+  - id: G16
+    domain: family
+    question: "ყოფილი ქმარი ბავშვის ალიმენტს არ იხდის. რამდენს განსაზღვრავს სასამართლო და როგორ?"
+    must_ground_in:
+      - code: civil_code
+        code_name: "საქართველოს სამოქალაქო კოდექსი"
+        article: '1214'
+        article_number: "მუხლი 1214"
+        article_title: "ალიმენტის ოდენობის განსაზღვრა სასამართლოს მიერ"
+        matsne_url: https://matsne.gov.ge/ka/document/view/31702#article_1214
+        validation_keyword: "ალიმენტ"
+  - id: G17
+    domain: family
+    question: "მამა გარდაიცვალა ანდერძის გარეშე. ვინ და რა წესით ვიღებთ მემკვიდრეობას?"
+    must_ground_in:
+      - code: civil_code
+        code_name: "საქართველოს სამოქალაქო კოდექსი"
+        article: '1336'
+        article_number: "მუხლი 1336"
+        article_title: "კანონით მემკვიდრეები"
+        matsne_url: https://matsne.gov.ge/ka/document/view/31702#article_1336
+        validation_keyword: "მემკვიდრე"
+  - id: G18
+    domain: tax
+    question: "ხელფასიდან რამდენი პროცენტი საშემოსავლო გადასახადი მაკლდება?"
+    must_ground_in:
+      - code: tax_code
+        code_name: "საქართველოს საგადასახადო კოდექსი"
+        article: '81'
+        article_number: "მუხლი 81"
+        article_title: "გადასახადის განაკვეთი"
+        matsne_url: https://matsne.gov.ge/ka/document/view/1043717#article_81
+        validation_keyword: "20"
+  - id: G19
+    domain: tax
+    question: "რამდენია დღგ-ის განაკვეთი საქართველოში?"
+    must_ground_in:
+      - code: tax_code
+        code_name: "საქართველოს საგადასახადო კოდექსი"
+        article: '166'
+        article_number: "მუხლი 166"
+        article_title: "დღგ-ის განაკვეთი"
+        matsne_url: https://matsne.gov.ge/ka/document/view/1043717#article_166
+        validation_keyword: "18"
+  - id: G20
+    domain: tax
+    question: "მიკრო ბიზნესის სტატუსი მაინტერესებს — რა შემოსავლამდე ვარ გათავისუფლებული გადასახადისგან?"
+    must_ground_in:
+      - code: tax_code
+        code_name: "საქართველოს საგადასახადო კოდექსი"
+        article: '84'
+        article_number: "მუხლი 84"
+        article_title: "მიკრო ბიზნესი"
+        matsne_url: https://matsne.gov.ge/ka/document/view/1043717#article_84
+        validation_keyword: "მიკრო"
+  - id: G21
+    domain: land
+    question: "რა უფლებები მაქვს ჩემს საკუთრებაზე? შემიძლია ავუკრძალო სხვებს ჩემი ნაკვეთით სარგებლობა?"
+    must_ground_in:
+      - code: civil_code
+        code_name: "საქართველოს სამოქალაქო კოდექსი"
+        article: '170'
+        article_number: "მუხლი 170"
+        article_title: "ცნება. საკუთრების უფლების შინაარსი"
+        matsne_url: https://matsne.gov.ge/ka/document/view/31702#article_170
+        validation_keyword: "საკუთრებ"
+  - id: G22
+    domain: land
+    question: "მეზობლის სახელოსნოდან მუდმივი ხმაური და კვამლი შემოდის ჩემს ეზოში. რისი მოთხოვნა შემიძლია?"
+    must_ground_in:
+      - code: civil_code
+        code_name: "საქართველოს სამოქალაქო კოდექსი"
+        article: '175'
+        article_number: "მუხლი 175"
+        article_title: "სამეზობლო ზემოქმედებათა თმენის ვალდებულება"
+        matsne_url: https://matsne.gov.ge/ka/document/view/31702#article_175
+        validation_keyword: "მეზობ"
+  - id: G23
+    domain: land
+    question: "მეზობელს ჩემი ნაკვეთის გავლით უწევს გზაზე გასვლა. როგორ ფორმდება ასეთი უფლება (სერვიტუტი)?"
+    must_ground_in:
+      - code: civil_code
+        code_name: "საქართველოს სამოქალაქო კოდექსი"
+        article: '247'
+        article_number: "მუხლი 247"
+        article_title: "ცნება"
+        matsne_url: https://matsne.gov.ge/ka/document/view/31702#article_247
+        validation_keyword: "სერვიტუტ"
+  - id: G24
+    domain: constitutional
+    question: "მაქვს თუ არა უფლება საჯაროდ გავაკრიტიკო ხელისუფლება ისე, რომ არ დამსაჯონ?"
+    must_ground_in:
+      - code: constitution
+        code_name: "საქართველოს კონსტიტუცია"
+        article: '17'
+        article_number: "მუხლი 17"
+        article_title: "აზრის, ინფორმაციის, მასობრივი ინფორმაციის საშუალებათა და ინტერნეტის თავისუფლების უფლებები"
+        matsne_url: https://matsne.gov.ge/ka/document/view/30346#article_17
+        validation_keyword: "აზრ"
+  - id: G25
+    domain: constitutional
+    question: "სახელმწიფოს შეუძლია თუ არა ჩამომართვას საკუთრება და რა პირობებით?"
+    must_ground_in:
+      - code: constitution
+        code_name: "საქართველოს კონსტიტუცია"
+        article: '19'
+        article_number: "მუხლი 19"
+        article_title: "საკუთრების უფლება"
+        matsne_url: https://matsne.gov.ge/ka/document/view/30346#article_19
+        validation_keyword: "საკუთრებ"
+  - id: G26
+    domain: constitutional
+    question: "სამსახურში სქესის გამო განსხვავებულად მექცევიან. რას ამბობს კონსტიტუცია თანასწორობაზე?"
+    must_ground_in:
+      - code: constitution
+        code_name: "საქართველოს კონსტიტუცია"
+        article: '11'
+        article_number: "მუხლი 11"
+        article_title: "თანასწორობის უფლება"
+        matsne_url: https://matsne.gov.ge/ka/document/view/30346#article_11
+        validation_keyword: "თანასწორ"
+  - id: G27
+    domain: constitutional
+    question: "შეუძლია თუ არა ვინმეს ჩემი პირადი მიმოწერის წაკითხვა ჩემი თანხმობის გარეშე?"
+    must_ground_in:
+      - code: constitution
+        code_name: "საქართველოს კონსტიტუცია"
+        article: '15'
+        article_number: "მუხლი 15"
+        article_title: "პირადი და ოჯახური ცხოვრების, პირადი სივრცისა და კომუნიკაციის ხელშეუხებლობის უფლებები"
+        matsne_url: https://matsne.gov.ge/ka/document/view/30346#article_15
+        validation_keyword: "პირად"
+  - id: G28
+    domain: commercial
+    question: "კომპანიასთან ხელშეკრულების დადება მინდა ჩემი პირობებით. ვალდებული ვარ მათი სტანდარტული პირობები მივიღო?"
+    must_ground_in:
+      - code: civil_code
+        code_name: "საქართველოს სამოქალაქო კოდექსი"
+        article: '319'
+        article_number: "მუხლი 319"
+        article_title: "ხელშეკრულების თავისუფლება. ხელშეკრულების დადების ვალდებულება"
+        matsne_url: https://matsne.gov.ge/ka/document/view/31702#article_319
+        validation_keyword: "ხელშეკრულებ"
+  - id: G29
+    domain: personal_data
+    question: "ონლაინ მაღაზიამ ჩემი პირადი მონაცემები ჩემი თანხმობის გარეშე გადასცა სხვა კომპანიას. კანონიერია ეს?"
+    must_ground_in:
+      - code: personal_data_law
+        code_name: "პერსონალურ მონაცემთა დაცვის შესახებ"
+        article: '5'
+        article_number: "მუხლი 5"
+        article_title: "მონაცემთა დამუშავების საფუძვლები"
+        matsne_url: https://matsne.gov.ge/ka/document/view/1561437#article_5
+        validation_keyword: "თანხმობ"
+  - id: G30
+    domain: criminal
+    question: "პოლიციამ ქუჩაში დამაკავა. რა წესით უნდა მომხდარიყო დაკავება და რა უფლებები მაქვს დაკავებისას?"
+    must_ground_in:
+      - code: criminal_procedure_code
+        code_name: "საქართველოს სისხლის სამართლის საპროცესო კოდექსი"
+        article: '174'
+        article_number: "მუხლი 174"
+        article_title: "დაკავების წესი"
+        matsne_url: https://matsne.gov.ge/ka/document/view/90034#article_174
+        validation_keyword: "დაკავებ"

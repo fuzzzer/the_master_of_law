@@ -8,6 +8,7 @@ import uuid
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.models.case_file import CaseFile
 from app.utils.logger import get_logger
@@ -54,9 +55,12 @@ class CaseFileRepository:
         cf = await self.get_by_id(case_file_id)
         if not cf:
             return None
+        
         for k, v in kwargs.items():
             if hasattr(cf, k) and v is not None:
                 setattr(cf, k, v)
+                flag_modified(cf, k)
+
         await self._db.flush()
         return cf
 

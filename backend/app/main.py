@@ -21,6 +21,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config.settings import settings
 from app.integrations.chroma_client import get_chroma_client
+from app.middleware.byok_middleware import ByokMiddleware
 from app.middleware.credit_gate_middleware import CreditGateMiddleware
 from app.middleware.error_handler_middleware import ErrorHandlerMiddleware
 from app.middleware.firebase_auth_middleware import FirebaseAuthMiddleware
@@ -28,13 +29,20 @@ from app.middleware.rate_limit_middleware import RateLimitMiddleware
 from app.routes import (
     account_router,
     auth_router,
+    case_agent_router,
     case_file_router,
     chat_router,
     conversation_router,
+    feedback_router,
     health_router,
     law_browser_router,
+    questionnaire_router,
     rag_router,
+    trace_router,
     ws_chat_router,
+    api_key_router,
+    contacts_router,
+    model_router,
 )
 from app.utils.logger import get_logger, setup_logging
 
@@ -50,6 +58,8 @@ async def lifespan(app: FastAPI):
         app_name=settings.app_name,
         env=settings.app_env,
         port=settings.app_port,
+        auth_enabled=settings.auth_enabled,
+        byok_required=settings.byok_required,
     )
 
     # Initialize database engine (validates connection string)
@@ -88,23 +98,28 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     """Build and configure the FastAPI application."""
     app = FastAPI(
-        title="The Master of Law API",
-        description="AI-powered legal advocate backend for Georgian citizens — კანონის ოსტატი",
-        version="0.2.0",
+        title="Fuzzzy Law API",
+        description="AI-powered legal advocate backend for Georgian citizens — ბუნდოვანი კანონი",
+        version="0.2.7",
         lifespan=lifespan,
         docs_url="/docs" if not settings.is_production else None,
         redoc_url="/redoc" if not settings.is_production else None,
     )
 
-    # ── Middleware (order matters — outermost executed first) ──
-    # 1. Error handler catches all unhandled exceptions
-    app.add_middleware(ErrorHandlerMiddleware)
-    # 2. Rate limiting (before processing)
+    # ── Middleware (order matters — reverse order of addition runs first) ──
+    # 1. Rate limiting (innermost request phase)
     app.add_middleware(RateLimitMiddleware)
-    # 3. Credit gate (checks credits before AI calls)
+    # 2. Credit gate (checks credits before AI calls)
     app.add_middleware(CreditGateMiddleware)
-    # 4. Firebase auth (authenticates user)
+    # 3. Firebase auth (authenticates user, populates request.state.user)
     app.add_middleware(FirebaseAuthMiddleware)
+    # 3b. BYOK — binds the caller's own Google key to the request context.
+    #     Sits OUTSIDE auth so a request with no usable key is rejected before
+    #     any database work, and is plain ASGI so it also covers the chat
+    #     WebSocket, which the BaseHTTPMiddleware layers above never see.
+    app.add_middleware(ByokMiddleware)
+    # 4. Error handler (outermost app layer, catches all unhandled exceptions)
+    app.add_middleware(ErrorHandlerMiddleware)
     # 5. CORS (always outermost for browser requests)
     app.add_middleware(
         CORSMiddleware,
@@ -122,8 +137,15 @@ def create_app() -> FastAPI:
     app.include_router(chat_router.router)
     app.include_router(law_browser_router.router)
     app.include_router(case_file_router.router)
+    app.include_router(feedback_router.router)
     app.include_router(rag_router.router)
+    app.include_router(questionnaire_router.router)
     app.include_router(ws_chat_router.router)
+    app.include_router(case_agent_router.router)
+    app.include_router(api_key_router.router)
+    app.include_router(contacts_router.router)
+    app.include_router(trace_router.router)
+    app.include_router(model_router.router)
 
     return app
 

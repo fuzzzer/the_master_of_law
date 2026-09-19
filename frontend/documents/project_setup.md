@@ -1,9 +1,9 @@
 # Installation
 
-`themasteroflaw App` can run on different platforms, but you need to follow similar instructions for all of them:
+`fuzzzy_law App` can run on different platforms, but you need to follow similar instructions for all of them:
 
 1. Follow official documentation to install flutter [Flutter](https://flutter.dev/docs/get-started/install) and make sure it works (`flutter doctor -v` can help);
-2. Clone the [themasteroflaw](
+2. Clone the [fuzzzy_law](
    //TODO add link
    ) repository (You need to have [git](https://git-scm.com) installed and also be permitted to access the repository);
 3. Switch to `main` branch for the latest changes (`git switch main`);

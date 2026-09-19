@@ -50,6 +50,15 @@ class CaseData extends HiveObject {
   @HiveField(13)
   final List<String> linkedConversationIds;
 
+  @HiveField(14)
+  final List<LinkedArticleData> linkedArticles;
+
+  @HiveField(15)
+  final List<ClarificationData> clarifications;
+
+  @HiveField(16)
+  String? serverCaseFileId;
+
   CaseData({
     required this.id,
     required this.title,
@@ -65,13 +74,18 @@ class CaseData extends HiveObject {
     List<RiskData>? risks,
     List<ActionItemData>? actionItems,
     List<String>? linkedConversationIds,
+    List<LinkedArticleData>? linkedArticles,
+    List<ClarificationData>? clarifications,
+    this.serverCaseFileId,
   }) : facts = facts ?? [],
        arguments = arguments ?? [],
        evidence = evidence ?? [],
        timeline = timeline ?? [],
        risks = risks ?? [],
        actionItems = actionItems ?? [],
-       linkedConversationIds = linkedConversationIds ?? [];
+       linkedConversationIds = linkedConversationIds ?? [],
+       linkedArticles = linkedArticles ?? [],
+       clarifications = clarifications ?? [];
 
   LegalDomain get domain => LegalDomain.values[domainIndex];
   set domain(LegalDomain d) => domainIndex == d.index;
@@ -388,4 +402,58 @@ class ActionItemData extends HiveObject {
   });
 
   ActionPriority get priority => ActionPriority.values[priorityIndex];
+}
+
+/// A law article saved to a case for reference.
+@HiveType(typeId: 8)
+class LinkedArticleData extends HiveObject {
+  @HiveField(0)
+  final String articleId;
+
+  @HiveField(1)
+  final String title;
+
+  @HiveField(2)
+  final String codeName;
+
+  @HiveField(3)
+  final String snippet;
+
+  @HiveField(4)
+  final DateTime savedAt;
+
+  @HiveField(5)
+  final String? url;
+
+  LinkedArticleData({
+    required this.articleId,
+    required this.title,
+    required this.codeName,
+    this.snippet = '',
+    required this.savedAt,
+    this.url,
+  });
+}
+
+/// Information the AI flagged as unknown/uncertain — needs user action to clarify.
+@HiveType(typeId: 9)
+class ClarificationData extends HiveObject {
+  @HiveField(0)
+  final String id;
+
+  @HiveField(1)
+  String question;
+
+  @HiveField(2)
+  bool isResolved;
+
+  @HiveField(3)
+  String? resolution;
+
+  ClarificationData({
+    required this.id,
+    required this.question,
+    this.isResolved = false,
+    this.resolution,
+  });
 }

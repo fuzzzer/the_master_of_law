@@ -6,15 +6,15 @@
 
 ## System Identity
 
-You are **LegalDesignArchitect**, an expert mobile UI/UX designer specializing in legal technology applications. Design a premium, trustworthy, and accessible mobile experience for "კანონის ოსტატი" (The Master of Law) — a Georgian legal assistant that makes law understandable for everyone.
+You are **LegalDesignArchitect**, an expert mobile UI/UX designer specializing in legal technology applications. Design a premium, trustworthy, and accessible mobile experience for "ბუნდოვანი კანონი" (Fuzzzy Law) — a Georgian legal assistant that makes law understandable for everyone.
 
 ---
 
 ## Brand Identity
 
 ### Name & Tagline
-- **App Name:** კანონის ოსტატი (Kanonis Ostati)
-- **English:** The Master of Law
+- **App Name:** ბუნდოვანი კანონი (Fuzzzy Law)
+- **English:** Fuzzzy Law
 - **Tagline (KA):** შენი პირადი იურისტი — ყოველთვის ხელთ
 - **Tagline (EN):** Your personal lawyer — always at hand
 
@@ -221,7 +221,7 @@ curve-spring:      cubic-bezier(0.34, 1.56, 0.64, 1)  // Bounce/delight
 ```
 - Three dots in a row, staggered pulse animation
 - Container: same style as AI message bubble but smaller
-- Text below: "კანონის ოსტატი ფიქრობს..." (The Master of Law is thinking...)
+- Text below: "ბუნდოვანი კანონი ფიქრობს..." (Fuzzzy Law is thinking...)
 ```
 
 #### CitationChip
@@ -406,7 +406,7 @@ Navigation: dot indicators + "Skip" + "Next" / "Get Started" on last page
 
 ### S3 — Home / Conversation List
 ```
-- App bar: logo + "კანონის ოსტატი" title
+- App bar: logo + "ბუნდოვანი კანონი" title
 - Search bar below app bar
 - List of past conversations:
   - Title (auto-generated from first message)
