@@ -486,6 +486,6 @@ they are.
 [ ] second message on one open chat works (manual)
 [ ] backup cron installed · one dump taken · one restore rehearsed
 [ ] reboot test passed
-[ ] frontend deployed to fuzzzylaws.web.app · one real request succeeds
+[ ] frontend deployed to fuzzzylaw.web.app · one real request succeeds
 [ ] law.fuzzzycore.com attached in Firebase, Cloudflare record DNS-only, status Connected
 ```
