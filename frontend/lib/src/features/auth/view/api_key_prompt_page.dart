@@ -57,8 +57,8 @@ class _ApiKeyPromptPageState extends State<ApiKeyPromptPage> {
           if (mounted) {
             setState(
               () => _error =
-                  'გასაღები არ მუშაობს. დარწმუნდით, რომ სრულად '
-                  'დააკოპირეთ Google AI Studio-დან.',
+                  'გასაღები არ მუშაობს. შეამოწმეთ, სრულად დააკოპირეთ '
+                  'თუ არა Google AI Studio-დან.',
             );
           }
         case ApiKeyCheck.unreachable:
@@ -69,7 +69,7 @@ class _ApiKeyPromptPageState extends State<ApiKeyPromptPage> {
             setState(
               () => _error =
                   'სერვერთან დაკავშირება ვერ მოხერხდა. '
-                  'გთხოვთ, სცადოთ თავიდან.',
+                  'სცადეთ ხელახლა.',
             );
           }
       }
@@ -94,7 +94,7 @@ class _ApiKeyPromptPageState extends State<ApiKeyPromptPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'შეიყვანეთ Google AI Studio-ს გასაღები',
+              'თქვენი Google AI Studio-ს გასაღები',
               // Was `TextStyle(fontSize: 24, fontWeight: bold)` — a BLOCKING
               // literal size AND a hand-rolled weight. A brand pack owns the
               // type scale; 24/bold is `titleM`, the role every other page
@@ -104,38 +104,38 @@ class _ApiKeyPromptPageState extends State<ApiKeyPromptPage> {
             ),
             SizedBox(height: space.m),
             Text(
-              'აპლიკაცია იყენებს თქვენს პირად Google-ის გასაღებს — ის უფასოა '
-              'და აღება ორ წუთს არ სჭირდება.',
+              'აპლიკაცია თქვენი საკუთარი Google-ის გასაღებით მუშაობს. '
+              'გასაღები უფასოა და მისი აღება ორ წუთს არ წაგართმევთ.',
               style: type.body.copyWith(color: colors.inkMute),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: space.xl),
             FuzzzyCard(
-              sectionHeader: 'როგორ ავიღოთ უფასო გასაღები',
+              sectionHeader: 'როგორ მივიღოთ უფასო გასაღები',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const _GuideStep(
                     number: '1',
                     text:
-                        'გახსენით aistudio.google.com/apikey და შედით '
+                        'გადადით aistudio.google.com/apikey-ზე და შედით '
                         'თქვენი Google-ის ანგარიშით.',
                   ),
                   const _GuideStep(
                     number: '2',
                     text:
-                        'დააჭირეთ „Create API key“. გასაღები უფასოა — '
-                        'საბანკო ბარათი არ არის საჭირო.',
+                        'დააჭირეთ ღილაკს „Create API key“. გასაღები უფასოა — '
+                        'საბანკო ბარათი არ დაგჭირდებათ.',
                   ),
                   const _GuideStep(
                     number: '3',
                     text:
                         'დააკოპირეთ გასაღები (იწყება „AIza“-თი) და ჩასვით '
-                        'ქვემოთ ველში.',
+                        'ქვემოთ, ველში.',
                   ),
                   SizedBox(height: space.m),
                   FuzzzyButton(
-                    label: 'გახსენით Google AI Studio',
+                    label: 'Google AI Studio-ს გახსნა',
                     variant: FuzzzyButtonVariant.secondary,
                     icon: const Icon(Icons.open_in_new),
                     onPressed: () => _open(_aiStudioKeysUrl),
@@ -150,33 +150,33 @@ class _ApiKeyPromptPageState extends State<ApiKeyPromptPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'შეზღუდული გასაღები მხოლოდ AI-ს პასუხებზე მუშაობს — '
-                    'გაჟონვის შემთხვევაშიც სხვა Google-ის სერვისებზე ვერავინ '
-                    'გამოიყენებს.',
+                    'სჯობს, გასაღები მხოლოდ ამ დანიშნულებით შეზღუდოთ: მაშინ, '
+                    'სხვის ხელში რომც მოხვდეს, Google-ის სხვა სერვისებზე '
+                    'ვერავინ დახარჯავს.',
                     style: type.bodyS.copyWith(color: colors.inkMute),
                   ),
                   SizedBox(height: space.m),
                   const _GuideStep(
                     number: '1',
                     text:
-                        'გახსენით Google Cloud Console → Credentials და '
-                        'აირჩიეთ თქვენი გასაღები.',
+                        'გადადით Google Cloud Console-ის „Credentials“ გვერდზე '
+                        'და აირჩიეთ თქვენი გასაღები.',
                   ),
                   const _GuideStep(
                     number: '2',
                     text:
-                        '„API restrictions“ → „Restrict key“ → მონიშნეთ '
-                        'მხოლოდ „Generative Language API“.',
+                        '„API restrictions“-ში აირჩიეთ „Restrict key“ და '
+                        'მონიშნეთ მხოლოდ „Generative Language API“.',
                   ),
                   const _GuideStep(
                     number: '3',
                     text:
                         'დააჭირეთ „Save“. გასაღების წაშლა ან შეცვლა '
-                        'ნებისმიერ დროს შეგიძლიათ.',
+                        'ნებისმიერ დროს შეგეძლებათ.',
                   ),
                   SizedBox(height: space.m),
                   FuzzzyButton(
-                    label: 'გახსენით Google Cloud Console',
+                    label: 'Google Cloud Console-ის გახსნა',
                     variant: FuzzzyButtonVariant.ghost,
                     icon: const Icon(Icons.open_in_new),
                     onPressed: () => _open(_cloudCredentialsUrl),
@@ -186,8 +186,9 @@ class _ApiKeyPromptPageState extends State<ApiKeyPromptPage> {
             ),
             SizedBox(height: space.m),
             Text(
-              'გასაღები ინახება მხოლოდ ამ მოწყობილობაზე და იგზავნება მხოლოდ '
-              'თქვენს კითხვებზე პასუხის მისაღებად — სერვერზე არ ინახება.',
+              'გასაღები მხოლოდ თქვენს მოწყობილობაზე ინახება. სერვერს ის '
+              'მხოლოდ თქვენივე კითხვებზე პასუხის მისაღებად გადაეცემა და '
+              'არსად იწერება.',
               style: type.bodyS.copyWith(color: colors.inkMute),
               textAlign: TextAlign.center,
             ),
@@ -259,7 +260,7 @@ class _GuideStep extends StatelessWidget {
         children: [
           Text(
             '$number.',
-            style: type.data.copyWith(color: colors.ink),
+            style: type.body.copyWith(color: colors.inkMute),
           ),
           SizedBox(width: space.s),
           Expanded(
