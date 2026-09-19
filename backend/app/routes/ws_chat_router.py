@@ -142,6 +142,12 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
 
                 history = await conv_svc.get_conversation_history(conversation_id)
                 await conv_svc.save_user_message(conversation_id, user_message)
+                # The user's message is a fact the moment it arrives. It used
+                # to ride the same transaction as the answer, committed only
+                # at the end of the turn: a reload mid-turn showed the
+                # conversation without it, and a pipeline failure rolled it
+                # back — the message the user typed simply vanished.
+                await db.commit()
 
                 # Stage reporting starts BEFORE the guardrail — that call is a
                 # model round-trip too, and leaving it unreported meant stage
