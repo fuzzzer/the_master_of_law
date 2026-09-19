@@ -19,17 +19,17 @@ class AppRouter {
     redirect: (context, state) async {
       final secureStorage = sl.get<SecureStorageService>();
       final key = await secureStorage.getData('temporary_api_key');
-      
+
       final isAuthRoute = state.matchedLocation == '/auth';
-      
+
       if (key == null || key.isEmpty) {
         return isAuthRoute ? null : '/auth';
       }
-      
+
       if (isAuthRoute) {
         return '/cases';
       }
-      
+
       return null;
     },
     routes: <RouteBase>[
@@ -54,7 +54,9 @@ class AppRouter {
                       final caseId = state.pathParameters['caseId']!;
                       return BlocProvider(
                         create: (_) => CaseDetailCubit(
-                          repository: CaseRepository(localDataSource: CaseLocalDataSource()),
+                          repository: CaseRepository(
+                            localDataSource: CaseLocalDataSource(),
+                          ),
                         )..loadCase(caseId),
                         child: CaseWorkspacePage(caseId: caseId),
                       );
@@ -74,6 +76,7 @@ class AppRouter {
                     repository: ConsultationRepository(
                       remoteDataSource: ConsultationRemoteDataSource(),
                     ),
+                    turns: sl.get<ChatTurnRegistry>(),
                     chatMode: ChatMode.lawsOnly,
                   ),
                   child: const ConsultationPage(),
@@ -88,7 +91,9 @@ class AppRouter {
                 path: '/laws',
                 builder: (context, state) => BlocProvider(
                   create: (_) => LawsCubit(
-                    repository: LawsRepository(remoteDataSource: LawsRemoteDataSource()),
+                    repository: LawsRepository(
+                      remoteDataSource: LawsRemoteDataSource(),
+                    ),
                   )..loadCodes(),
                   child: const LawsHomePage(),
                 ),

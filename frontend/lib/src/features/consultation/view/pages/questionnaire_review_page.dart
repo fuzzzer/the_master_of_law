@@ -104,7 +104,9 @@ class QuestionnaireReviewPage extends StatelessWidget {
                       ),
                       SizedBox(height: space.xs),
                       Text(
-                        isAnswered ? _formatAnswer(answer, question.questionType) : 'გამოტოვებულია',
+                        isAnswered
+                            ? _formatAnswer(answer, question.questionType)
+                            : 'გამოტოვებულია',
                         // Italic is not a role, and Ink has no italic face.
                         // "Skipped" is a PLACEHOLDER, which is exactly what
                         // `inkFaint` is for (USING §2.2).

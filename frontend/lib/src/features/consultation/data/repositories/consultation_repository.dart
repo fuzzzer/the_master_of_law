@@ -21,6 +21,7 @@ enum ConsultationFailureType {
   noCredits,
   rateLimited,
   notFound,
+
   /// The AI provider is out of budget or overloaded — distinct from
   /// [serverError] because waiting actually helps and nothing is broken.
   serviceUnavailable,
@@ -31,17 +32,23 @@ enum ConsultationFailureType {
 class ConsultationRepository {
   final ConsultationRemoteDataSource _remoteDataSource;
 
-  ConsultationRepository({required ConsultationRemoteDataSource remoteDataSource})
-    : _remoteDataSource = remoteDataSource;
+  ConsultationRepository({
+    required ConsultationRemoteDataSource remoteDataSource,
+  }) : _remoteDataSource = remoteDataSource;
 
-  Future<ConsultationResult<Map<String, dynamic>>> createConversation({String? caseId}) async {
+  Future<ConsultationResult<Map<String, dynamic>>> createConversation({
+    String? caseId,
+  }) async {
     try {
       final data = await _remoteDataSource.createConversation(caseId: caseId);
       return ConsultationSuccess(data);
     } on HttpClientException catch (e) {
       return ConsultationFailure(type: _mapHttpError(e), message: e.toString());
     } catch (e) {
-      return ConsultationFailure(type: ConsultationFailureType.unknown, message: e.toString());
+      return ConsultationFailure(
+        type: ConsultationFailureType.unknown,
+        message: e.toString(),
+      );
     }
   }
 
@@ -52,18 +59,26 @@ class ConsultationRepository {
     } on HttpClientException catch (e) {
       return ConsultationFailure(type: _mapHttpError(e), message: e.toString());
     } catch (e) {
-      return ConsultationFailure(type: ConsultationFailureType.unknown, message: e.toString());
+      return ConsultationFailure(
+        type: ConsultationFailureType.unknown,
+        message: e.toString(),
+      );
     }
   }
 
-  Future<ConsultationResult<Map<String, dynamic>>> getConversation(String id) async {
+  Future<ConsultationResult<Map<String, dynamic>>> getConversation(
+    String id,
+  ) async {
     try {
       final data = await _remoteDataSource.getConversation(id);
       return ConsultationSuccess(data);
     } on HttpClientException catch (e) {
       return ConsultationFailure(type: _mapHttpError(e), message: e.toString());
     } catch (e) {
-      return ConsultationFailure(type: ConsultationFailureType.unknown, message: e.toString());
+      return ConsultationFailure(
+        type: ConsultationFailureType.unknown,
+        message: e.toString(),
+      );
     }
   }
 
@@ -74,7 +89,10 @@ class ConsultationRepository {
     } on HttpClientException catch (e) {
       return ConsultationFailure(type: _mapHttpError(e), message: e.toString());
     } catch (e) {
-      return ConsultationFailure(type: ConsultationFailureType.unknown, message: e.toString());
+      return ConsultationFailure(
+        type: ConsultationFailureType.unknown,
+        message: e.toString(),
+      );
     }
   }
 
@@ -97,7 +115,10 @@ class ConsultationRepository {
     } on HttpClientException catch (e) {
       return ConsultationFailure(type: _mapHttpError(e), message: e.toString());
     } catch (e) {
-      return ConsultationFailure(type: ConsultationFailureType.unknown, message: e.toString());
+      return ConsultationFailure(
+        type: ConsultationFailureType.unknown,
+        message: e.toString(),
+      );
     }
   }
 
@@ -130,7 +151,10 @@ class ConsultationRepository {
     } on HttpClientException catch (e) {
       return ConsultationFailure(type: _mapHttpError(e), message: e.toString());
     } catch (e) {
-      return ConsultationFailure(type: ConsultationFailureType.unknown, message: e.toString());
+      return ConsultationFailure(
+        type: ConsultationFailureType.unknown,
+        message: e.toString(),
+      );
     }
   }
 
@@ -151,7 +175,10 @@ class ConsultationRepository {
     } on HttpClientException catch (e) {
       return ConsultationFailure(type: _mapHttpError(e), message: e.toString());
     } catch (e) {
-      return ConsultationFailure(type: ConsultationFailureType.unknown, message: e.toString());
+      return ConsultationFailure(
+        type: ConsultationFailureType.unknown,
+        message: e.toString(),
+      );
     }
   }
 
@@ -170,7 +197,10 @@ class ConsultationRepository {
     } on HttpClientException catch (e) {
       return ConsultationFailure(type: _mapHttpError(e), message: e.toString());
     } catch (e) {
-      return ConsultationFailure(type: ConsultationFailureType.unknown, message: e.toString());
+      return ConsultationFailure(
+        type: ConsultationFailureType.unknown,
+        message: e.toString(),
+      );
     }
   }
 
@@ -199,4 +229,3 @@ class ConsultationRepository {
     };
   }
 }
-

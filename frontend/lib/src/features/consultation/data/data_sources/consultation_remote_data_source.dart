@@ -21,7 +21,9 @@ class ConsultationRemoteDataSource {
   }
 
   Future<List<dynamic>> getConversations() async {
-    final response = await _httpClient.get<Map<String, dynamic>>(_uri('/api/v1/conversations'));
+    final response = await _httpClient.get<Map<String, dynamic>>(
+      _uri('/api/v1/conversations'),
+    );
     return (response.data!['conversations'] as List<dynamic>?) ?? [];
   }
 
@@ -33,7 +35,9 @@ class ConsultationRemoteDataSource {
   }
 
   Future<void> deleteConversation(String conversationId) async {
-    await _httpClient.delete<void>(_uri('/api/v1/conversations/$conversationId'));
+    await _httpClient.delete<void>(
+      _uri('/api/v1/conversations/$conversationId'),
+    );
   }
 
   Future<Map<String, dynamic>> sendMessage({
@@ -117,7 +121,9 @@ class ConsultationRemoteDataSource {
     String? caseFileId,
   }) async* {
     final baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://127.0.0.1:8000';
-    final wsUrl = baseUrl.replaceFirst('http://', 'ws://').replaceFirst('https://', 'wss://');
+    final wsUrl = baseUrl
+        .replaceFirst('http://', 'ws://')
+        .replaceFirst('https://', 'wss://');
 
     final secureStorage = sl.get<SecureStorageService>();
     final apiKey = await secureStorage.getData('temporary_api_key');
@@ -134,7 +140,7 @@ class ConsultationRemoteDataSource {
         ...sl.get<ModelPreferenceService>().queryParameters,
       },
     );
-    
+
     final channel = WebSocketChannel.connect(uri);
 
     try {
@@ -143,13 +149,15 @@ class ConsultationRemoteDataSource {
       await channel.ready.timeout(const Duration(seconds: 15));
 
       // Send initial message
-      channel.sink.add(jsonEncode({
-        'message': message,
-        if (ragConfig != null) 'rag_config': ragConfig,
-        'mode': mode,
-        if (caseContext != null) 'case_context': caseContext,
-        if (caseFileId != null) 'case_file_id': caseFileId,
-      }));
+      channel.sink.add(
+        jsonEncode({
+          'message': message,
+          if (ragConfig != null) 'rag_config': ragConfig,
+          'mode': mode,
+          if (caseContext != null) 'case_context': caseContext,
+          if (caseFileId != null) 'case_file_id': caseFileId,
+        }),
+      );
 
       // Per-message inactivity timeout: if the server never sends another
       // frame (and no done/error), don't let the typing indicator spin forever.

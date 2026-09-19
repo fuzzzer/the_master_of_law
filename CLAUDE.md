@@ -142,7 +142,7 @@ The 12 skips are corpus-dependent tests, named one by one in
 silently dropping coverage. `test_websocket_requires_credits_and_deducts`
 was skipped for months as "hangs on turn 2"; the cause was the chat turn's
 transaction being poisoned by a failing automatic case build (2026-09-20),
-and it runs again. Frontend: `fvm flutter test` = 115
+and it runs again. Frontend: `fvm flutter test` = 118
 passing, `fvm flutter analyze` = 0 errors / 2 known infos.
 
 ### Before touching deployment

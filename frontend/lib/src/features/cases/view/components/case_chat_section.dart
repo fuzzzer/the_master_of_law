@@ -34,6 +34,7 @@ class _CaseChatSectionState extends State<CaseChatSection> {
       repository: ConsultationRepository(
         remoteDataSource: ConsultationRemoteDataSource(),
       ),
+      turns: sl.get<ChatTurnRegistry>(),
       isCaseChat: true,
     );
     _initConversation();

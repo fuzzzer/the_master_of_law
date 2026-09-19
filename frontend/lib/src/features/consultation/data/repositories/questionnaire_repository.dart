@@ -3,8 +3,9 @@ import 'package:fuzzzy_law/src/src.dart';
 class QuestionnaireRepository {
   final QuestionnaireRemoteDataSource _remoteDataSource;
 
-  QuestionnaireRepository({required QuestionnaireRemoteDataSource remoteDataSource})
-    : _remoteDataSource = remoteDataSource;
+  QuestionnaireRepository({
+    required QuestionnaireRemoteDataSource remoteDataSource,
+  }) : _remoteDataSource = remoteDataSource;
 
   Future<ConsultationResult<Map<String, dynamic>>> generateQuestionnaire({
     required String conversationId,
@@ -21,18 +22,26 @@ class QuestionnaireRepository {
     } on HttpClientException catch (e) {
       return ConsultationFailure(type: _mapHttpError(e), message: e.toString());
     } catch (e) {
-      return ConsultationFailure(type: ConsultationFailureType.unknown, message: e.toString());
+      return ConsultationFailure(
+        type: ConsultationFailureType.unknown,
+        message: e.toString(),
+      );
     }
   }
 
-  Future<ConsultationResult<Map<String, dynamic>>> getQuestionnaire(String conversationId) async {
+  Future<ConsultationResult<Map<String, dynamic>>> getQuestionnaire(
+    String conversationId,
+  ) async {
     try {
       final data = await _remoteDataSource.getQuestionnaire(conversationId);
       return ConsultationSuccess(data);
     } on HttpClientException catch (e) {
       return ConsultationFailure(type: _mapHttpError(e), message: e.toString());
     } catch (e) {
-      return ConsultationFailure(type: ConsultationFailureType.unknown, message: e.toString());
+      return ConsultationFailure(
+        type: ConsultationFailureType.unknown,
+        message: e.toString(),
+      );
     }
   }
 
@@ -51,18 +60,26 @@ class QuestionnaireRepository {
     } on HttpClientException catch (e) {
       return ConsultationFailure(type: _mapHttpError(e), message: e.toString());
     } catch (e) {
-      return ConsultationFailure(type: ConsultationFailureType.unknown, message: e.toString());
+      return ConsultationFailure(
+        type: ConsultationFailureType.unknown,
+        message: e.toString(),
+      );
     }
   }
 
-  Future<ConsultationResult<Map<String, dynamic>>> skipRemaining(String conversationId) async {
+  Future<ConsultationResult<Map<String, dynamic>>> skipRemaining(
+    String conversationId,
+  ) async {
     try {
       final data = await _remoteDataSource.skipRemaining(conversationId);
       return ConsultationSuccess(data);
     } on HttpClientException catch (e) {
       return ConsultationFailure(type: _mapHttpError(e), message: e.toString());
     } catch (e) {
-      return ConsultationFailure(type: ConsultationFailureType.unknown, message: e.toString());
+      return ConsultationFailure(
+        type: ConsultationFailureType.unknown,
+        message: e.toString(),
+      );
     }
   }
 
@@ -81,7 +98,10 @@ class QuestionnaireRepository {
     } on HttpClientException catch (e) {
       return ConsultationFailure(type: _mapHttpError(e), message: e.toString());
     } catch (e) {
-      return ConsultationFailure(type: ConsultationFailureType.unknown, message: e.toString());
+      return ConsultationFailure(
+        type: ConsultationFailureType.unknown,
+        message: e.toString(),
+      );
     }
   }
 

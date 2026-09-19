@@ -36,16 +36,20 @@ enum ChatMode {
 
 class ConsultationCubit extends Cubit<ConsultationState> {
   final ConsultationRepository _repository;
+  final ChatTurnRegistry _turns;
 
-  /// Active WebSocket stream subscription for the in-flight message, if any.
-  /// Cancelled in [close] so the cubit never emits after disposal (F-02/F-03).
+  /// This cubit's subscription to the turn it is following, if any. The turn
+  /// itself lives in [ChatTurnRegistry] and keeps running when this is
+  /// cancelled — in [close], or when another conversation is loaded.
   StreamSubscription<Map<String, dynamic>>? _streamSubscription;
 
   ConsultationCubit({
     required ConsultationRepository repository,
+    required ChatTurnRegistry turns,
     ChatMode chatMode = ChatMode.allSources,
     bool isCaseChat = false,
   }) : _repository = repository,
+       _turns = turns,
        super(ConsultationState(chatMode: chatMode, isCaseChat: isCaseChat));
 
   /// Emit only while the cubit is still open. Streaming responses are
@@ -112,8 +116,26 @@ class ConsultationCubit extends Cubit<ConsultationState> {
             status: StateStatus.success,
             messages: messages,
             caseAnalysisReady: caseReady,
+            isSending: false,
+            clearStreamingStatus: true,
+            clearStreamingMessageId: true,
+            clearStage: true,
           ),
         );
+        // A turn sent from this conversation may still be running — the
+        // screen that sent it was popped, or the history sheet swapped the
+        // conversation out and back. Pick it up where it is: its stages,
+        // partial text and result replay into this fresh copy.
+        final running = _turns.active(conversationId);
+        if (running != null) {
+          _safeEmit(
+            state.copyWith(
+              isSending: true,
+              streamingMessageId: running.streamingId,
+            ),
+          );
+          unawaited(_follow(running));
+        }
       case ConsultationFailure<Map<String, dynamic>>(:final type):
         _safeEmit(
           state.copyWith(status: StateStatus.failed, failureType: type),
@@ -122,11 +144,8 @@ class ConsultationCubit extends Cubit<ConsultationState> {
   }
 
   Future<void> sendMessage(String text) async {
-    if (state.conversationId == null) return;
-
-    // Cancel any previous in-flight stream before starting a new one.
-    await _streamSubscription?.cancel();
-    _streamSubscription = null;
+    final conversationId = state.conversationId;
+    if (conversationId == null) return;
 
     final userMsg = ChatMessage(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -135,27 +154,38 @@ class ConsultationCubit extends Cubit<ConsultationState> {
       timestamp: DateTime.now(),
     );
 
-    final streamingId = 'stream_${DateTime.now().millisecondsSinceEpoch}';
+    final turn = _turns.start(
+      conversationId: conversationId,
+      source: _repository.streamMessage(
+        conversationId: conversationId,
+        message: text,
+        ragConfig: state.chatMode.ragConfig,
+        mode: state.isCaseChat ? 'case_intake' : 'chat',
+        caseContext: state.attachedCaseContext,
+        caseFileId: state.caseFileId,
+      ),
+    );
 
     _safeEmit(
       state.copyWith(
         messages: [...state.messages, userMsg],
         isSending: true,
-        streamingMessageId: streamingId,
+        streamingMessageId: turn.streamingId,
         clearStreamingStatus: true,
         clearStage: true,
       ),
     );
 
-    final stream = _repository.streamMessage(
-      conversationId: state.conversationId!,
-      message: text,
-      ragConfig: state.chatMode.ragConfig,
-      mode: state.isCaseChat ? 'case_intake' : 'chat',
-      caseContext: state.attachedCaseContext,
-      caseFileId: state.caseFileId,
-    );
+    await _follow(turn);
+  }
 
+  /// Render [turn] into this cubit's state: replay of what has happened so
+  /// far, then live. Completes when the turn does.
+  Future<void> _follow(ChatTurn turn) async {
+    await _streamSubscription?.cancel();
+    _streamSubscription = null;
+
+    final streamingId = turn.streamingId;
     final toolResultsCollected = <ToolResultData>[];
     final completer = Completer<void>();
 
@@ -181,7 +211,7 @@ class ConsultationCubit extends Cubit<ConsultationState> {
       );
     }
 
-    _streamSubscription = stream.listen(
+    _streamSubscription = turn.attach().listen(
       (event) {
         if (isClosed) return;
         final type = event['type'];
@@ -354,6 +384,11 @@ class ConsultationCubit extends Cubit<ConsultationState> {
           );
           if (!completer.isCompleted) completer.complete();
         } else if (type == 'error') {
+          if (event['connection_lost'] == true) {
+            emitConnectionError();
+            if (!completer.isCompleted) completer.complete();
+            return;
+          }
           final errorMsg = ChatMessage(
             id: 'error_${DateTime.now().millisecondsSinceEpoch}',
             text: event['message']?.toString() ?? 'An error occurred',
@@ -378,20 +413,9 @@ class ConsultationCubit extends Cubit<ConsultationState> {
           if (!completer.isCompleted) completer.complete();
         }
       },
-      onError: (Object e) {
-        emitConnectionError();
-        if (!completer.isCompleted) completer.complete();
-      },
       onDone: () {
-        // Stream closed without an explicit done/error event (e.g. socket
-        // dropped mid-response). If we're still showing the typing indicator,
-        // surface a connection error rather than spinning forever.
-        if (!isClosed && state.isSending) {
-          emitConnectionError();
-        }
         if (!completer.isCompleted) completer.complete();
       },
-      cancelOnError: true,
     );
 
     await completer.future;

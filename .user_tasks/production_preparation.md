@@ -85,7 +85,7 @@ nothing reserves `:5432`, and on this machine an unrelated container owns it.
 |---|---|
 | With corpus + test DB | **649 passed, 0 skipped** |
 | Without the corpus (CI) | **637 passed, 12 skipped** |
-| Frontend | **115 passed**; analyze 0 errors / 2 known infos |
+| Frontend | **118 passed**; analyze 0 errors / 2 known infos |
 
 ### Gates
 
@@ -452,7 +452,7 @@ DATABASE_URL="…" .venv/bin/python -m pytest tests/ -q     # → 649 passed, 0 
 # frontend
 cd frontend
 fvm flutter analyze                          # → 2 known infos, 0 errors
-fvm flutter test                             # → 115 passed
+fvm flutter test                             # → 118 passed
 ```
 
 ---
