@@ -36,11 +36,17 @@ router = APIRouter(prefix="/api/v1/chat", tags=["chat-ws"])
 
 
 async def _safe_send(websocket: WebSocket, data: dict) -> bool:
-    """Send JSON to WebSocket, returning False if the connection is closed."""
+    """Send JSON to WebSocket, returning False if the connection is closed.
+
+    Broad on purpose. Which exception a send to a gone client raises depends
+    on the server (`RuntimeError` under uvicorn, `anyio.ClosedResourceError`
+    under the test client, `WebSocketDisconnect` in between), and the turn
+    that calls this must finish and persist whichever one it is.
+    """
     try:
         await websocket.send_json(data)
         return True
-    except (RuntimeError, WebSocketDisconnect):
+    except Exception:
         return False
 
 
@@ -247,161 +253,151 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                             f"USER MESSAGE: {user_message}"
                         )
 
-                    pipeline = get_agent_pipeline_service()
-
-                    # Concurrently run pipeline and watch for disconnect
+                    # The turn — pipeline, persistence, credits, trace — is ONE
+                    # task, shielded from the socket's fate. It used to be
+                    # inline, beside a watcher that awaited `receive_text()` to
+                    # notice a disconnect and then cancelled the pipeline: a
+                    # user who closed the tab, pressed back, or lost signal
+                    # for a second lost the answer they had paid their own key
+                    # for — and a second message sent mid-turn was swallowed by
+                    # the watcher as if it were a disconnect. The task owns its
+                    # own session because the handler's session closes with the
+                    # handler; every send inside it goes through `_safe_send`,
+                    # a no-op once the client is gone, and the client picks the
+                    # answer up from the conversation on its next load.
                     import asyncio
 
-                    pipeline_task = asyncio.create_task(
-                        pipeline.run(
-                            user_message=enriched_message,
-                            conversation_history=history,
-                            system_prompt=system_prompt_text,
-                            rag_collections=collections,
-                            case_file_id=case_file_id,
-                            user_id=uid,
-                            conversation_id=conversation_id,
-                            db=db,
-                            is_case_chat=is_case_chat,
-                        )
-                    )
+                    async def complete_turn():
+                        async with get_session_factory()() as tdb:
+                            turn_conv = ConversationService(tdb)
+                            turn_credits = CreditRepository(tdb)
+                            pipeline = get_agent_pipeline_service()
 
-                    async def watch_disconnect():
-                        try:
-                            # Await next message or disconnect.
-                            await websocket.receive_text()
-                        except WebSocketDisconnect:
-                            pass
+                            result = await pipeline.run(
+                                user_message=enriched_message,
+                                conversation_history=history,
+                                system_prompt=system_prompt_text,
+                                rag_collections=collections,
+                                case_file_id=case_file_id,
+                                user_id=uid,
+                                conversation_id=conversation_id,
+                                db=tdb,
+                                is_case_chat=is_case_chat,
+                            )
 
-                    disconnect_task = asyncio.create_task(watch_disconnect())
+                            response_text = result.response_text
+                            chunks = result.chunks
+                            verified_citations = result.verified_citations
+
+                            # Detect and strip [CASE_READY] BEFORE sending chunk to client
+                            tag_ready = bool(re.search(r'\[CASE_READY\]', response_text))
+                            if tag_ready:
+                                response_text = re.sub(r'\s*\[CASE_READY\]\s*', '', response_text).rstrip()
+
+                            # Stream the response to client
+                            if response_text:
+                                await _safe_send(websocket, {"type": "chunk", "content": response_text})
+
+                            # Send tool results to client
+                            for tr in result.tool_results:
+                                if tr.requires_confirmation:
+                                    await _safe_send(websocket, {
+                                        "type": "confirmation_required",
+                                        "confirmation_id": tr.confirmation_id,
+                                        "tool_name": tr.tool_name,
+                                        "description": tr.description,
+                                     })
+                                else:
+                                    await _safe_send(websocket, {
+                                        "type": "tool_executed",
+                                        "tool": tr.tool_name,
+                                        "status": tr.status,
+                                        "result": tr.result,
+                                    })
+
+                            # Handle [CASE_READY]
+                            if tag_ready:
+                                await turn_conv.mark_case_ready(conversation_id)
+
+                                from app.services.case_builder_service import get_case_builder_service
+                                case_builder = get_case_builder_service()
+                                try:
+                                    await _safe_send(websocket, {"type": "status", "message": "საქმის სრული ანალიზი მიმდინარეობს..."})
+                                    if case_file_id:
+                                        build_result = await case_builder.update_case_file(
+                                            db=tdb,
+                                            case_file_id=_uuid.UUID(case_file_id),
+                                            conversation_id=conversation_id,
+                                            retrieved_chunks=chunks,
+                                        )
+                                    else:
+                                        build_result = await case_builder.build_case_file(
+                                            db=tdb,
+                                            user_id=uid,
+                                            conversation_id=conversation_id,
+                                            retrieved_chunks=chunks,
+                                        )
+                                    if "full_analysis_text" in build_result:
+                                        extra = "\n\n" + build_result["full_analysis_text"]
+                                        response_text += extra
+                                        await _safe_send(websocket, {"type": "chunk", "content": extra})
+                                except Exception as e:
+                                    logger.error("case_agent_auto_build_failed", error=str(e))
+                                    # A failed build must not take the answer
+                                    # down with it: a flush error leaves the
+                                    # session unusable until it is rolled
+                                    # back, and the save below would fail too.
+                                    await tdb.rollback()
+                                    await turn_conv.mark_case_ready(conversation_id)
+
+                            # Save assistant response
+                            chunk_ids = [c.get("chunk_id", "") for c in chunks[:20] if "chunk_id" in c]
+                            await turn_conv.save_assistant_message(
+                                conversation_id=conversation_id,
+                                content=response_text,
+                                citations=verified_citations,
+                                retrieved_chunk_ids=chunk_ids,
+                                credit_cost=cost,
+                            )
+
+                            # Update conversation phase
+                            msg_count = len(history) + 2
+                            next_phase = await turn_conv.determine_next_phase(conversation_id, msg_count)
+                            await turn_conv.transition_phase(conversation_id, next_phase)
+
+                            # Deduct credits
+                            if not is_admin:
+                                await turn_credits.deduct(
+                                    user_id=user_db_id,
+                                    cost=cost,
+                                    action=CreditAction.CHAT.value,
+                                    description=f"WS Chat in conversation {conversation_id}"
+                                )
+
+                            await tdb.commit()
+
+                            await save_current_trace(status="completed", response_text=response_text)
+
+                            await _safe_send(websocket, {
+                                "type": "done",
+                                "full_response": response_text,
+                                "citations": verified_citations,
+                                "chunk_count": len(chunks),
+                                "case_analysis_ready": tag_ready,
+                                "tool_results": [{
+                                    "tool_name": t.tool_name,
+                                    "status": t.status,
+                                    "result": t.result,
+                                } for t in result.tool_results],
+                            })
 
                     try:
-                        done, pending = await asyncio.wait(
-                            [pipeline_task, disconnect_task],
-                            return_when=asyncio.FIRST_COMPLETED
-                        )
-
-                        for task in pending:
-                            task.cancel()
-
-                        # Flush stage frames emitted between the pump's last
-                        # iteration and the pipeline finishing.
-                        while not stage_queue.empty():
-                            await _safe_send(websocket, stage_queue.get_nowait())
+                        await asyncio.shield(asyncio.create_task(complete_turn()))
                     finally:
                         # Flush whatever the pump has not drained yet; the
                         # pump itself is retired by the per-message finally.
                         while not stage_queue.empty():
                             await _safe_send(websocket, stage_queue.get_nowait())
-
-                    if pipeline_task not in done:
-                        # Client disconnected during pipeline run!
-                        logger.warning("ws_client_disconnected_during_pipeline", conversation_id=conversation_id)
-                        await db.rollback()
-                        await save_current_trace(status="failed", error="client disconnected during pipeline")
-                        raise WebSocketDisconnect()
-
-                    result = pipeline_task.result()
-
-                    response_text = result.response_text
-                    chunks = result.chunks
-                    verified_citations = result.verified_citations
-
-                    # Detect and strip [CASE_READY] BEFORE sending chunk to client
-                    tag_ready = bool(re.search(r'\[CASE_READY\]', response_text))
-                    if tag_ready:
-                        response_text = re.sub(r'\s*\[CASE_READY\]\s*', '', response_text).rstrip()
-
-                    # Stream the response to client
-                    if response_text:
-                        await _safe_send(websocket, {"type": "chunk", "content": response_text})
-
-                    # Send tool results to client
-                    for tr in result.tool_results:
-                        if tr.requires_confirmation:
-                            await _safe_send(websocket, {
-                                "type": "confirmation_required",
-                                "confirmation_id": tr.confirmation_id,
-                                "tool_name": tr.tool_name,
-                                "description": tr.description,
-                             })
-                        else:
-                            await _safe_send(websocket, {
-                                "type": "tool_executed",
-                                "tool": tr.tool_name,
-                                "status": tr.status,
-                                "result": tr.result,
-                            })
-
-                    # Handle [CASE_READY]
-                    if tag_ready:
-                        await conv_svc.mark_case_ready(conversation_id)
-
-                        from app.services.case_builder_service import get_case_builder_service
-                        case_builder = get_case_builder_service()
-                        try:
-                            await _safe_send(websocket, {"type": "status", "message": "საქმის სრული ანალიზი მიმდინარეობს..."})
-                            if case_file_id:
-                                build_result = await case_builder.update_case_file(
-                                    db=db,
-                                    case_file_id=_uuid.UUID(case_file_id),
-                                    conversation_id=conversation_id,
-                                    retrieved_chunks=chunks,
-                                )
-                            else:
-                                build_result = await case_builder.build_case_file(
-                                    db=db,
-                                    user_id=uid,
-                                    conversation_id=conversation_id,
-                                    retrieved_chunks=chunks,
-                                )
-                            if "full_analysis_text" in build_result:
-                                extra = "\n\n" + build_result["full_analysis_text"]
-                                response_text += extra
-                                await _safe_send(websocket, {"type": "chunk", "content": extra})
-                        except Exception as e:
-                            logger.error("case_agent_auto_build_failed", error=str(e))
-
-                    # Save assistant response
-                    chunk_ids = [c.get("chunk_id", "") for c in chunks[:20] if "chunk_id" in c]
-                    await conv_svc.save_assistant_message(
-                        conversation_id=conversation_id,
-                        content=response_text,
-                        citations=verified_citations,
-                        retrieved_chunk_ids=chunk_ids,
-                        credit_cost=cost,
-                    )
-
-                    # Update conversation phase
-                    msg_count = len(history) + 2
-                    next_phase = await conv_svc.determine_next_phase(conversation_id, msg_count)
-                    await conv_svc.transition_phase(conversation_id, next_phase)
-
-                    # Deduct credits
-                    if not is_admin:
-                        await credit_repo.deduct(
-                            user_id=user_db_id,
-                            cost=cost,
-                            action=CreditAction.CHAT.value,
-                            description=f"WS Chat in conversation {conversation_id}"
-                        )
-
-                    await db.commit()
-
-                    await save_current_trace(status="completed", response_text=response_text)
-
-                    await _safe_send(websocket, {
-                        "type": "done",
-                        "full_response": response_text,
-                        "citations": verified_citations,
-                        "chunk_count": len(chunks),
-                        "case_analysis_ready": tag_ready,
-                        "tool_results": [{
-                            "tool_name": t.tool_name,
-                            "status": t.status,
-                            "result": t.result,
-                        } for t in result.tool_results],
-                    })
 
                 except WebSocketDisconnect:
                     raise

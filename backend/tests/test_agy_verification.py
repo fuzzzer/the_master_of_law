@@ -116,30 +116,6 @@ async def test_atomic_deduction_concurrency():
         assert credits.daily_credits_used == 5
 
 
-@pytest.mark.skip(
-    reason=(
-        "HANGS — must not run unattended. Turn 1 completes and the client "
-        "receives its `done` frame; turn 2 is then answered by NOTHING and "
-        "`receive_json` blocks forever, because starlette's TestClient "
-        "websocket has no receive timeout. Two causes were established and "
-        "one was not: (a) the guardrail went live in 37a235c and makes a real "
-        "cheap-tier model call before the pipeline on every turn — unmocked "
-        "it reached the network, and it is mocked below now; (b) the suite "
-        "needs a reachable Postgres carrying the migrated schema, which the "
-        "host does not have while an unrelated container owns :5432 — see "
-        "`scripts/test-db.sh`. What is NOT established is why turn 2 is "
-        "silent. The suspect is ws_chat_router's `watch_disconnect` task: it "
-        "parks in `websocket.receive_text()` and is `cancel()`ed WITHOUT "
-        "being awaited, so it can outlive the turn and eat the client's next "
-        "frame. Awaiting the cancellation was TRIED HERE AND DID NOT FIX IT, "
-        "so that diagnosis is unproven and the speculative change was reverted "
-        "rather than shipped. Until it is understood, this is a skip with the "
-        "evidence attached, not a deletion: the behaviour it covers (a second "
-        "message on ONE open socket) is real and belongs in the launch smoke "
-        "test against a live server. See "
-        ".user_tasks/production_preparation.md §10."
-    )
-)
 def test_websocket_requires_credits_and_deducts():
     """Verify that WebSocket chat gates credit balances and deducts on success."""
     # Reset engine to ensure db_setup creates a fresh one for its own loop
@@ -205,9 +181,14 @@ def test_websocket_requires_credits_and_deducts():
     # to the same "let it through" decision it fails open to.
     allow = GuardrailDecision(category="legal", confidence=1.0, should_proceed=True)
 
+    # The mocked answer carries [CASE_READY], which starts the automatic case
+    # build — three more model calls. Mocked so the test stays off the network.
+    built = {"full_analysis_text": "სრული ანალიზი"}
+
     with patch("app.integrations.firebase_client.verify_id_token", return_value={"uid": firebase_uid, "email": "ws-test@fuzzzylaw.ge"}), \
          patch("app.services.guardrail_service.GuardrailService.classify", new_callable=AsyncMock, return_value=allow), \
-         patch("app.services.agent_pipeline_service.AgentPipelineService.run", new_callable=AsyncMock, return_value=mock_result):
+         patch("app.services.agent_pipeline_service.AgentPipelineService.run", new_callable=AsyncMock, return_value=mock_result), \
+         patch("app.services.case_builder_service.CaseBuilderService.build_case_file", new_callable=AsyncMock, return_value=built):
 
         # Connect to WebSocket
         with client.websocket_connect(f"/api/v1/chat/{conversation_id}/ws?token=valid-token") as ws:

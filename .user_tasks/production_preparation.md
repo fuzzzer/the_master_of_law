@@ -83,8 +83,8 @@ nothing reserves `:5432`, and on this machine an unrelated container owns it.
 
 | Where it runs | Result |
 |---|---|
-| With corpus + test DB | **646 passed, 1 skipped** |
-| Without the corpus (CI) | **634 passed, 13 skipped** |
+| With corpus + test DB | **649 passed, 0 skipped** |
+| Without the corpus (CI) | **637 passed, 12 skipped** |
 | Frontend | **115 passed**; analyze 0 errors / 2 known infos |
 
 ### Gates
@@ -296,7 +296,7 @@ git push origin main
    owned by a different account, so the job's built-in token cannot read it.
 2. Push and watch the run.
 
-✅ **Done when** both jobs pass. Expect `634 passed, 13 skipped` from the backend job.
+✅ **Done when** both jobs pass. Expect `637 passed, 12 skipped` from the backend job.
 
 > **Worth doing soon after:** move `fuzzzy_ui_kit` to a pinned git dependency,
 > with a local `pubspec_overrides.yaml` for day-to-day work. Today a release
@@ -447,7 +447,7 @@ A script cannot do these.
 # backend
 cd backend
 ./scripts/test-db.sh up                      # prints the DATABASE_URL to use
-DATABASE_URL="…" .venv/bin/python -m pytest tests/ -q     # → 646 passed, 1 skipped
+DATABASE_URL="…" .venv/bin/python -m pytest tests/ -q     # → 649 passed, 0 skipped
 
 # frontend
 cd frontend
@@ -510,29 +510,18 @@ backup gap).
 
 ---
 
-## 10 · The one open technical question
+## 10 · The one open technical question — CLOSED 2026-09-20
 
-`test_websocket_requires_credits_and_deducts` sends two messages down one
-WebSocket with no pause. Turn 1 is answered correctly. **Turn 2 is answered by
-nothing at all**, and because starlette's test client has no receive timeout, the
-test *hangs* rather than fails — which is why it is now skipped with its evidence
-attached rather than deleted.
-
-What was established:
-
-- The guardrail went live in `37a235c` and makes its own model call before the pipeline on every turn. Unmocked, it reached the network. It is mocked now, and turn 1 passes because of it.
-- The suspect for turn 2 is `ws_chat_router.py`'s `watch_disconnect` task: it parks inside `websocket.receive_text()` and is `cancel()`ed **without being awaited**, so it can outlive the turn and consume the client's next frame.
-- 🔴 **Awaiting the cancellation was tried and did not fix it.** The diagnosis is therefore unproven, and the speculative change to a production WebSocket path was **reverted rather than shipped**.
-
-Why it may not bite in practice: a human takes seconds to type a second message,
-and the cancellation almost certainly lands first. The test sends it instantly.
-That is a *plausible* explanation, not a verified one.
-
-**Check it by hand on a real server before launch** (§7). If turn 2 works there,
-close it. If it does not, this is a launch blocker and the disconnect watcher is
-where to look.
-
----
+`test_websocket_requires_credits_and_deducts` hung because turn 1 never
+finished cleanly: the mocked answer carries `[CASE_READY]`, the automatic
+case build then failed (the `CaseFile` model said `String` where the table
+says `uuid`), and that failure poisoned the turn's transaction, so the answer
+could not be saved and the client waited for a `done` that never came. Three
+fixes: the model matches the table, a failed build rolls back and never
+takes the answer down with it, and the whole turn now runs as a task that
+outlives the socket — closing the tab, pressing back, or losing signal no
+longer loses the answer. The test runs again; the suite is 649 passed,
+0 skipped.
 
 ## 11 · Rollback
 

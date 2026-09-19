@@ -59,7 +59,7 @@ FastAPI Backend (~10K lines, 90 files)
   │ Grounding: article store (SQLite+FTS5) + get_article/browse_code tools + retrieval repair
   │ Gemini 3.1 Pro legal analysis + source-specific prompt injection
   │ Pipeline transparency traces (per-request step log + admin dashboard)
-  │ 647 tests across 41 test files — 646 pass, 1 skipped (see below)
+  │ 649 tests across 42 test files — all pass (see below)
   ▼
 Data: PostgreSQL + ChromaDB (3 collections, 20,513 docs live) + Redis
   │ georgian_laws: 15,338 (12 legal codes)
@@ -134,14 +134,15 @@ three tests fail on whatever else owns `:5432`. Start one with
 
 | Where it runs | Result |
 |---|---|
-| With corpus + test DB | 646 passed, 1 skipped |
-| Without the corpus (CI) | 634 passed, 13 skipped |
+| With corpus + test DB | 649 passed, 0 skipped |
+| Without the corpus (CI) | 637 passed, 12 skipped |
 
-The 12 extra skips are corpus-dependent tests, named one by one in
+The 12 skips are corpus-dependent tests, named one by one in
 `tests/conftest.py`; a name that stops matching fails the run rather than
-silently dropping coverage. The 13th is
-`test_websocket_requires_credits_and_deducts`, which HANGS — the reason string
-on the skip carries the full evidence. Frontend: `fvm flutter test` = 115
+silently dropping coverage. `test_websocket_requires_credits_and_deducts`
+was skipped for months as "hangs on turn 2"; the cause was the chat turn's
+transaction being poisoned by a failing automatic case build (2026-09-20),
+and it runs again. Frontend: `fvm flutter test` = 115
 passing, `fvm flutter analyze` = 0 errors / 2 known infos.
 
 ### Before touching deployment

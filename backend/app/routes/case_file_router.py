@@ -33,6 +33,13 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/case-files", tags=["case-files"])
 
 
+async def _owner_id(db: AsyncSession, uid: str):
+    """users.id for a Firebase uid, or None. case_files.user_id holds users.id,
+    so listing and ownership checks compare against that, never the uid."""
+    user = await UserRepository(db).get_by_firebase_uid(uid)
+    return user.id if user else None
+
+
 @router.post("/build", response_model=CaseFileDetail, status_code=201)
 async def build_case_file(
     body: CaseFileBuildRequest,
@@ -111,9 +118,10 @@ async def list_case_files(
     user_info = getattr(request.state, "user", {})
     uid = user_info.get("uid", "")
 
+    owner = await _owner_id(db, uid)
     repo = CaseFileRepository(db)
-    case_files = await repo.list_for_user(uid)
-    total = await repo.count_for_user(uid)
+    case_files = await repo.list_for_user(owner) if owner else []
+    total = await repo.count_for_user(owner) if owner else 0
 
     return CaseFileListResponse(
         case_files=[
@@ -153,7 +161,7 @@ async def get_case_file(
         return JSONResponse(status_code=404, content={"error": "Case file not found"})
 
     from app.config.settings import settings
-    if cf.user_id != uid and settings.app_env != "development":
+    if cf.user_id != await _owner_id(db, uid) and settings.app_env != "development":
         return JSONResponse(status_code=403, content={"error": "Unauthorized access to case file"})
 
     return CaseFileDetail(
@@ -201,7 +209,7 @@ async def update_case_file(
         return JSONResponse(status_code=404, content={"error": "Case file not found"})
 
     from app.config.settings import settings
-    if cf.user_id != uid and settings.app_env != "development":
+    if cf.user_id != await _owner_id(db, uid) and settings.app_env != "development":
         return JSONResponse(status_code=403, content={"error": "Unauthorized access to case file"})
 
     kwargs = {}
@@ -260,7 +268,7 @@ async def delete_case_file(
         return JSONResponse(status_code=404, content={"error": "Case file not found"})
 
     from app.config.settings import settings
-    if cf.user_id != uid and settings.app_env != "development":
+    if cf.user_id != await _owner_id(db, uid) and settings.app_env != "development":
         return JSONResponse(status_code=403, content={"error": "Unauthorized access to case file"})
 
     await repo.delete(cf_uuid)
@@ -297,7 +305,7 @@ async def generate_document(
         return JSONResponse(status_code=404, content={"error": "Case file not found"})
 
     from app.config.settings import settings
-    if cf.user_id != uid and settings.app_env != "development":
+    if cf.user_id != await _owner_id(db, uid) and settings.app_env != "development":
         return JSONResponse(status_code=403, content={"error": "Unauthorized access to case file"})
 
     # Credit check

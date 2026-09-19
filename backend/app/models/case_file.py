@@ -18,7 +18,10 @@ class CaseFile(Base):
     __tablename__ = "case_files"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(String(128), nullable=False, index=True)  # Firebase UID
+    # users.id — NOT the Firebase uid. The migration (c72b171e5c15) made this
+    # a UUID and CaseBuilderService._persist resolves the uid to it; this line
+    # said String(128) for months, so binding that UUID failed on every insert.
+    user_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     conversation_id = Column(UUID(as_uuid=True), ForeignKey("conversations.id", ondelete="SET NULL"), nullable=True)
     title = Column(String(500), nullable=False)
 

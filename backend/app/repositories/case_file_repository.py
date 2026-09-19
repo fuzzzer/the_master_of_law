@@ -35,7 +35,7 @@ class CaseFileRepository:
         result = await self._db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def list_for_user(self, user_id: str, limit: int = 50) -> list[CaseFile]:
+    async def list_for_user(self, user_id: uuid.UUID, limit: int = 50) -> list[CaseFile]:
         stmt = (
             select(CaseFile)
             .where(CaseFile.user_id == user_id)
@@ -45,7 +45,7 @@ class CaseFileRepository:
         result = await self._db.execute(stmt)
         return list(result.scalars().all())
 
-    async def count_for_user(self, user_id: str) -> int:
+    async def count_for_user(self, user_id: uuid.UUID) -> int:
         from sqlalchemy import func
         stmt = select(func.count()).select_from(CaseFile).where(CaseFile.user_id == user_id)
         result = await self._db.execute(stmt)
