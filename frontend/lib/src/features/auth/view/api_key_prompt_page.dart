@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:fuzzzy_law/src/src.dart';
 import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+const _aiStudioKeysUrl = 'https://aistudio.google.com/apikey';
+const _cloudCredentialsUrl =
+    'https://console.cloud.google.com/apis/credentials';
 
 class ApiKeyPromptPage extends StatefulWidget {
   const ApiKeyPromptPage({super.key});
@@ -20,6 +25,9 @@ class _ApiKeyPromptPageState extends State<ApiKeyPromptPage> {
     _controller.dispose();
     super.dispose();
   }
+
+  void _open(String url) =>
+      launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
 
   Future<void> _submit() async {
     final key = _controller.text.trim();
@@ -48,7 +56,8 @@ class _ApiKeyPromptPageState extends State<ApiKeyPromptPage> {
           await secureStorage.deleteData('temporary_api_key');
           if (mounted) {
             setState(
-              () => _error = 'გასაღები არ მუშაობს. დარწმუნდით, რომ სრულად '
+              () => _error =
+                  'გასაღები არ მუშაობს. დარწმუნდით, რომ სრულად '
                   'დააკოპირეთ Google AI Studio-დან.',
             );
           }
@@ -57,8 +66,11 @@ class _ApiKeyPromptPageState extends State<ApiKeyPromptPage> {
           // about it, and wiping a good key would make an outage look like
           // the user's mistake.
           if (mounted) {
-            setState(() => _error = 'სერვერთან დაკავშირება ვერ მოხერხდა. '
-                'გთხოვთ, სცადოთ თავიდან.');
+            setState(
+              () => _error =
+                  'სერვერთან დაკავშირება ვერ მოხერხდა. '
+                  'გთხოვთ, სცადოთ თავიდან.',
+            );
           }
       }
     } finally {
@@ -76,10 +88,10 @@ class _ApiKeyPromptPageState extends State<ApiKeyPromptPage> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('დაწყება')),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: density.screen,
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
               'შეიყვანეთ Google AI Studio-ს გასაღები',
@@ -92,13 +104,94 @@ class _ApiKeyPromptPageState extends State<ApiKeyPromptPage> {
             ),
             SizedBox(height: space.m),
             Text(
-              'აპლიკაცია იყენებს თქვენს პირად Google-ის გასაღებს — ის უფასოა. '
-              'აიღეთ aistudio.google.com/apikey მისამართზე და ჩასვით აქ. '
-              'გასაღები ინახება მხოლოდ ამ მოწყობილობაზე.',
+              'აპლიკაცია იყენებს თქვენს პირად Google-ის გასაღებს — ის უფასოა '
+              'და აღება ორ წუთს არ სჭირდება.',
               style: type.body.copyWith(color: colors.inkMute),
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: space.xxl),
+            SizedBox(height: space.xl),
+            FuzzzyCard(
+              sectionHeader: 'როგორ ავიღოთ უფასო გასაღები',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const _GuideStep(
+                    number: '1',
+                    text:
+                        'გახსენით aistudio.google.com/apikey და შედით '
+                        'თქვენი Google-ის ანგარიშით.',
+                  ),
+                  const _GuideStep(
+                    number: '2',
+                    text:
+                        'დააჭირეთ „Create API key“. გასაღები უფასოა — '
+                        'საბანკო ბარათი არ არის საჭირო.',
+                  ),
+                  const _GuideStep(
+                    number: '3',
+                    text:
+                        'დააკოპირეთ გასაღები (იწყება „AIza“-თი) და ჩასვით '
+                        'ქვემოთ ველში.',
+                  ),
+                  SizedBox(height: space.m),
+                  FuzzzyButton(
+                    label: 'გახსენით Google AI Studio',
+                    variant: FuzzzyButtonVariant.secondary,
+                    icon: const Icon(Icons.open_in_new),
+                    onPressed: () => _open(_aiStudioKeysUrl),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: space.m),
+            FuzzzyCard(
+              sectionHeader: 'რჩევა: შეზღუდეთ გასაღები',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'შეზღუდული გასაღები მხოლოდ AI-ს პასუხებზე მუშაობს — '
+                    'გაჟონვის შემთხვევაშიც სხვა Google-ის სერვისებზე ვერავინ '
+                    'გამოიყენებს.',
+                    style: type.bodyS.copyWith(color: colors.inkMute),
+                  ),
+                  SizedBox(height: space.m),
+                  const _GuideStep(
+                    number: '1',
+                    text:
+                        'გახსენით Google Cloud Console → Credentials და '
+                        'აირჩიეთ თქვენი გასაღები.',
+                  ),
+                  const _GuideStep(
+                    number: '2',
+                    text:
+                        '„API restrictions“ → „Restrict key“ → მონიშნეთ '
+                        'მხოლოდ „Generative Language API“.',
+                  ),
+                  const _GuideStep(
+                    number: '3',
+                    text:
+                        'დააჭირეთ „Save“. გასაღების წაშლა ან შეცვლა '
+                        'ნებისმიერ დროს შეგიძლიათ.',
+                  ),
+                  SizedBox(height: space.m),
+                  FuzzzyButton(
+                    label: 'გახსენით Google Cloud Console',
+                    variant: FuzzzyButtonVariant.ghost,
+                    icon: const Icon(Icons.open_in_new),
+                    onPressed: () => _open(_cloudCredentialsUrl),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: space.m),
+            Text(
+              'გასაღები ინახება მხოლოდ ამ მოწყობილობაზე და იგზავნება მხოლოდ '
+              'თქვენს კითხვებზე პასუხის მისაღებად — სერვერზე არ ინახება.',
+              style: type.bodyS.copyWith(color: colors.inkMute),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: space.xl),
             TextField(
               controller: _controller,
               style: type.body.copyWith(color: colors.fieldText),
@@ -142,6 +235,37 @@ class _ApiKeyPromptPageState extends State<ApiKeyPromptPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _GuideStep extends StatelessWidget {
+  const _GuideStep({required this.number, required this.text});
+
+  final String number;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+    final space = context.fuzzzySpace;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: space.s),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$number.',
+            style: type.data.copyWith(color: colors.ink),
+          ),
+          SizedBox(width: space.s),
+          Expanded(
+            child: Text(text, style: type.body.copyWith(color: colors.ink)),
+          ),
+        ],
       ),
     );
   }
