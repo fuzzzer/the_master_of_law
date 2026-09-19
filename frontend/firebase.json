@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "fuzzzylaw",
     "public": "build/web",
     "ignore": [
       "firebase.json",

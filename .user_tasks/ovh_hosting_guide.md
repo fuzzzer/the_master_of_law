@@ -194,14 +194,14 @@ APP_SECRET_KEY=<paste>        # python3 -c "import secrets; print(secrets.token_
 ADMIN_API_KEY=<paste>         # same generator, a DIFFERENT value
 POSTGRES_PASSWORD=<paste>     # same generator
 REDIS_PASSWORD=<paste>        # same generator
-APP_CORS_ORIGINS=https://law.fuzzzycore.com,https://fuzzzylaws.web.app
+APP_CORS_ORIGINS=https://law.fuzzzycore.com,https://fuzzzylaw.web.app
 ```
 
 Why these four secrets are not optional: `Settings` **refuses to start** in
 production with the shipped `CHANGE-ME` values (`test_settings_production_guards`
 covers it). Why CORS is not `*`: the web app calls the API from another origin
 and the app sends identifying headers; a wildcard would let any site do the
-same from a visitor's browser. `fuzzzylaws.web.app` is Firebase's default
+same from a visitor's browser. `fuzzzylaw.web.app` is Firebase's default
 hostname for the same site; keep it so the app still works if the custom domain
 is ever mid-reconfiguration.
 
@@ -425,7 +425,7 @@ On your computer:
 cd frontend && ./deploy.sh     # fvm flutter build web → Firebase project "fuzzzylaws"
 ```
 
-This lands at `https://fuzzzylaws.web.app`. Open it and make one real request
+This lands at `https://fuzzzylaw.web.app`. Open it and make one real request
 before touching the domain, so a DNS problem later is not mistaken for an app
 problem.
 

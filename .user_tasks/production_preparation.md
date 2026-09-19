@@ -34,7 +34,7 @@
 | Code | **Ready** | 646 backend tests pass, 115 frontend tests pass |
 | Branch | **All work is on one line of history** | every other branch is fully contained in it — `git rev-list --count HEAD..<branch>` = 0 for all eight |
 | Backend server | **GONE** | `api.zrdai.work` resolves to Cloudflare and times out; the VPS answers ping but presents a **different SSH host key** than `~/.ssh/known_hosts` has |
-| Web hosting | **Nothing published** | `fuzzzylaws.web.app` → HTTP 404 |
+| Web hosting | **Nothing published** | `fuzzzylaw.web.app` → HTTP 404 |
 | Corpus on a server | **Not there** | 907 MB, git-ignored, and the VPS was rebuilt |
 | CI | **Exists, never run** | `.github/workflows/ci.yml` |
 | Legal texts | **Drafted, unapproved** | in-app at `/profile/privacy` and `/profile/terms`, with `[brackets]` where your details go |
