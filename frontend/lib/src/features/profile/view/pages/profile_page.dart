@@ -66,7 +66,7 @@ class ProfilePage extends StatelessWidget {
                           } else if (creditsState.hasBalance) {
                             label = '${creditsState.balance} კრედიტი';
                           } else {
-                            label = 'კრედიტები მიუწვდომელია';
+                            label = 'უფასო';
                           }
                           return GestureDetector(
                             behavior: HitTestBehavior.opaque,
