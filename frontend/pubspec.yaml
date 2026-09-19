@@ -2,7 +2,7 @@ name: fuzzzy_law
 description: "Your guide in law"
 publish_to: none
 
-version: 0.1.55+61
+version: 0.1.56+62
 
 environment:
   sdk: ^3.8.0
