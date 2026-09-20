@@ -8,6 +8,7 @@ import uuid
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.models.case_file import CaseFile
 from app.utils.logger import get_logger
@@ -34,7 +35,7 @@ class CaseFileRepository:
         result = await self._db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def list_for_user(self, user_id: str, limit: int = 50) -> list[CaseFile]:
+    async def list_for_user(self, user_id: uuid.UUID, limit: int = 50) -> list[CaseFile]:
         stmt = (
             select(CaseFile)
             .where(CaseFile.user_id == user_id)
@@ -44,7 +45,7 @@ class CaseFileRepository:
         result = await self._db.execute(stmt)
         return list(result.scalars().all())
 
-    async def count_for_user(self, user_id: str) -> int:
+    async def count_for_user(self, user_id: uuid.UUID) -> int:
         from sqlalchemy import func
         stmt = select(func.count()).select_from(CaseFile).where(CaseFile.user_id == user_id)
         result = await self._db.execute(stmt)
@@ -54,9 +55,12 @@ class CaseFileRepository:
         cf = await self.get_by_id(case_file_id)
         if not cf:
             return None
+        
         for k, v in kwargs.items():
             if hasattr(cf, k) and v is not None:
                 setattr(cf, k, v)
+                flag_modified(cf, k)
+
         await self._db.flush()
         return cf
 

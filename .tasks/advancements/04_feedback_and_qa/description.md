@@ -88,7 +88,7 @@ Systematically test the application across all user-facing flows. Set up an auto
 1. Choose framework: Playwright (recommended) or Cypress for web E2E testing
 2. Set up the test runner project in `tests/e2e/`
 3. Configure for the Flutter web build:
-   - Build Flutter web: `cd fuzzy_starter && flutter build web`
+   - Build Flutter web: `cd frontend && flutter build web`
    - Serve locally and run tests against it
 4. Write AI-assisted test scripts:
    - Use an LLM to generate Playwright test scripts from the YAML test cases

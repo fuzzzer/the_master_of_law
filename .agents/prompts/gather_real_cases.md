@@ -2,7 +2,7 @@
 
 > **Purpose:** Paste this entire prompt into a NEW Antigravity conversation.
 > The agent will search the web for real Georgian court cases from official sources,
-> and produce a structured JSON dataset you can use to evaluate the Master of Law RAG pipeline.
+> and produce a structured JSON dataset you can use to evaluate Fuzzzy Law RAG pipeline.
 
 ---
 
@@ -174,12 +174,12 @@ For each case you find:
 
 Save the complete JSON array to this file:
 ```
-/Users/fuzzzer/programming/fuzzzy_organisation/the_master_of_law/eval/test_cases/cases.json
+/Users/fuzzzer/programming/fuzzzy_organisation/fuzzzy_law/eval/test_cases/cases.json
 ```
 
 Also create a summary markdown file at:
 ```
-/Users/fuzzzer/programming/fuzzzy_organisation/the_master_of_law/eval/test_cases/CASES_README.md
+/Users/fuzzzer/programming/fuzzzy_organisation/fuzzzy_law/eval/test_cases/CASES_README.md
 ```
 
 The README should contain:

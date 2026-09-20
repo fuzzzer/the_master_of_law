@@ -18,7 +18,10 @@ class CaseFile(Base):
     __tablename__ = "case_files"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(String(128), nullable=False, index=True)  # Firebase UID
+    # users.id — NOT the Firebase uid. The migration (c72b171e5c15) made this
+    # a UUID and CaseBuilderService._persist resolves the uid to it; this line
+    # said String(128) for months, so binding that UUID failed on every insert.
+    user_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     conversation_id = Column(UUID(as_uuid=True), ForeignKey("conversations.id", ondelete="SET NULL"), nullable=True)
     title = Column(String(500), nullable=False)
 
@@ -29,8 +32,10 @@ class CaseFile(Base):
     defense_strategies = Column(JSONB, nullable=True)   # Section 4: ranked strategies
     prosecution_args = Column(JSONB, nullable=True)     # Section 5: counter-arguments
     action_checklist = Column(JSONB, nullable=True)     # Section 6: todo items with deadlines
+    unclear_items = Column(JSONB, nullable=True)         # Section 6b: info AI couldn't determine
     lawyer_brief = Column(JSONB, nullable=True)         # Section 7: lawyer summary
     citations = Column(JSONB, nullable=True)            # Section 8: full law citations
+    retrieved_chunks = Column(JSONB, nullable=True)     # Raw RAG chunks with URLs
 
     # Full rendered text (for display and export)
     rendered_text = Column(Text, nullable=True)

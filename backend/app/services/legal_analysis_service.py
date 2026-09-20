@@ -14,6 +14,7 @@ from typing import Any
 
 from app.config.constants import LEGAL_DISCLAIMER_KA
 from app.integrations.vertex_ai_client import VertexAIClient, get_vertex_ai_client
+from app.prompts import PromptTemplate
 from app.prompts.legal_analysis import LEGAL_ANALYSIS_SYSTEM
 from app.utils.logger import get_logger
 
@@ -48,6 +49,18 @@ _RAG_INSTRUCTIONS: dict[str, str] = {
         "- When supporting the user: \"დიდი პალატის სავალდებულო განმარტებით...\"\n"
     ),
 }
+
+_THRESHOLD_INSTRUCTIONS = (
+    "\n[იურიდიული ზღვრები / Legal Thresholds]\n"
+    "When threshold chunks are present in the context:\n"
+    "- Use EXACT values from threshold data (quantities, time periods, amounts)\n"
+    "- NEVER approximate or round threshold values — precision is critical\n"
+    "- Cite the specific article and paragraph for each threshold\n"
+    "- If the user asks about quantities/amounts, present ALL relevant thresholds\n"
+    "- Compare the user's situation against the exact threshold values\n"
+    "- If no threshold data exists for a query, say \"ამ ინფორმაციას ჩვენს "
+    "მონაცემთა ბაზაში ვერ ვპოულობ\" — NEVER invent numbers\n"
+)
 
 
 class LawContextFormatter:
@@ -189,6 +202,10 @@ class LegalAnalysisService:
         user_message: str,
         retrieved_chunks: list[dict[str, Any]],
         conversation_history: list[dict[str, str]] | None = None,
+        system_prompt: PromptTemplate | None = None,
+        model_name: str | None = None,
+        case_context: str | None = None,
+        conversation_status: dict[str, Any] | None = None,
     ) -> str:
         """
         Generate a legal analysis response.
@@ -197,16 +214,22 @@ class LegalAnalysisService:
             user_message: The user's current message.
             retrieved_chunks: Law chunks from the RAG pipeline.
             conversation_history: Previous messages for context.
+            system_prompt: Optional override for system prompt.
+            model_name: Optional override for model.
+            case_context: Optional context from an existing case file.
+            conversation_status: Metadata about the conversation state.
 
         Returns:
             The AI-generated legal analysis text.
         """
         user_prompt = self._build_user_prompt(
-            user_message, retrieved_chunks, conversation_history,
+            user_message, retrieved_chunks, conversation_history, case_context, conversation_status
         )
 
+        prompt_tpl = system_prompt or LEGAL_ANALYSIS_SYSTEM
+
         # Build system prompt with source-specific RAG instructions
-        system_prompt = self._build_system_prompt(retrieved_chunks)
+        system_prompt_text = self._build_system_prompt(retrieved_chunks, prompt_tpl)
 
         logger.info(
             "legal_analysis_start",
@@ -217,9 +240,10 @@ class LegalAnalysisService:
 
         response = await self.gemini.generate(
             prompt=user_prompt,
-            system_instruction=system_prompt,
-            temperature=LEGAL_ANALYSIS_SYSTEM.temperature,
-            max_output_tokens=LEGAL_ANALYSIS_SYSTEM.max_output_tokens,
+            system_instruction=system_prompt_text,
+            temperature=prompt_tpl.temperature,
+            max_output_tokens=prompt_tpl.max_output_tokens,
+            model_name=model_name,
         )
 
         response += f"\n\n---\n⚠️ {LEGAL_DISCLAIMER_KA}"
@@ -227,24 +251,74 @@ class LegalAnalysisService:
         logger.info("legal_analysis_done", response_length=len(response))
         return response
 
+    async def analyze_stream(
+        self,
+        user_message: str,
+        retrieved_chunks: list[dict[str, Any]],
+        conversation_history: list[dict[str, str]] | None = None,
+        system_prompt: PromptTemplate | None = None,
+        model_name: str | None = None,
+        case_context: str | None = None,
+        conversation_status: dict[str, Any] | None = None,
+    ):
+        """
+        Generate a legal analysis response in a stream.
+        """
+        user_prompt = self._build_user_prompt(
+            user_message, retrieved_chunks, conversation_history, case_context, conversation_status
+        )
+
+        prompt_tpl = system_prompt or LEGAL_ANALYSIS_SYSTEM
+
+        # Build system prompt with source-specific RAG instructions
+        system_prompt_text = self._build_system_prompt(retrieved_chunks, prompt_tpl)
+
+        logger.info(
+            "legal_analysis_stream_start",
+            chunks_count=len(retrieved_chunks),
+            prompt_length=len(user_prompt),
+            sources=list(self._law_formatter.get_source_types(retrieved_chunks)),
+        )
+
+        async for chunk in self.gemini.generate_stream(
+            prompt=user_prompt,
+            system_instruction=system_prompt_text,
+            temperature=prompt_tpl.temperature,
+            max_output_tokens=prompt_tpl.max_output_tokens,
+            model_name=model_name,
+        ):
+            yield chunk
+
+        # Yield the disclaimer at the end
+        yield f"\n\n---\n⚠️ {LEGAL_DISCLAIMER_KA}"
+        logger.info("legal_analysis_stream_done")
+
     def _build_system_prompt(
         self,
         chunks: list[dict[str, Any]],
+        prompt_tpl: PromptTemplate,
     ) -> str:
         """Build system prompt with dynamic source-specific instructions.
 
         When only georgian_laws chunks are present, this returns the base
         system prompt unchanged (fully backward compatible). When court_practice
         or grand_chamber chunks are present, source-specific instructions
-        are appended.
+        are appended. When threshold chunks are present, threshold usage
+        instructions are appended.
         """
-        base = LEGAL_ANALYSIS_SYSTEM.template
+        base = prompt_tpl.template
         sources = self._law_formatter.get_source_types(chunks)
 
         extra = []
         for source in sorted(sources):
             if source in _RAG_INSTRUCTIONS:
                 extra.append(_RAG_INSTRUCTIONS[source])
+
+        has_thresholds = any(
+            c.get("metadata", {}).get("chunk_type") == "threshold" for c in chunks
+        )
+        if has_thresholds:
+            extra.append(_THRESHOLD_INSTRUCTIONS)
 
         if not extra:
             return base
@@ -260,9 +334,24 @@ class LegalAnalysisService:
         user_message: str,
         chunks: list[dict[str, Any]],
         history: list[dict[str, str]] | None,
+        case_context: str | None = None,
+        conversation_status: dict[str, Any] | None = None,
     ) -> str:
         """Assemble the full user prompt from law context + history + message."""
-        parts = [self._law_formatter.format(chunks), "\n---\n"]
+        parts = []
+        if conversation_status:
+            parts.append("SYSTEM METADATA FOR AI AWARENESS:")
+            for k, v in conversation_status.items():
+                parts.append(f"- {k}: {v}")
+            parts.append("\n---\n")
+
+        if case_context:
+            parts.append("CURRENT CASE CONTEXT (For your awareness):")
+            parts.append(case_context)
+            parts.append("\n---\n")
+
+        parts.append(self._law_formatter.format(chunks))
+        parts.append("\n---\n")
 
         if history:
             parts.append(self._history_formatter.format(history))

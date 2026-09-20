@@ -3,6 +3,17 @@
 > **Thematic context packages** that give AI agents domain-specific superpowers.
 > Each folder is a "skill module" — a focused context package that transforms a general AI into a specialist.
 
+## Talking to the owner — plain names, never codes (owner rule, 2026-09-18)
+
+Everything the owner or the business partner reads — a message, a plan, a board card, a
+walkthrough, an approval request — names things by what they are, never by an internal code:
+no wave letters or numbers, no unit codes (E3, C2, U1), no ticket numbers, no decision-record
+numbers, no session ids. Order is described in words — "first the contract, then the backend,
+because the backend needs the contract" — never as a wave or phase label. A code may follow
+once, in brackets, only if the owner will need to quote it. The owner reads remotely and has
+not read our internal documents: a message that needs them to make sense is wrong.
+Full standard: `~/FuzzyCore_HQ/company/OWNER_COMMS.md` §1.
+
 ---
 
 ## Philosophy
@@ -31,10 +42,11 @@ But intent without precision produces garbage. These skill files are **executabl
 ├── init_prompt.md                     ← 🔥 THE MASTER PROMPT — initializes all skills
 │
 ├── context/                           ← 📍 PROJECT CONTEXT (load by task)
-│   ├── project_status.md             ← ★ Always read first — current state
-│   ├── backend.md                     ← Backend architecture, endpoints, patterns
-│   ├── law_corpus.md                  ← Law data: 9,450 chunks, ChromaDB schema
-│   └── production.md                  ← VPS deployment guide (Caddy, Docker, backups)
+│   ├── mindset_and_principles.md     ← ⛔ MUST READ FIRST — mission, coding rules
+│   ├── project_status.md             ← Current state, what's done, what's next
+│   ├── backend.md                     ← Backend architecture, 36 endpoints, patterns
+│   ├── law_corpus.md                  ← Law data: 20,712 chunks, ChromaDB schema
+│   └── production.md                  ← VPS deployment guide (Nginx, Docker, backups)
 │
 ├── code_architect/                    ← System design + code quality superpowers
 │   └── context.md                     ← Deep patterns, anti-patterns, templates
@@ -63,7 +75,8 @@ But intent without precision produces garbage. These skill files are **executabl
     ├── 05_optimize.md                 ← Perf: profile → bottleneck → optimize
     ├── 06_refactor.md                 ← Refactor: assess → safety net → restructure
     ├── 07_endpoint_builder.md         ← Endpoint: schema → repo → service → route
-    └── 08_deploy_checklist.md         ← Deploy: verify → backup → push → smoke test
+    ├── 08_deploy_checklist.md         ← Deploy: verify → backup → push → smoke test
+    └── 09_doc_sync.md                 ← Doc sync: scan codebase → update context files
 ```
 
 ---
@@ -81,16 +94,17 @@ Then read the relevant skill context from `.agents/<skill>/context.md`.
 
 | Task | Load These Skills |
 |------|------------------|
-| **Starting any task** | `context/project_status.md` (always first) |
+| **Starting any task** | `context/mindset_and_principles.md` (always first) |
 | Working on the backend | `context/backend.md` + `code_architect` |
-| Working on Flutter app | `fuzzy_starter/.agents/orchestrator.md` |
-| Working on design system | `packages/open-design/design-systems/kanonis-ostati/DESIGN.md` |
+| Working on Flutter app | `frontend/.agents/orchestrator.md` |
+| Working on design system | `packages/open-design/design-systems/fuzzzy-law/DESIGN.md` |
 | Debugging a production issue | `debug_surgeon` + `context/backend.md` |
 | Improving search/retrieval quality | `rag_specialist` + `context/law_corpus.md` |
 | Deploying / hardening for production | `security_hardener` + `context/production.md` |
 | Working with Georgian law content | `georgian_legal` + `context/law_corpus.md` |
 | Feature planning | `master_plan/04_feature_roadmap.md` |
 | Improving your AI collaboration | `context_engineer` |
+| **After structural code changes** | Use `workflows/09_doc_sync.md` |
 | **Any specific task** | Use a workflow from `workflows/` |
 | **Full context (new agent onboarding)** | `init_prompt.md` (loads all) |
 

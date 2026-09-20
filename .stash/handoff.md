@@ -1,4 +1,4 @@
-# 🏛️ The Master of Law — Backend Handoff Document
+# 🏛️ Fuzzzy Law — Backend Handoff Document
 
 > **Created:** 2026-05-04  
 > **Purpose:** Complete context for any AI agent to continue development of the FastAPI backend.
@@ -7,12 +7,12 @@
 
 ## 1. Project Identity
 
-**კანონის ოსტატი (The Master of Law)** — an AI-powered legal advocate that helps Georgian citizens defend themselves in court. The backend serves a Flutter mobile app and is the brain of the system.
+**ბუნდოვანი კანონი (Fuzzzy Law)** — an AI-powered legal advocate that helps Georgian citizens defend themselves in court. The backend serves a Flutter mobile app and is the brain of the system.
 
-**Working directory:** `/Users/fuzzzer/programming/fuzzzy_organisation/the_master_of_law/`
+**Working directory:** `/Users/fuzzzer/programming/fuzzzy_organisation/fuzzzy_law/`
 
 ```
-the_master_of_law/
+fuzzzy_law/
 ├── master_plan/                    # Design docs (READ for full specs)
 │   └── 02_backend_system_prompt.md # ★ 863-line backend specification
 ├── law_corpus/                     # ✅ DONE — pipeline + data (DO NOT MODIFY)
@@ -242,7 +242,7 @@ source_url, article_url, document_number, adoption_date, citation_text
 
 ### Local Development
 ```bash
-cd /Users/fuzzzer/programming/fuzzzy_organisation/the_master_of_law/backend
+cd /Users/fuzzzer/programming/fuzzzy_organisation/fuzzzy_law/backend
 source .venv/bin/activate   # Uses --system-site-packages (Python 3.11)
 uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```

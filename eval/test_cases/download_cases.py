@@ -180,7 +180,7 @@ def download_file(url: str, dest: Path, retries: int = 3) -> dict:
     for attempt in range(retries):
         try:
             req = urllib.request.Request(url, headers={
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) MasterOfLaw-Eval/1.0",
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) FuzzzyLaw-Eval/1.0",
                 "Accept": "*/*",
             })
             with urllib.request.urlopen(req, timeout=120) as resp:

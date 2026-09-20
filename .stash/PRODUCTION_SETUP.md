@@ -1,4 +1,4 @@
-# 🚀 Production Environment Setup — The Master of Law
+# 🚀 Production Environment Setup — Fuzzzy Law
 
 > **From zero to production-ready VPS.** Follow this guide step-by-step.
 
@@ -10,7 +10,7 @@
 |-------------|-------------|---------|
 | **VPS** | 4 vCPU, 8 GB RAM, 80 GB SSD | 2 vCPU, 4 GB RAM, 40 GB SSD |
 | **OS** | Ubuntu 24.04 LTS | Ubuntu 22.04 LTS |
-| **Domain** | `kanonis-ostati.ge` or similar | Any domain with DNS control |
+| **Domain** | `fuzzzy-law.ge` or similar | Any domain with DNS control |
 | **GCP Account** | Active billing + Vertex AI API enabled | Free trial works initially |
 | **Firebase Project** | `gen-lang-client-0225498420` | Any Firebase project |
 
@@ -133,7 +133,7 @@ sudo mkdir -p /etc/caddy
 
 # Create Caddyfile
 sudo tee /etc/caddy/Caddyfile << 'EOF'
-api.kanonis-ostati.ge {
+api.fuzzzy-law.ge {
     reverse_proxy 127.0.0.1:8000
 
     # Security headers
@@ -173,7 +173,7 @@ docker run -d \
 **Alternative: Nginx + Certbot** (if you prefer Nginx):
 ```bash
 sudo apt install -y nginx certbot python3-certbot-nginx
-sudo certbot --nginx -d api.kanonis-ostati.ge --email your@email.ge --agree-tos --non-interactive
+sudo certbot --nginx -d api.fuzzzy-law.ge --email your@email.ge --agree-tos --non-interactive
 ```
 
 ---
@@ -189,7 +189,7 @@ sudo chown deploy:deploy /opt/master-of-law
 cd /opt/master-of-law
 
 # Clone repo (or rsync from local)
-git clone https://github.com/YOUR_REPO/the_master_of_law.git .
+git clone https://github.com/YOUR_REPO/fuzzzy_law.git .
 # OR: rsync from local machine
 # rsync -avz --exclude='.venv' --exclude='.git' ./ deploy@VPS_IP:/opt/master-of-law/
 ```
@@ -205,7 +205,7 @@ sudo chown deploy:deploy /etc/master-of-law
 # === ON YOUR LOCAL MACHINE ===
 # Option A: Create a service account (recommended for production)
 gcloud iam service-accounts create mol-backend \
-  --display-name="Master of Law Backend" \
+  --display-name="Fuzzzy Law Backend" \
   --project=gen-lang-client-0225498420
 
 # Grant Vertex AI permissions
@@ -247,12 +247,12 @@ APP_SECRET=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
 
 # Edit .env with production values
 cat > .env << EOF
-# ═══ THE MASTER OF LAW — PRODUCTION ═══
-APP_NAME=the-master-of-law
+# ═══ FUZZZY LAW — PRODUCTION ═══
+APP_NAME=fuzzzy-law
 APP_ENV=production
 APP_PORT=8000
 APP_SECRET_KEY=${APP_SECRET}
-APP_CORS_ORIGINS=https://kanonis-ostati.ge,https://api.kanonis-ostati.ge
+APP_CORS_ORIGINS=https://fuzzzy-law.ge,https://api.fuzzzy-law.ge
 
 # ── Google Cloud / Vertex AI ──
 GOOGLE_CLOUD_PROJECT=gen-lang-client-0225498420
@@ -269,7 +269,7 @@ CHROMA_PERSIST_DIR=/app/law_corpus_data/chroma
 
 # ── Database ──
 POSTGRES_PASSWORD=${POSTGRES_PW}
-DATABASE_URL=postgresql+asyncpg://mol_user:${POSTGRES_PW}@postgres:5432/master_of_law
+DATABASE_URL=postgresql+asyncpg://fuzzzy_user:${POSTGRES_PW}@postgres:5432/fuzzzy_law
 DATABASE_POOL_SIZE=10
 
 # ── Redis ──
@@ -322,7 +322,7 @@ curl http://localhost:8000/api/v1/health
 # Expected: {"status": "ok", ...}
 
 # Test through the reverse proxy (TLS)
-curl https://api.kanonis-ostati.ge/api/v1/health
+curl https://api.fuzzzy-law.ge/api/v1/health
 # Expected: same response, over HTTPS
 ```
 
@@ -390,7 +390,7 @@ mkdir -p $BACKUP_DIR
 
 # Dump PostgreSQL
 docker compose -f /opt/master-of-law/backend/docker-compose.yml \
-  exec -T postgres pg_dump -U mol_user -d master_of_law \
+  exec -T postgres pg_dump -U fuzzzy_user -d fuzzzy_law \
   | gzip > "$BACKUP_DIR/mol_$(date +%Y%m%d_%H%M%S).sql.gz"
 
 # Keep only last 30 days
@@ -524,7 +524,7 @@ docker compose restart api
 docker compose exec api alembic upgrade head
 
 # Database shell
-docker compose exec postgres psql -U mol_user -d master_of_law
+docker compose exec postgres psql -U fuzzzy_user -d fuzzzy_law
 
 # Redis shell
 docker compose exec redis redis-cli -a YOUR_REDIS_PASSWORD

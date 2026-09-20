@@ -7,11 +7,14 @@ Now persists messages to PostgreSQL and deducts credits after success.
 
 from __future__ import annotations
 
+import re
+
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.constants import CreditAction
+from app.config.settings import settings
 from app.models.database import get_db
 from app.repositories.credit_repository import CreditRepository
 from app.repositories.user_repository import UserRepository
@@ -21,10 +24,11 @@ from app.schemas.chat_schema import (
     CitationInfo,
     RetrievedChunk,
 )
-from app.services.citation_service import get_citation_service
+from app.prompts.chat import CASE_INTAKE_SYSTEM, CHAT_SYSTEM
+from app.services.agent_pipeline_service import get_agent_pipeline_service
 from app.services.conversation_service import ConversationService
-from app.services.legal_analysis_service import get_legal_analysis_service
-from app.services.rag_retrieval_service import get_rag_service
+from app.services.guardrail_service import get_guardrail_service
+from app.services.trace_service import record_step, save_current_trace, start_trace
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -69,28 +73,99 @@ async def send_message(
     # Save user message to DB
     await conv_svc.save_user_message(conversation_id, body.message)
 
-    # Get conversation history from DB for multi-turn context
-    history = await conv_svc.get_conversation_history(conversation_id)
+    await conv_svc.name_after_first_message(conversation_id, conv.get("title"), body.message)
 
-    # Step 1: RAG Retrieval
-    rag = get_rag_service()
-    collections = body.rag_config.to_collection_names() if body.rag_config else None
-    chunks = await rag.retrieve(body.message, collections=collections)
+    # Step 0: Guardrail — classify before RAG
+    user_info = getattr(request.state, "user", None)
+    user_tier = user_info.get("tier", "FREE") if user_info else "FREE"
 
-    # Step 2: Legal Analysis
-    analysis = get_legal_analysis_service()
-    response_text = await analysis.analyze(
+    start_trace(
+        entry_point="rest_chat",
         user_message=body.message,
-        retrieved_chunks=chunks,
-        conversation_history=history if history else None,
+        user_id=user_info.get("uid") if user_info else None,
+        conversation_id=conversation_id,
+    )
+    record_step(
+        "request_received",
+        message=body.message,
+        mode=body.mode,
+        case_context_attached=bool(body.case_context),
+        rag_config=body.rag_config.model_dump() if body.rag_config else None,
+        user_tier=user_tier,
     )
 
-    # Step 3: Citation Verification
-    citation_svc = get_citation_service()
-    raw_citations = citation_svc.extract_citations(response_text)
-    verified_citations = citation_svc.verify_citations(raw_citations, chunks)
+    guardrail = get_guardrail_service()
+    decision = await guardrail.classify(
+        body.message,
+        user_tier=user_tier,
+        in_conversation=bool(conv.get("messages")) or body.mode == "case_intake",
+    )
+    record_step(
+        "guardrail_decision",
+        category=decision.category,
+        confidence=decision.confidence,
+        should_proceed=decision.should_proceed,
+        canned_response=decision.response_text,
+    )
 
-    # Build response models
+    if not decision.should_proceed:
+        response_text = decision.response_text or ""
+        await conv_svc.save_assistant_message(
+            conversation_id=conversation_id,
+            content=response_text,
+            citations=[],
+            retrieved_chunk_ids=[],
+            credit_cost=0,
+        )
+        await db.commit()
+        logger.info(
+            "chat_guardrail_blocked",
+            conversation_id=conversation_id,
+            category=decision.category,
+        )
+        await save_current_trace(status="blocked", response_text=response_text)
+        return ChatSendResponse(
+            response=response_text,
+            citations=[],
+            retrieved_chunks=[],
+            credits_remaining=None,
+        )
+
+    # Get conversation history from DB for multi-turn context
+    history = await conv_svc.get_conversation_history(conversation_id)
+    msg_count = len(history) if history else 0
+
+    # Select system prompt based on mode
+    system_prompt = CASE_INTAKE_SYSTEM if body.mode == "case_intake" else CHAT_SYSTEM
+
+    # Enrich user message with case context if a case is attached
+    enriched_message = body.message
+    if body.case_context:
+        enriched_message = (
+            f"[ATTACHED CASE CONTEXT]\n{body.case_context}\n"
+            f"[END CASE CONTEXT]\n\n"
+            f"USER MESSAGE: {body.message}"
+        )
+
+    # Step 1-3: Agent Pipeline (Plan → RAG → Analyze → Verify)
+    collections = body.rag_config.to_collection_names() if body.rag_config else None
+    pipeline = get_agent_pipeline_service()
+    try:
+        result = await pipeline.run(
+            user_message=enriched_message,
+            conversation_history=history,
+            system_prompt=system_prompt.template if hasattr(system_prompt, 'template') else str(system_prompt),
+            rag_collections=collections,
+            is_case_chat=body.mode == "case_intake",
+            db=db,
+        )
+    except Exception as e:
+        await save_current_trace(status="failed", error=str(e))
+        raise
+    response_text = result.response_text
+    chunks = result.chunks
+    verified_citations = result.verified_citations
+
     citation_models = [CitationInfo(**c) for c in verified_citations]
 
     chunk_models = []
@@ -101,7 +176,7 @@ async def send_message(
         chunk_ids.append(chunk_id)
         chunk_models.append(RetrievedChunk(
             chunk_id=chunk_id,
-            content=c.get("content", "")[:500],  # Truncate for response size
+            content=c.get("content", "")[:500],
             code_name=meta.get("code_name", ""),
             article_number=meta.get("article_number", ""),
             article_title=meta.get("article_title", ""),
@@ -110,7 +185,12 @@ async def send_message(
             distance=c.get("distance", 0.0),
         ))
 
-    # Save assistant response to DB
+    # Strip machine-readable tag before saving/returning
+    tag_ready = bool(re.search(r'\[CASE_READY\]', response_text))
+    if tag_ready:
+        response_text = re.sub(r'\s*\[CASE_READY\]\s*', '', response_text).rstrip()
+
+    # Save assistant response to DB (clean, without tag)
     credit_cost = CreditAction.CHAT.cost
     await conv_svc.save_assistant_message(
         conversation_id=conversation_id,
@@ -142,6 +222,25 @@ async def send_message(
             )
             credits_remaining = credit_repo.get_remaining_credits(credits)
 
+    # Detect readiness before committing
+    intake_history_ready = (
+        body.mode == "case_intake"
+        and msg_count >= 6
+        and not any(q in response_text for q in ["?", "კითხვა", "დამაზუსტებელი"])
+    )
+    case_analysis_ready = tag_ready or intake_history_ready
+
+    # Suggest questionnaire if we have some context but aren't ready yet
+    suggest_questionnaire = (
+        body.mode == "case_intake"
+        and msg_count >= 2
+        and not case_analysis_ready
+    )
+
+    # Persist readiness on the conversation so it survives page refresh
+    if case_analysis_ready:
+        await conv_svc.mark_case_ready(conversation_id)
+
     await db.commit()
 
     logger.info(
@@ -153,9 +252,14 @@ async def send_message(
         credits_remaining=credits_remaining,
     )
 
+    await save_current_trace(status="completed", response_text=response_text)
+
     return ChatSendResponse(
         response=response_text,
         citations=citation_models,
         retrieved_chunks=chunk_models,
         credits_remaining=credits_remaining,
+        case_analysis_ready=case_analysis_ready,
+        suggest_questionnaire=suggest_questionnaire,
     )
+

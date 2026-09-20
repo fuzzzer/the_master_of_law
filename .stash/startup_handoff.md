@@ -1,4 +1,4 @@
-# Handoff: Start & Test The Master of Law Backend
+# Handoff: Start & Test Fuzzzy Law Backend
 
 ## For the new AI model
 
@@ -32,13 +32,13 @@
 # 1. Start PostgreSQL (if not running)
 #    Option A: Homebrew
 brew services start postgresql@16
-createdb master_of_law
-createuser mol_user -s
+createdb fuzzzy_law
+createuser fuzzzy_user -s
 
 #    Option B: Docker (one container, just the DB)
 docker run -d --name mol-postgres \
-  -e POSTGRES_DB=master_of_law \
-  -e POSTGRES_USER=mol_user \
+  -e POSTGRES_DB=fuzzzy_law \
+  -e POSTGRES_USER=fuzzzy_user \
   -e POSTGRES_PASSWORD=corpus_dev_pw \
   -p 5432:5432 \
   postgres:16-alpine

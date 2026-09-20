@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import sys
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pytest
+
+# Ensure ingest_thresholds.py (in law_corpus/) is importable
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from pipeline.models.scrape_result import ContentFormat, ScrapeResult
 from pipeline.parser.html_parser import HtmlLegalParser
@@ -136,3 +141,143 @@ class TestHtmlParser:
         article_8 = [a for a in doc.articles if "8" in a.article_number]
         if article_8:
             assert any("123" in ref for ref in article_8[0].cross_references)
+
+
+class TestArticleNumberFallback:
+    """
+    Regression: when ARTICLE_RE doesn't match (no space between მუხლი and number),
+    the parser should still extract just the number, not the entire raw text.
+
+    Bug: 'მუხლი მუხლი7.საქართველოს...' instead of 'მუხლი 7'
+    Fix: html_parser.py fallback regex extracts number from 'მუხლი7.Title'
+    """
+
+    def test_no_space_article_header(self) -> None:
+        """Simulate a <p class='muxlixml'> with no space: 'მუხლი7.სათაური'"""
+        html = """
+        <html><head><title>საქართველოს ტესტ კოდექსი</title></head><body>
+        <p class="muxlixml">მუხლი7.საარჩევნო ადმინისტრაციის სტატუსი</p>
+        <p class="abzacixml">ტესტ ტექსტი პარაგრაფი.</p>
+        </body></html>
+        """
+        result = ScrapeResult(
+            url="https://matsne.gov.ge/test",
+            document_id="test_code",
+            content=html.encode("utf-8"),
+            content_format=ContentFormat.HTML,
+            encoding="utf-8",
+            scraped_at=datetime.now(timezone.utc),
+            content_hash="test",
+        )
+        parser = HtmlLegalParser()
+        doc = parser.parse(result, {"title_ka": "ტესტ კოდექსი", "document_type": "code"})
+
+        assert len(doc.articles) >= 1
+        art = doc.articles[0]
+        # Must be "მუხლი 7", NOT "მუხლი მუხლი7.საარჩევნო..."
+        assert art.article_number == "მუხლი 7", f"Got: {art.article_number}"
+        assert "მუხლი მუხლი" not in art.article_number
+
+    def test_no_space_with_superscript_suffix(self) -> None:
+        """Simulate 'მუხლი276.ტრანსპორტის...' — common in criminal code."""
+        html = """
+        <html><head><title>ტესტ</title></head><body>
+        <p class="muxlixml">მუხლი276.ტრანსპორტის მოძრაობის წესის დარღვევა</p>
+        <p class="abzacixml">შინაარსი.</p>
+        </body></html>
+        """
+        result = ScrapeResult(
+            url="https://matsne.gov.ge/test",
+            document_id="test_code",
+            content=html.encode("utf-8"),
+            content_format=ContentFormat.HTML,
+            encoding="utf-8",
+            scraped_at=datetime.now(timezone.utc),
+            content_hash="test",
+        )
+        parser = HtmlLegalParser()
+        doc = parser.parse(result, {"title_ka": "ტესტ", "document_type": "code"})
+
+        assert len(doc.articles) >= 1
+        assert doc.articles[0].article_number == "მუხლი 276"
+
+    def test_standard_article_still_works(self) -> None:
+        """Normal 'მუხლი 45. სათაური' must still work."""
+        html = """
+        <html><head><title>ტესტ კოდექსი</title></head><body>
+        <p class="muxlixml">მუხლი 45. ნორმალური სათაური</p>
+        <p class="abzacixml">ტექსტი.</p>
+        </body></html>
+        """
+        result = ScrapeResult(
+            url="https://matsne.gov.ge/test",
+            document_id="test_code",
+            content=html.encode("utf-8"),
+            content_format=ContentFormat.HTML,
+            encoding="utf-8",
+            scraped_at=datetime.now(timezone.utc),
+            content_hash="test",
+        )
+        parser = HtmlLegalParser()
+        doc = parser.parse(result, {"title_ka": "ტესტ კოდექსი", "document_type": "code"})
+
+        assert len(doc.articles) >= 1
+        assert doc.articles[0].article_number == "მუხლი 45"
+        assert doc.articles[0].article_title == "ნორმალური სათაური"
+
+
+class TestThresholdCodeNameCanonical:
+    """
+    Regression: threshold_catalog.json uses short-form code names
+    (e.g. 'სისხლის სამართლის კოდექსი') but ChromaDB needs the full
+    canonical form ('საქართველოს სისხლის სამართლის კოდექსი').
+
+    Fix: ingest_thresholds._canonicalize_code_name() maps short → full.
+    """
+
+    def test_canonicalize_criminal_code(self) -> None:
+        from ingest_thresholds import _canonicalize_code_name
+
+        assert _canonicalize_code_name("სისხლის სამართლის კოდექსი") == \
+            "საქართველოს სისხლის სამართლის კოდექსი"
+
+    def test_canonicalize_civil_code(self) -> None:
+        from ingest_thresholds import _canonicalize_code_name
+
+        assert _canonicalize_code_name("სამოქალაქო კოდექსი") == \
+            "საქართველოს სამოქალაქო კოდექსი"
+
+    def test_canonicalize_labor_code(self) -> None:
+        from ingest_thresholds import _canonicalize_code_name
+
+        assert _canonicalize_code_name("შრომის კოდექსი") == \
+            "საქართველოს შრომის კოდექსი"
+
+    def test_already_canonical_unchanged(self) -> None:
+        from ingest_thresholds import _canonicalize_code_name
+
+        full = "საქართველოს სისხლის სამართლის კოდექსი"
+        assert _canonicalize_code_name(full) == full
+
+    def test_narcotics_law_unchanged(self) -> None:
+        """Narcotics law doesn't have საქართველოს prefix — should pass through."""
+        from ingest_thresholds import _canonicalize_code_name
+
+        name = "ნარკოტიკული საშუალებების შესახებ კანონი"
+        assert _canonicalize_code_name(name) == name
+
+    def test_build_metadata_uses_canonical(self) -> None:
+        """build_threshold_metadata must output canonical code_name."""
+        from ingest_thresholds import build_threshold_metadata
+
+        entry = {
+            "code_name": "სისხლის სამართლის კოდექსი",
+            "article_number": "მუხლი 177",
+            "threshold_type": "monetary",
+            "description_ka": "ტესტ",
+            "source_url": "https://matsne.gov.ge",
+            "last_verified": "2026-01-01",
+        }
+        meta = build_threshold_metadata(entry)
+        assert meta["code_name"] == "საქართველოს სისხლის სამართლის კოდექსი"
+

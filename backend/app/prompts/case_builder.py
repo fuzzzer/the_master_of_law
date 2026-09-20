@@ -9,7 +9,7 @@ CASE_BUILDER = PromptTemplate(
     name="case_builder",
     role=PromptRole.USER,
     template=(
-        "You are კანონის ოსტატი (The Master of Law). Based on the conversation "
+        "You are ბუნდოვანი კანონი (Fuzzzy Law). Based on the conversation "
         "and retrieved law articles below, generate a comprehensive DEFENSE CASE FILE.\n\n"
         "CONVERSATION:\n{conversation_text}\n\n"
         "RETRIEVED LAW ARTICLES:\n{law_context}\n\n"
@@ -48,7 +48,8 @@ CASE_BUILDER = PromptTemplate(
         '  "prosecution_args": [\n'
         "    {{\n"
         '      "argument": "what they\'ll say",\n'
-        '      "counter": "your response"\n'
+        '      "counter": "your response",\n'
+        '      "applicable_laws": ["articles"]\n'
         "    }}\n"
         "  ],\n"
         '  "action_checklist": [\n'
@@ -57,6 +58,9 @@ CASE_BUILDER = PromptTemplate(
         '      "action": "what to do",\n'
         '      "done": false\n'
         "    }}\n"
+        "  ],\n"
+        '  "unclear_items": [\n'
+        '    "information that was NOT provided by the user but could affect the case"\n'
         "  ],\n"
         '  "lawyer_brief": {{\n'
         '    "key_points": ["what to tell your lawyer"],\n'
@@ -77,11 +81,12 @@ CASE_BUILDER = PromptTemplate(
         "- Every law reference must cite a specific article\n"
         "- Use ONLY laws from the provided context — never fabricate\n"
         "- Include both favorable AND unfavorable laws\n"
-        "- Be thorough — this document may be used in court\n\n"
+        "- Be thorough — this document may be used in court\n"
+        "- unclear_items: list ALL details the user did NOT provide that could matter (witnesses, exact amounts, documents, etc.)\n\n"
         "Return ONLY the JSON object, no markdown wrapping."
     ),
     description="Generates a structured 8-section defense case file from conversation + law context.",
     variables=("conversation_text", "law_context"),
-    temperature=0.1,
+    temperature=1,
     response_format="json",
 )

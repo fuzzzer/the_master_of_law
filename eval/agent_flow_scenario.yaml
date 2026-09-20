@@ -1,0 +1,53 @@
+# End-to-end grounded agent-session scenario (Georgian) — VERIFICATION_PROTOCOL §4.
+# A real user builds a labor-law case, then drives the case-agent (tools-heavy)
+# with legal questions. Every expected article was validated against the article
+# store on 2026-07-19 (same rule as golden_retrieval.yaml).
+name: labor_pregnancy_dismissal_agent_flow
+
+# 1-2 case-intake messages: raw facts a real user would dump in Georgian.
+intake_messages:
+  - >-
+    გამარჯობა. მე ვმუშაობდი კომპანიაში გაყიდვების მენეჯერად 3 წლის განმავლობაში.
+    ორი კვირის წინ დამსაქმებელს ვუთხარი, რომ ორსულად ვარ. მეორე დღესვე მითხრეს,
+    რომ სამსახურიდან გამათავისუფლეს. წერილობითი მიზეზი არ მომიწერიათ, უბრალოდ
+    ზეპირად მითხრეს რომ აღარ ვჭირდები. ხელფასი მქონდა 2000 ლარი. მინდა გავიგო
+    რა უფლებები მაქვს და როგორ დავიცვა თავი.
+
+# Agent turns: tools-heavy questions that must ground in statute + court practice.
+# Same schema as a golden pair (id/domain/question/must_ground_in) so the reused
+# C1-C8 checks apply unchanged.
+agent_turns:
+  - id: A1
+    domain: labor
+    question: >-
+      ჩემს საქმეში, რა კონკრეტულ მუხლებს ეყრდნობა ორსული ქალის უკანონო
+      გათავისუფლება და რა კომპენსაცია მეკუთვნის? სად და რა ვადაში უნდა ვიჩივლო?
+    must_ground_in:
+      - code: labour_code
+        code_name: "საქართველოს შრომის კოდექსი"
+        article: '47'
+        article_number: "მუხლი 47"
+        article_title: "შრომითი ხელშეკრულების შეწყვეტის საფუძვლები"
+        matsne_url: https://matsne.gov.ge/ka/document/view/1155567#article_47
+        validation_keyword: "ორსულ"
+      - code: labour_code
+        code_name: "საქართველოს შრომის კოდექსი"
+        article: '48'
+        article_number: "მუხლი 48"
+        article_title: "შრომითი ხელშეკრულების შეწყვეტის წესი"
+        matsne_url: https://matsne.gov.ge/ka/document/view/1155567#article_48
+        validation_keyword: "30 კალენდარული"
+
+  - id: A2
+    domain: labor
+    question: >-
+      მაინტერესებს შრომის კოდექსის მუხლი 48-ის ზუსტი ტექსტი — რას ამბობს
+      კომპენსაციისა და სასამართლოსთვის მიმართვის ვადის შესახებ?
+    must_ground_in:
+      - code: labour_code
+        code_name: "საქართველოს შრომის კოდექსი"
+        article: '48'
+        article_number: "მუხლი 48"
+        article_title: "შრომითი ხელშეკრულების შეწყვეტის წესი"
+        matsne_url: https://matsne.gov.ge/ka/document/view/1155567#article_48
+        validation_keyword: "30 კალენდარული"
