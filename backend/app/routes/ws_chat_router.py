@@ -192,85 +192,91 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                 )
 
                 try:
-                    from app.services.guardrail_service import get_guardrail_service
-                    guardrail = get_guardrail_service()
-                    decision = await guardrail.classify(user_message)
-                    record_step(
-                        "guardrail_decision",
-                        category=decision.category,
-                        confidence=decision.confidence,
-                        should_proceed=decision.should_proceed,
-                        canned_response=decision.response_text,
-                    )
-
-                    if not decision.should_proceed:
-                        response_text = decision.response_text or ""
-                        await conv_svc.save_assistant_message(
-                            conversation_id=conversation_id,
-                            content=response_text,
-                            citations=[],
-                            retrieved_chunk_ids=[],
-                            credit_cost=0,
-                        )
-                        await db.commit()
-                        await save_current_trace(status="blocked", response_text=response_text)
-                        await websocket.send_json({
-                            "type": "done",
-                            "full_response": response_text,
-                            "citations": [],
-                            "chunk_count": 0,
-                            "guardrail_category": decision.category,
-                        })
-                        continue
-
-                    await websocket.send_json({"type": "status", "message": "მოთხოვნის ანალიზი..."})
-
-                    # Determine system prompt based on case state
-                    case_file = None
-                    if case_file_id:
-                        from app.repositories.case_file_repository import CaseFileRepository
-                        case_repo = CaseFileRepository(db)
-                        try:
-                            case_file = await case_repo.get_by_id(_uuid.UUID(case_file_id))
-                        except (ValueError, Exception):
-                            pass
-
-                    if case_file:
-                        system_prompt_text = compose_advocate_prompt(
-                            case_file=case_file, is_case_chat=is_case_chat
-                        )
-                    elif is_case_chat:
-                        system_prompt_text = CASE_INTAKE_SYSTEM.template
-                    else:
-                        system_prompt_text = CHAT_SYSTEM.template
-
-                    enriched_message = user_message
-                    case_context = payload.get("case_context")
-                    if case_context:
-                        enriched_message = (
-                            f"[ATTACHED CASE CONTEXT]\n{case_context}\n"
-                            f"[END CASE CONTEXT]\n\n"
-                            f"USER MESSAGE: {user_message}"
-                        )
-
-                    # The turn — pipeline, persistence, credits, trace — is ONE
-                    # task, shielded from the socket's fate. It used to be
-                    # inline, beside a watcher that awaited `receive_text()` to
-                    # notice a disconnect and then cancelled the pipeline: a
-                    # user who closed the tab, pressed back, or lost signal
-                    # for a second lost the answer they had paid their own key
-                    # for — and a second message sent mid-turn was swallowed by
-                    # the watcher as if it were a disconnect. The task owns its
-                    # own session because the handler's session closes with the
-                    # handler; every send inside it goes through `_safe_send`,
-                    # a no-op once the client is gone, and the client picks the
-                    # answer up from the conversation on its next load.
+                    # The turn — guardrail, pipeline, persistence, credits,
+                    # trace — is ONE task, shielded from the socket's fate. It
+                    # used to be inline, beside a watcher that awaited
+                    # `receive_text()` to notice a disconnect and then cancelled
+                    # the pipeline: a user who closed the tab, pressed back, or
+                    # lost signal for a second lost the answer they had paid
+                    # their own key for — and a second message sent mid-turn
+                    # was swallowed by the watcher as if it were a disconnect.
+                    # The guardrail is inside too: it is a model call that can
+                    # take many seconds of provider retries, and while it ran
+                    # outside, a client that left in the meantime made the very
+                    # first send after it raise — before this task existed, so
+                    # the turn never ran at all. The task owns its own session
+                    # because the handler's session closes with the handler;
+                    # every send inside it goes through `_safe_send`, a no-op
+                    # once the client is gone, and the client picks the answer
+                    # up from the conversation on its next load.
                     import asyncio
 
                     async def complete_turn():
                         async with get_session_factory()() as tdb:
                             turn_conv = ConversationService(tdb)
                             turn_credits = CreditRepository(tdb)
+
+                            from app.services.guardrail_service import get_guardrail_service
+                            guardrail = get_guardrail_service()
+                            decision = await guardrail.classify(user_message)
+                            record_step(
+                                "guardrail_decision",
+                                category=decision.category,
+                                confidence=decision.confidence,
+                                should_proceed=decision.should_proceed,
+                                canned_response=decision.response_text,
+                            )
+
+                            if not decision.should_proceed:
+                                response_text = decision.response_text or ""
+                                await turn_conv.save_assistant_message(
+                                    conversation_id=conversation_id,
+                                    content=response_text,
+                                    citations=[],
+                                    retrieved_chunk_ids=[],
+                                    credit_cost=0,
+                                )
+                                await tdb.commit()
+                                await save_current_trace(status="blocked", response_text=response_text)
+                                await _safe_send(websocket, {
+                                    "type": "done",
+                                    "full_response": response_text,
+                                    "citations": [],
+                                    "chunk_count": 0,
+                                    "guardrail_category": decision.category,
+                                })
+                                return
+
+                            await _safe_send(websocket, {"type": "status", "message": "მოთხოვნის ანალიზი..."})
+
+                            # Determine system prompt based on case state
+                            case_file = None
+                            if case_file_id:
+                                from app.repositories.case_file_repository import CaseFileRepository
+                                case_repo = CaseFileRepository(tdb)
+                                try:
+                                    case_file = await case_repo.get_by_id(_uuid.UUID(case_file_id))
+                                except (ValueError, Exception):
+                                    pass
+
+                            if case_file:
+                                system_prompt_text = compose_advocate_prompt(
+                                    case_file=case_file, is_case_chat=is_case_chat
+                                )
+                            elif is_case_chat:
+                                system_prompt_text = CASE_INTAKE_SYSTEM.template
+                            else:
+                                system_prompt_text = CHAT_SYSTEM.template
+
+                            enriched_message = user_message
+                            case_context = payload.get("case_context")
+                            if case_context:
+                                enriched_message = (
+                                    f"[ATTACHED CASE CONTEXT]\n{case_context}\n"
+                                    f"[END CASE CONTEXT]\n\n"
+                                    f"USER MESSAGE: {user_message}"
+                                )
+
                             pipeline = get_agent_pipeline_service()
 
                             result = await pipeline.run(

@@ -174,3 +174,95 @@ def test_answer_is_stored_even_if_the_client_drops_mid_turn():
         ("user", "კითხვა"),
         ("assistant", "პასუხი, რომელიც არ უნდა დაიკარგოს"),
     ]
+
+
+def test_answer_is_stored_even_if_the_client_drops_during_the_guardrail():
+    """Leaving BEFORE the first frame must not lose the answer either.
+
+    The previous test leaves after the first status frame. Production showed
+    the other timing: the guardrail's provider retries took eighteen seconds,
+    the user backgrounded the tab meanwhile, and the very first send after
+    the guardrail — a raw `send_json`, not `_safe_send` — raised on the gone
+    client BEFORE the shielded turn existed. `ws_disconnected` in the log,
+    no answer, no error, no trace. The turn never ran at all.
+    """
+    import time
+    from unittest.mock import MagicMock
+
+    import app.models.database as db_module
+
+    db_module._engine = None
+    db_module._session_factory = None
+
+    firebase_uid = f"ws-drop-early-{uuid.uuid4().hex[:8]}"
+
+    from app.models.database import get_session_factory
+    from app.repositories.user_repository import UserRepository
+    from app.services.conversation_service import ConversationService
+
+    async def db_setup() -> str:
+        async with get_session_factory()() as db:
+            await UserRepository(db).create_or_update(
+                firebase_uid=firebase_uid,
+                email="ws-drop-early@fuzzzylaw.ge",
+                display_name="WS Drop Early",
+            )
+            conv = await ConversationService(db).create_conversation(
+                user_id=firebase_uid, title="drop early"
+            )
+            await db.commit()
+            return conv["id"]
+
+    conversation_id = asyncio.run(db_setup())
+    db_module._engine = None
+    db_module._session_factory = None
+
+    result = MagicMock()
+    result.response_text = "პასუხი ტაბის დახურვის მიუხედავად"
+    result.chunks = []
+    result.verified_citations = []
+    result.tool_results = []
+
+    allow = GuardrailDecision(category="legal", confidence=1.0, should_proceed=True)
+
+    async def slow_guardrail(*_args, **_kwargs):
+        await asyncio.sleep(0.5)
+        return allow
+
+    with patch(
+        "app.integrations.firebase_client.verify_id_token",
+        return_value={"uid": firebase_uid, "email": "ws-drop-early@fuzzzylaw.ge"},
+    ), patch(
+        "app.services.guardrail_service.GuardrailService.classify",
+        side_effect=slow_guardrail,
+    ), patch(
+        "app.services.agent_pipeline_service.AgentPipelineService.run",
+        new_callable=AsyncMock,
+        return_value=result,
+    ), TestClient(app) as client:
+        with client.websocket_connect(
+            f"/api/v1/chat/{conversation_id}/ws?token=valid-token"
+        ) as ws:
+            ws.send_json({"message": "კითხვა", "mode": "chat"})
+            # Leave while the guardrail is still classifying: after the
+            # message was read (no frame is sent before the guardrail, so a
+            # short wait is the only way to be sure), before it answers.
+            time.sleep(0.2)
+        time.sleep(1.5)
+
+    db_module._engine = None
+    db_module._session_factory = None
+
+    async def stored_messages() -> list[dict]:
+        async with get_session_factory()() as db:
+            conv = await ConversationService(db).get_conversation(conversation_id)
+            return conv["messages"]
+
+    messages = asyncio.run(stored_messages())
+    db_module._engine = None
+    db_module._session_factory = None
+
+    assert [(m["role"], m["content"]) for m in messages] == [
+        ("user", "კითხვა"),
+        ("assistant", "პასუხი ტაბის დახურვის მიუხედავად"),
+    ]
