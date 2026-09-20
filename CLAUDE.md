@@ -53,13 +53,13 @@ Flutter App (fuzzzy_law, ge.fuzzycore.fuzzzylaw)
   ▼
 FastAPI Backend (~10K lines, 90 files)
   │ 16 routers → 50 operations across 42 paths
-  │ 21 services, 8 repositories, 9 models, 9 schemas
+  │ 22 services, 8 repositories, 9 models, 9 schemas
   │ BYOK (caller's own Google key) → Auth → Credit Gate → Rate Limit → Errors
   │ 5-stage RAG: Expand → Vector (per-collection quotas) → FullText → Merge → Rerank
   │ Grounding: article store (SQLite+FTS5) + get_article/browse_code tools + retrieval repair
   │ Gemini 3.1 Pro legal analysis + source-specific prompt injection
   │ Pipeline transparency traces (per-request step log + admin dashboard)
-  │ 650 tests across 42 test files — all pass (see below)
+  │ 652 tests across 42 test files — all pass (see below)
   ▼
 Data: PostgreSQL + ChromaDB (3 collections, 20,513 docs live) + Redis
   │ georgian_laws: 15,338 (12 legal codes)
@@ -117,7 +117,7 @@ After completing any task that changes the codebase structure, you MUST:
 | Component | Status | Location |
 |-----------|--------|----------|
 | Law Corpus (20,513 docs live, 3 collections) | ✅ Done | `law_corpus/data/chroma/` — **907 MB, NOT in git** |
-| Backend (50 operations, 21 services) | ✅ Done | `backend/` |
+| Backend (50 operations, 22 services) | ✅ Done | `backend/` |
 | Eval Pipeline (50 cases) | ✅ Done | `eval/` |
 | Design System | 🔄 In Progress | `packages/open-design/` |
 | Flutter App | 🔄 In Progress | `frontend/` |
@@ -134,15 +134,15 @@ three tests fail on whatever else owns `:5432`. Start one with
 
 | Where it runs | Result |
 |---|---|
-| With corpus + test DB | 650 passed, 0 skipped |
-| Without the corpus (CI) | 638 passed, 12 skipped |
+| With corpus + test DB | 652 passed, 0 skipped |
+| Without the corpus (CI) | 640 passed, 12 skipped |
 
 The 12 skips are corpus-dependent tests, named one by one in
 `tests/conftest.py`; a name that stops matching fails the run rather than
 silently dropping coverage. `test_websocket_requires_credits_and_deducts`
 was skipped for months as "hangs on turn 2"; the cause was the chat turn's
 transaction being poisoned by a failing automatic case build (2026-09-20),
-and it runs again. Frontend: `fvm flutter test` = 124
+and it runs again. Frontend: `fvm flutter test` = 126
 passing, `fvm flutter analyze` = 0 errors / 2 known infos.
 
 ### Before touching deployment

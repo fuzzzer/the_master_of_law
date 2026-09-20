@@ -9,6 +9,7 @@ class _FakeSource implements ConsultationRemoteDataSource {
   final socket = StreamController<Map<String, dynamic>>();
   final List<Map<String, dynamic>> stored = [];
   int conversationReads = 0;
+  bool turnInProgress = false;
 
   @override
   Stream<Map<String, dynamic>> streamMessage({
@@ -23,7 +24,12 @@ class _FakeSource implements ConsultationRemoteDataSource {
   @override
   Future<Map<String, dynamic>> getConversation(String conversationId) async {
     conversationReads++;
-    return {'id': conversationId, 'messages': stored, 'case_ready': false};
+    return {
+      'id': conversationId,
+      'messages': stored,
+      'case_ready': false,
+      'turn_in_progress': turnInProgress,
+    };
   }
 
   @override
@@ -90,7 +96,9 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       // The user's message is on the server; the answer is not yet.
-      source.stored.add({'id': 'u1', 'role': 'user', 'content': 'რაა?'});
+      source
+        ..turnInProgress = true
+        ..stored.add({'id': 'u1', 'role': 'user', 'content': 'რაა?'});
       await source.socket.close();
       await Future<void>.delayed(Duration.zero);
       expect(cubit.state.isSending, isTrue, reason: 'still waiting');
@@ -98,7 +106,9 @@ void main() {
 
       // Two polls later the server has it.
       await Future<void>.delayed(Duration.zero);
-      source.stored.add({'id': 'a1', 'role': 'assistant', 'content': 'პასუხი'});
+      source
+        ..stored.add({'id': 'a1', 'role': 'assistant', 'content': 'პასუხი'})
+        ..turnInProgress = false;
       await Future<void>.delayed(const Duration(milliseconds: 10));
 
       expect(cubit.state.isSending, isFalse);
@@ -110,7 +120,7 @@ void main() {
   );
 
   test('closing the screen stops the polling', () async {
-    final source = _FakeSource();
+    final source = _FakeSource()..turnInProgress = true;
     final cubit = _cubitFor(source);
     unawaited(cubit.sendMessage('რაა?'));
     await Future<void>.delayed(Duration.zero);
@@ -122,4 +132,62 @@ void main() {
 
     expect(source.conversationReads, lessThanOrEqualTo(readsAtClose + 1));
   });
+
+  test(
+    'a page opened while the server is still writing the answer waits for '
+    'it instead of showing question-and-silence',
+    () async {
+      final source = _FakeSource()
+        ..turnInProgress = true
+        ..stored.add({'id': 'u1', 'role': 'user', 'content': 'კითხვა'});
+      final cubit = ConsultationCubit(
+        repository: ConsultationRepository(remoteDataSource: source),
+        turns: ChatTurnRegistry(),
+        recoveryPollInterval: Duration.zero,
+      );
+      await cubit.loadConversation('c1');
+      expect(cubit.state.isSending, isTrue, reason: 'told to wait');
+
+      await Future<void>.delayed(Duration.zero);
+      source
+        ..stored.add({'id': 'a1', 'role': 'assistant', 'content': 'პასუხი'})
+        ..turnInProgress = false;
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      expect(cubit.state.isSending, isFalse);
+      expect(cubit.state.messages.map((m) => m.text), ['კითხვა', 'პასუხი']);
+      await cubit.close();
+    },
+  );
+
+  test(
+    'a turn that failed while we were away shows the stored failure as an '
+    'error bubble with its own sentence',
+    () async {
+      final source = _FakeSource();
+      final cubit = _cubitFor(source);
+      unawaited(cubit.sendMessage('რაა?'));
+      await Future<void>.delayed(Duration.zero);
+      source
+        ..turnInProgress = true
+        ..stored.add({'id': 'u1', 'role': 'user', 'content': 'რაა?'});
+      await source.socket.close();
+      await Future<void>.delayed(Duration.zero);
+
+      const quota =
+          'AI სერვისის დღიური ლიმიტი ამოიწურა. სცადეთ მოგვიანებით ან სხვა მოდელით.';
+      source
+        ..stored.add({'id': 'e1', 'role': 'error', 'content': quota})
+        ..turnInProgress = false;
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      final last = cubit.state.messages.last;
+      expect(cubit.state.isSending, isFalse);
+      expect(last.isError, isTrue);
+      expect(last.isUser, isFalse);
+      expect(last.text, quota);
+      expect(last.failureType, isNull, reason: 'the sentence is the message');
+      await cubit.close();
+    },
+  );
 }

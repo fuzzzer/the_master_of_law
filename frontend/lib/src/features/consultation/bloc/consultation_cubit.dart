@@ -130,6 +130,13 @@ class ConsultationCubit extends Cubit<ConsultationState> {
             ),
           );
           unawaited(_follow(running));
+        } else if (data['turn_in_progress'] == true) {
+          // The turn is running on the server but no socket here follows
+          // it: this page was opened (a phone browser reloads a backgrounded
+          // tab on its own) while the answer was still being written. Wait
+          // for it the same way a dropped socket does.
+          _safeEmit(state.copyWith(isSending: true));
+          unawaited(_awaitServerTurn(conversationId));
         }
       case ConsultationFailure<Map<String, dynamic>>(:final type):
         _safeEmit(
@@ -151,23 +158,33 @@ class ConsultationCubit extends Cubit<ConsultationState> {
             DateTime.now(),
         citations: _parseCitations(map['citations']),
         trustLevel: map['trust_level']?.toString(),
+        // A turn that failed is stored by the server as a message of role
+        // `error`, its text the server's Georgian sentence — the same shape
+        // as a live error frame, so it is shown the same way.
+        isError: map['role'] == 'error',
       );
     }).toList();
   }
 
   /// The socket died mid-turn, but the turn did not: the server finishes it
-  /// and saves the answer whether or not anyone is listening. So a dropped
-  /// socket is not an error yet — it is the answer arriving by another
-  /// route. Ask the conversation until the reply is there, then show it;
-  /// only a turn that never lands by [recoveryDeadline] is called lost.
+  /// and saves the outcome — the answer, or the failure as an `error`
+  /// message — whether or not anyone is listening. So a dropped socket is
+  /// not an error yet; it is the outcome arriving by another route.
   ///
-  /// Returns true when the answer was recovered.
+  /// Returns true when the outcome was recovered.
   Future<bool> _recoverFromServer(String conversationId) async {
     _safeEmit(
       state.copyWith(
         streamingStatus: 'კავშირი გაწყდა — პასუხს სერვერიდან ვიღებთ...',
       ),
     );
+    return _awaitServerTurn(conversationId);
+  }
+
+  /// Ask the conversation until the server says its turn is over, then
+  /// show what the turn left behind. Only a turn that is still reported
+  /// running at [recoveryDeadline] is given up on.
+  Future<bool> _awaitServerTurn(String conversationId) async {
     final sentByUser = state.messages.where((m) => m.isUser).length;
     final giveUpAt = DateTime.now().add(recoveryDeadline);
     while (!isClosed && DateTime.now().isBefore(giveUpAt)) {
@@ -176,21 +193,23 @@ class ConsultationCubit extends Cubit<ConsultationState> {
       final result = await _repository.getConversation(conversationId);
       if (result is! ConsultationSuccess<Map<String, dynamic>>) continue;
       final messages = _messagesFrom(result.data);
-      final serverHasOurMessage =
-          messages.where((m) => m.isUser).length >= sentByUser;
-      if (serverHasOurMessage && messages.isNotEmpty && !messages.last.isUser) {
-        _safeEmit(
-          state.copyWith(
-            messages: messages,
-            caseAnalysisReady: result.data['case_ready'] == true,
-            isSending: false,
-            clearStreamingStatus: true,
-            clearStage: true,
-            clearStreamingMessageId: true,
-          ),
-        );
-        return true;
-      }
+      // The user's message is committed the moment the server reads it; a
+      // copy without it is one the server has not caught up on yet.
+      if (messages.where((m) => m.isUser).length < sentByUser) continue;
+      final over = result.data['turn_in_progress'] != true;
+      final answered = messages.isNotEmpty && !messages.last.isUser;
+      if (!answered && !over) continue;
+      _safeEmit(
+        state.copyWith(
+          messages: messages,
+          caseAnalysisReady: result.data['case_ready'] == true,
+          isSending: false,
+          clearStreamingStatus: true,
+          clearStage: true,
+          clearStreamingMessageId: true,
+        ),
+      );
+      return answered;
     }
     return false;
   }

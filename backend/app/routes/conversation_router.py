@@ -107,6 +107,7 @@ async def get_conversation(
         case_ready=conv.get("case_ready", False),
         messages=conv.get("messages", []),
         created_at=conv.get("created_at", ""),
+        turn_in_progress=conv.get("turn_in_progress", False),
     )
 
 

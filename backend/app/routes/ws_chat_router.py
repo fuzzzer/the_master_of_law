@@ -27,12 +27,54 @@ from app.prompts.chat import CHAT_SYSTEM, CASE_INTAKE_SYSTEM
 from app.services.agent_pipeline_service import get_agent_pipeline_service
 from app.services.case_tool_executor import CaseToolExecutor
 from app.services.conversation_service import ConversationService
+from app.services.turn_registry import turn_finished, turn_started
 from app.services.trace_service import record_step, save_current_trace, start_trace
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/chat", tags=["chat-ws"])
+
+
+async def _fail_turn(websocket: WebSocket, conversation_id: str, exc: Exception) -> None:
+    """Record a failed turn everywhere it has to be recorded.
+
+    The message is rendered VERBATIM as a chat bubble in a Georgian-only
+    app, so it is Georgian, and it says which of the three things went
+    wrong rather than "an error". It goes into the conversation as a
+    message of role ``error`` — on its own session, because the turn's may
+    be poisoned by the very failure — into the trace, and to the socket if
+    anyone is still there.
+    """
+    from app.models.database import get_session_factory
+    from app.utils.provider_errors import classify
+
+    provider = classify(exc)
+    if provider.is_provider_fault:
+        logger.warning(
+            "ws_provider_error",
+            kind=provider.kind.value,
+            retry_after_s=provider.retry_after_s,
+            error=str(exc)[:300],
+        )
+    else:
+        logger.error("ws_processing_error", error=str(exc), exc_info=True)
+    await save_current_trace(status="failed", error=str(exc))
+    try:
+        async with get_session_factory()() as edb:
+            await ConversationService(edb).save_error_message(
+                conversation_id=conversation_id, content=provider.message_ka,
+            )
+            await edb.commit()
+    except Exception as save_exc:
+        logger.error("ws_error_message_not_saved", error=str(save_exc))
+    await _safe_send(websocket, {
+        "type": "error",
+        "code": provider.error_code,
+        "message": provider.message_ka,
+        **({"retry_after_s": provider.retry_after_s}
+           if provider.retry_after_s else {}),
+    })
 
 
 async def _safe_send(websocket: WebSocket, data: dict) -> bool:
@@ -212,6 +254,20 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                     import asyncio
 
                     async def complete_turn():
+                        turn_started(conversation_id)
+                        try:
+                            await run_turn()
+                        except Exception as e:
+                            # Handled HERE, in the task, not in the handler
+                            # below: when the client is gone the handler may
+                            # be gone with it, and the failure still has to be
+                            # written into the conversation or the user comes
+                            # back to their question and silence.
+                            await _fail_turn(websocket, conversation_id, e)
+                        finally:
+                            turn_finished(conversation_id)
+
+                    async def run_turn():
                         async with get_session_factory()() as tdb:
                             turn_conv = ConversationService(tdb)
                             turn_credits = CreditRepository(tdb)
@@ -408,28 +464,9 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                 except WebSocketDisconnect:
                     raise
                 except Exception as e:
-                    # This message is rendered VERBATIM as a chat bubble in a
-                    # Georgian-only app, so it is Georgian, and it says which
-                    # of the three things went wrong rather than "an error".
-                    from app.utils.provider_errors import classify
-                    provider = classify(e)
-                    if provider.is_provider_fault:
-                        logger.warning(
-                            "ws_provider_error",
-                            kind=provider.kind.value,
-                            retry_after_s=provider.retry_after_s,
-                            error=str(e)[:300],
-                        )
-                    else:
-                        logger.error("ws_processing_error", error=str(e), exc_info=True)
-                    await save_current_trace(status="failed", error=str(e))
-                    await _safe_send(websocket, {
-                        "type": "error",
-                        "code": provider.error_code,
-                        "message": provider.message_ka,
-                        **({"retry_after_s": provider.retry_after_s}
-                           if provider.retry_after_s else {}),
-                    })
+                    # Anything that failed OUTSIDE the turn task (the task
+                    # reports its own failures).
+                    await _fail_turn(websocket, conversation_id, e)
                 finally:
                     # This handler is a LOOP serving many messages. Every exit
                     # path from one message — answered, blocked by the

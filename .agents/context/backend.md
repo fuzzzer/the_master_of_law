@@ -144,7 +144,7 @@ decisions are BINDING and override all lower court interpretations").
 |--------|------|---------|-------------|
 | POST | `/api/v1/conversations` | 0 | Start conversation |
 | GET | `/api/v1/conversations` | 0 | List conversations |
-| GET | `/api/v1/conversations/{id}` | 0 | Get with messages |
+| GET | `/api/v1/conversations/{id}` | 0 | Get with messages + `turn_in_progress` |
 | DELETE | `/api/v1/conversations/{id}` | 0 | Delete |
 
 ### chat_router (1)
@@ -156,6 +156,16 @@ decisions are BINDING and override all lower court interpretations").
 | Method | Path | Credits | Description |
 |--------|------|---------|-------------|
 | WS | `/api/v1/chat/{id}/ws` | 1 | WebSocket streaming (accepts `rag_config`) |
+
+**A turn outlives its socket.** Guardrail, pipeline, persistence, credits and
+trace run as one shielded task; every send inside it is a no-op once the
+client is gone. A failed turn is saved into the conversation as a message of
+role `error` (its Georgian sentence from `utils/provider_errors.py`), which
+`get_conversation_history` keeps out of the model's context. While a turn
+runs, `services/turn_registry.py` (in-process — the API is one uvicorn
+worker) marks the conversation, and `GET /conversations/{id}` reports it as
+`turn_in_progress`; the client waits and polls instead of showing
+question-and-silence.
 
 ### case_file_router (6)
 | Method | Path | Credits | Description |

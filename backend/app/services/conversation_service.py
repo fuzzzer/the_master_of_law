@@ -19,6 +19,7 @@ from app.config.constants import ConversationPhase, CreditAction
 from app.repositories.conversation_repository import ConversationRepository
 from app.repositories.message_repository import MessageRepository
 from app.utils.logger import get_logger
+from app.services.turn_registry import turn_in_progress
 
 logger = get_logger(__name__)
 
@@ -79,6 +80,7 @@ class ConversationService:
 
         messages = await self._msg_repo.get_for_conversation(conv_uuid)
         result = self._conv_to_dict(conv)
+        result["turn_in_progress"] = turn_in_progress(conversation_id)
         result["messages"] = [
             {
                 "id": str(m.id),
@@ -165,6 +167,36 @@ class ConversationService:
             "created_at": msg.created_at.isoformat() if msg.created_at else "",
         }
 
+    async def save_error_message(
+        self,
+        conversation_id: str,
+        content: str,
+    ) -> dict[str, Any] | None:
+        """Persist that a turn failed, as a message with role ``error``.
+
+        The failure used to reach only the socket and the trace. A client
+        that had left by then came back to its question and silence, with
+        nothing to tell it that the turn was over. Now the failure is part
+        of the conversation like any other message; the client renders it
+        as an error bubble, and :meth:`get_conversation_history` keeps it
+        out of the model's context.
+        """
+        conv_uuid = self._parse_uuid(conversation_id)
+        if not conv_uuid:
+            return None
+
+        msg = await self._msg_repo.create(
+            conversation_id=conv_uuid,
+            role="error",
+            content=content,
+        )
+        return {
+            "id": str(msg.id),
+            "role": msg.role,
+            "content": msg.content,
+            "created_at": msg.created_at.isoformat() if msg.created_at else "",
+        }
+
     async def get_conversation_history(
         self,
         conversation_id: str,
@@ -174,6 +206,8 @@ class ConversationService:
         Get conversation history formatted for Gemini context.
 
         Returns list of {"role": "user"|"assistant", "content": "..."}.
+        Failed turns (role ``error``) are not part of the exchange and are
+        left out.
         """
         conv_uuid = self._parse_uuid(conversation_id)
         if not conv_uuid:
@@ -183,6 +217,7 @@ class ConversationService:
         return [
             {"role": m.role, "content": m.content}
             for m in messages
+            if m.role in ("user", "assistant")
         ]
 
     async def transition_phase(
