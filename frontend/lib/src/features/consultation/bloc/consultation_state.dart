@@ -8,6 +8,9 @@ class ChatMessage {
   final List<CitationData>? citations;
   final String? trustLevel;
   final bool isError;
+  /// Which of the app's own error sentences to show. Null on an error the
+  /// server reported: then [text] is the server's Georgian sentence and is
+  /// shown as is.
   final ConsultationFailureType? failureType;
   final List<ToolResultData>? toolResults;
 

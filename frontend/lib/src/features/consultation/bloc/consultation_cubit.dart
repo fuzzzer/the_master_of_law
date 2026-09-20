@@ -43,11 +43,19 @@ class ConsultationCubit extends Cubit<ConsultationState> {
   /// cancelled — in [close], or when another conversation is loaded.
   StreamSubscription<Map<String, dynamic>>? _streamSubscription;
 
+  /// How often a dropped turn asks the server whether its answer has landed.
+  final Duration recoveryPollInterval;
+
+  /// How long a dropped turn keeps asking before it is called lost. A turn
+  /// with provider retries can run well past a minute; three covers it.
+  static const Duration recoveryDeadline = Duration(minutes: 3);
+
   ConsultationCubit({
     required ConsultationRepository repository,
     required ChatTurnRegistry turns,
     ChatMode chatMode = ChatMode.allSources,
     bool isCaseChat = false,
+    this.recoveryPollInterval = const Duration(seconds: 4),
   }) : _repository = repository,
        _turns = turns,
        super(ConsultationState(chatMode: chatMode, isCaseChat: isCaseChat));
@@ -96,20 +104,7 @@ class ConsultationCubit extends Cubit<ConsultationState> {
     final result = await _repository.getConversation(conversationId);
     switch (result) {
       case ConsultationSuccess<Map<String, dynamic>>(:final data):
-        final rawMessages = data['messages'] as List<dynamic>? ?? [];
-        final messages = rawMessages.map((m) {
-          final map = m as Map<String, dynamic>;
-          return ChatMessage(
-            id: map['id']?.toString() ?? '',
-            text: map['content']?.toString() ?? '',
-            isUser: map['role'] == 'user',
-            timestamp:
-                DateTime.tryParse(map['created_at']?.toString() ?? '') ??
-                DateTime.now(),
-            citations: _parseCitations(map['citations']),
-            trustLevel: map['trust_level']?.toString(),
-          );
-        }).toList();
+        final messages = _messagesFrom(data);
         final caseReady = data['case_ready'] == true;
         _safeEmit(
           state.copyWith(
@@ -141,6 +136,63 @@ class ConsultationCubit extends Cubit<ConsultationState> {
           state.copyWith(status: StateStatus.failed, failureType: type),
         );
     }
+  }
+
+  List<ChatMessage> _messagesFrom(Map<String, dynamic> conversation) {
+    final rawMessages = conversation['messages'] as List<dynamic>? ?? [];
+    return rawMessages.map((m) {
+      final map = m as Map<String, dynamic>;
+      return ChatMessage(
+        id: map['id']?.toString() ?? '',
+        text: map['content']?.toString() ?? '',
+        isUser: map['role'] == 'user',
+        timestamp:
+            DateTime.tryParse(map['created_at']?.toString() ?? '') ??
+            DateTime.now(),
+        citations: _parseCitations(map['citations']),
+        trustLevel: map['trust_level']?.toString(),
+      );
+    }).toList();
+  }
+
+  /// The socket died mid-turn, but the turn did not: the server finishes it
+  /// and saves the answer whether or not anyone is listening. So a dropped
+  /// socket is not an error yet — it is the answer arriving by another
+  /// route. Ask the conversation until the reply is there, then show it;
+  /// only a turn that never lands by [recoveryDeadline] is called lost.
+  ///
+  /// Returns true when the answer was recovered.
+  Future<bool> _recoverFromServer(String conversationId) async {
+    _safeEmit(
+      state.copyWith(
+        streamingStatus: 'კავშირი გაწყდა — პასუხს სერვერიდან ვიღებთ...',
+      ),
+    );
+    final sentByUser = state.messages.where((m) => m.isUser).length;
+    final giveUpAt = DateTime.now().add(recoveryDeadline);
+    while (!isClosed && DateTime.now().isBefore(giveUpAt)) {
+      await Future<void>.delayed(recoveryPollInterval);
+      if (isClosed || state.conversationId != conversationId) return false;
+      final result = await _repository.getConversation(conversationId);
+      if (result is! ConsultationSuccess<Map<String, dynamic>>) continue;
+      final messages = _messagesFrom(result.data);
+      final serverHasOurMessage =
+          messages.where((m) => m.isUser).length >= sentByUser;
+      if (serverHasOurMessage && messages.isNotEmpty && !messages.last.isUser) {
+        _safeEmit(
+          state.copyWith(
+            messages: messages,
+            caseAnalysisReady: result.data['case_ready'] == true,
+            isSending: false,
+            clearStreamingStatus: true,
+            clearStage: true,
+            clearStreamingMessageId: true,
+          ),
+        );
+        return true;
+      }
+    }
+    return false;
   }
 
   Future<void> sendMessage(String text) async {
@@ -385,17 +437,30 @@ class ConsultationCubit extends Cubit<ConsultationState> {
           if (!completer.isCompleted) completer.complete();
         } else if (type == 'error') {
           if (event['connection_lost'] == true) {
-            emitConnectionError();
-            if (!completer.isCompleted) completer.complete();
+            unawaited(
+              _recoverFromServer(turn.conversationId).then((recovered) {
+                if (!recovered) emitConnectionError();
+                if (!completer.isCompleted) completer.complete();
+              }),
+            );
             return;
           }
+          // The server's error frame carries a Georgian sentence that says
+          // what actually went wrong — the daily AI quota is spent, the
+          // user's own key was rejected, the provider is overloaded. A
+          // bubble with a `failureType` renders the app's generic wording
+          // instead, so a server-reported error carries none: the sentence
+          // IS the message.
+          final serverText = event['message']?.toString();
           final errorMsg = ChatMessage(
             id: 'error_${DateTime.now().millisecondsSinceEpoch}',
-            text: event['message']?.toString() ?? 'An error occurred',
+            text: serverText ?? '',
             isUser: false,
             timestamp: DateTime.now(),
             isError: true,
-            failureType: ConsultationFailureType.unknown,
+            failureType: serverText == null
+                ? ConsultationFailureType.unknown
+                : null,
           );
 
           final msgs = List<ChatMessage>.from(state.messages)

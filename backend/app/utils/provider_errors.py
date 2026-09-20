@@ -45,8 +45,10 @@ class ProviderError:
 
 # User-facing copy. Georgian, because the app is Georgian — an English string
 # here lands verbatim in the conversation as a chat bubble.
+# Under bring-your-own-key a spent bucket is per MODEL on the user's own key,
+# so switching model is a way out right now, not only waiting — say so.
 _QUOTA_KA = (
-    "AI სერვისის დღიური ლიმიტი ამოიწურა. გთხოვთ, სცადოთ მოგვიანებით."
+    "AI სერვისის დღიური ლიმიტი ამოიწურა. სცადეთ მოგვიანებით ან სხვა მოდელით."
 )
 _UNAVAILABLE_KA = (
     "AI სერვისი დროებით გადატვირთულია. გთხოვთ, სცადოთ რამდენიმე წამში."

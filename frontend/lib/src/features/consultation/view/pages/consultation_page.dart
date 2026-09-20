@@ -614,30 +614,45 @@ class _ConsultationPageState extends State<ConsultationPage>
     final density = context.fuzzzyDensity;
 
     if (message.isError) {
-      return Container(
-        margin: EdgeInsets.only(bottom: space.m),
-        padding: density.tile,
-        decoration: BoxDecoration(
-          // A tinted panel is Color.lerp against `ground`, never alpha
-          // (USING §2.4). Error bubbles are the sanctioned 0.12 rung.
-          color: Color.lerp(colors.ground, colors.destructive, 0.12),
-          borderRadius: BorderRadius.circular(radius.m),
-          // NOT `errorBorder` — that role is a form field's error border and
-          // nothing else. A chat error bubble takes `destructiveLine`
-          // (MAPPING §2.6 corrects MIGRATION_RECIPE §2.1 here).
-          border: Border.all(color: colors.destructiveLine),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.error_outline, color: colors.destructiveText, size: 18),
-            SizedBox(width: space.s),
-            Expanded(
-              child: Text(
-                _errorMessageKa(message.failureType),
-                style: type.body.copyWith(color: colors.destructiveText),
+      final errorText = message.failureType == null
+          ? message.text
+          : _errorMessageKa(message.failureType);
+      return GestureDetector(
+        onTap: () => showChatErrorSheet(context, message: errorText),
+        child: Container(
+          margin: EdgeInsets.only(bottom: space.m),
+          padding: density.tile,
+          decoration: BoxDecoration(
+            // A tinted panel is Color.lerp against `ground`, never alpha
+            // (USING §2.4). Error bubbles are the sanctioned 0.12 rung.
+            color: Color.lerp(colors.ground, colors.destructive, 0.12),
+            borderRadius: BorderRadius.circular(radius.m),
+            // NOT `errorBorder` — that role is a form field's error border and
+            // nothing else. A chat error bubble takes `destructiveLine`
+            // (MAPPING §2.6 corrects MIGRATION_RECIPE §2.1 here).
+            border: Border.all(color: colors.destructiveLine),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.error_outline,
+                color: colors.destructiveText,
+                size: 18,
               ),
-            ),
-          ],
+              SizedBox(width: space.s),
+              Expanded(
+                child: Text(
+                  errorText,
+                  style: type.body.copyWith(color: colors.destructiveText),
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                color: colors.destructiveText,
+                size: 18,
+              ),
+            ],
+          ),
         ),
       );
     }

@@ -820,103 +820,116 @@ class _MessageBubble extends StatelessWidget {
     final radius = context.fuzzzyRadius;
     final density = context.fuzzzyDensity;
     final isUser = message.isUser;
+    final text = message.isError && message.failureType != null
+        ? _failureMessageKa(message.failureType)
+        : message.displayText;
+    // On the text itself as well as around it: a SelectableText owns the tap
+    // on its glyphs, so the outer detector alone would only catch the padding.
+    final VoidCallback? openErrorSheet = message.isError
+        ? () => showChatErrorSheet(context, message: text)
+        : null;
 
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
-        ),
-        margin: EdgeInsets.only(bottom: space.m),
-        padding: density.snug,
-        // `FuzzzyChatBubble`'s exact recipe (domain/fuzzzy_chat_bubble.dart:
-        // 68-77), identical to `consultation_page._buildMessageBubble`:
-        // sent = the actionPrimary pair with NO border, received = `surface`
-        // plus a `line` hairline, and the tail corner is `radius.s` on the
-        // sender's side with `radius.l` everywhere else. The fork's
-        // gold-tint-vs-grey-panel pair becomes inverted mono, a stronger
-        // distinction than the 0.15 alpha it replaces.
-        //
-        // The error bubble is the third rung: the sanctioned 0.12 lerp against
-        // `ground` (never alpha — USING §2.4) inside `destructiveLine`. NOT
-        // `errorBorder`, which is a form field's error border and nothing else
-        // (MAPPING §2.6 corrects MIGRATION_RECIPE §2.1 here).
-        decoration: BoxDecoration(
-          color: isUser
-              ? colors.actionPrimaryBg
-              : message.isError
-              ? Color.lerp(colors.ground, colors.destructive, 0.12)
-              : colors.surface,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(radius.l),
-            topRight: Radius.circular(radius.l),
-            bottomLeft: Radius.circular(isUser ? radius.l : radius.s),
-            bottomRight: Radius.circular(isUser ? radius.s : radius.l),
+      child: GestureDetector(
+        onTap: openErrorSheet,
+        child: Container(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.75,
           ),
-          border: isUser
-              ? null
-              : Border.all(
-                  color: message.isError ? colors.destructiveLine : colors.line,
-                ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (!isUser && message.trustLevel != null) ...[
-              AppStatusChip(
-                label: _trustLabel(message.trustLevel!),
-                kind: _trustKind(message.trustLevel!),
-                qaId: 'trust.${message.id}',
-              ),
-              SizedBox(height: space.s),
-            ],
-            SelectableText(
-              message.isError && message.failureType != null
-                  ? _failureMessageKa(message.failureType)
-                  : message.displayText,
-              // `height: 1.5` deleted — line-height belongs to the type role
-              // (M6b). Sent text takes the inverted `actionPrimaryFg`.
-              style: type.body.copyWith(
-                color: message.isError
-                    ? colors.destructiveText
-                    : isUser
-                    ? colors.actionPrimaryFg
-                    : colors.ink,
-              ),
+          margin: EdgeInsets.only(bottom: space.m),
+          padding: density.snug,
+          // `FuzzzyChatBubble`'s exact recipe (domain/fuzzzy_chat_bubble.dart:
+          // 68-77), identical to `consultation_page._buildMessageBubble`:
+          // sent = the actionPrimary pair with NO border, received = `surface`
+          // plus a `line` hairline, and the tail corner is `radius.s` on the
+          // sender's side with `radius.l` everywhere else. The fork's
+          // gold-tint-vs-grey-panel pair becomes inverted mono, a stronger
+          // distinction than the 0.15 alpha it replaces.
+          //
+          // The error bubble is the third rung: the sanctioned 0.12 lerp against
+          // `ground` (never alpha — USING §2.4) inside `destructiveLine`. NOT
+          // `errorBorder`, which is a form field's error border and nothing else
+          // (MAPPING §2.6 corrects MIGRATION_RECIPE §2.1 here).
+          decoration: BoxDecoration(
+            color: isUser
+                ? colors.actionPrimaryBg
+                : message.isError
+                ? Color.lerp(colors.ground, colors.destructive, 0.12)
+                : colors.surface,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(radius.l),
+              topRight: Radius.circular(radius.l),
+              bottomLeft: Radius.circular(isUser ? radius.l : radius.s),
+              bottomRight: Radius.circular(isUser ? radius.s : radius.l),
             ),
-            if (message.citations != null && message.citations!.isNotEmpty) ...[
-              SizedBox(height: space.m),
-              ...message.citations!.map((c) {
-                final hasUrl = c.url != null && c.url!.isNotEmpty;
-                // M11d: the second of four hand-rolled citation chips, now
-                // `AppCitationChip`. The parent-aware rule that used to live
-                // in a comment here is now the `parent:` argument: this chip
-                // sits INSIDE a `surface` bubble, so its box is `ground`.
-                // `hasUrl` no longer has to be threaded through three separate
-                // decisions (underline, trailing glyph, tap wrapper) — passing
-                // `onTap` null-or-not drives all three at once.
-                return Padding(
-                  padding: EdgeInsets.only(bottom: space.xs),
-                  child: AppCitationChip(
-                    label: c.articleTitle,
-                    parent: AppChipParent.surface,
-                    leading: const Icon(Icons.gavel),
-                    trailing: hasUrl ? const Icon(Icons.open_in_new) : null,
-                    maxLines: 2,
-                    onTap: hasUrl
-                        ? () async {
-                            final uri = Uri.parse(c.url!);
-                            if (await canLaunchUrl(uri)) {
-                              await launchUrl(uri);
-                            }
-                          }
-                        : null,
-                    qaId: c.articleId,
+            border: isUser
+                ? null
+                : Border.all(
+                    color: message.isError
+                        ? colors.destructiveLine
+                        : colors.line,
                   ),
-                );
-              }),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (!isUser && message.trustLevel != null) ...[
+                AppStatusChip(
+                  label: _trustLabel(message.trustLevel!),
+                  kind: _trustKind(message.trustLevel!),
+                  qaId: 'trust.${message.id}',
+                ),
+                SizedBox(height: space.s),
+              ],
+              SelectableText(
+                text,
+                onTap: openErrorSheet,
+                // `height: 1.5` deleted — line-height belongs to the type role
+                // (M6b). Sent text takes the inverted `actionPrimaryFg`.
+                style: type.body.copyWith(
+                  color: message.isError
+                      ? colors.destructiveText
+                      : isUser
+                      ? colors.actionPrimaryFg
+                      : colors.ink,
+                ),
+              ),
+              if (message.citations != null &&
+                  message.citations!.isNotEmpty) ...[
+                SizedBox(height: space.m),
+                ...message.citations!.map((c) {
+                  final hasUrl = c.url != null && c.url!.isNotEmpty;
+                  // M11d: the second of four hand-rolled citation chips, now
+                  // `AppCitationChip`. The parent-aware rule that used to live
+                  // in a comment here is now the `parent:` argument: this chip
+                  // sits INSIDE a `surface` bubble, so its box is `ground`.
+                  // `hasUrl` no longer has to be threaded through three separate
+                  // decisions (underline, trailing glyph, tap wrapper) — passing
+                  // `onTap` null-or-not drives all three at once.
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: space.xs),
+                    child: AppCitationChip(
+                      label: c.articleTitle,
+                      parent: AppChipParent.surface,
+                      leading: const Icon(Icons.gavel),
+                      trailing: hasUrl ? const Icon(Icons.open_in_new) : null,
+                      maxLines: 2,
+                      onTap: hasUrl
+                          ? () async {
+                              final uri = Uri.parse(c.url!);
+                              if (await canLaunchUrl(uri)) {
+                                await launchUrl(uri);
+                              }
+                            }
+                          : null,
+                      qaId: c.articleId,
+                    ),
+                  );
+                }),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
