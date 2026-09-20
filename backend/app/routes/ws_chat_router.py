@@ -126,7 +126,12 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
             # bare RuntimeError from `receive_text()` rather than
             # WebSocketDisconnect — which used to land in the log as ws_error
             # with a traceback, for the most ordinary thing a phone does.
-            if websocket.client_state == WebSocketState.DISCONNECTED:
+            # Both flags: a disconnect the client announced sets
+            # `client_state`; a send that failed on a vanished client sets
+            # `application_state`, and `receive_text` checks that one.
+            if WebSocketState.DISCONNECTED in (
+                websocket.client_state, websocket.application_state,
+            ):
                 raise WebSocketDisconnect()
             data = await websocket.receive_text()
 
