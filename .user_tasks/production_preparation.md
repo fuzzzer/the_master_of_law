@@ -152,12 +152,11 @@ is never shown to users.
 ### 3.2 Who is the operator, legally?
 
 Georgia's Law on Personal Data Protection requires a **named data controller**
-and a route to reach them. The drafted policy has `[brackets]` where these go —
-inventing them would have been worse than the gap.
+and a route to reach them. Filled in on 2026-09-20:
 
 ```
-  Controller name:  ______________________
-  Contact email:    ______________________
+  Controller name:  Fuzzy Core LLC          (the registered entity, per HQ launch gates)
+  Contact email:    support@fuzzzycore.com  (Cloudflare-routed to the owner's inbox)
 ```
 
 ### 3.3 Same server, or a new one?
@@ -371,19 +370,18 @@ Then cron it:
 
 ### Step 7 — Fill in the legal texts
 
-Edit `frontend/lib/src/features/profile/view/pages/legal_documents_data.dart`:
+`frontend/lib/src/features/profile/view/pages/legal_documents_data.dart` is
+filled in (2026-09-20): controller `Fuzzy Core LLC`, contact
+`support@fuzzzycore.com`, dated the same day. The device identifier the policy
+tells readers to quote in a deletion request is shown on the profile screen
+under settings, tap to copy.
 
-| Constant | Fill with |
-|---|---|
-| `legalOperatorName` | the legal entity or person acting as data controller |
-| `legalOperatorContact` | an address that is actually monitored, for deletion requests |
-| `legalLastUpdated` | the approval date |
+What remains: have a **Georgian lawyer** read both documents. The texts are
+accurate about what the software does — that part came from the code — but
+accuracy about the software is not the same as sufficiency under Georgian law.
 
-Then have a **Georgian lawyer** read both documents. The drafts are accurate
-about what the software does — that part came from the code — but accuracy about
-the software is not the same as sufficiency under Georgian law.
-
-✅ **Done when** no `[` remains in that file and someone qualified has signed off.
+✅ **Done when** someone qualified has signed off, and `legalLastUpdated` carries
+that date.
 
 ### Step 8 — Point the app at production and ship the web build
 

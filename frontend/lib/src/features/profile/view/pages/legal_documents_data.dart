@@ -7,16 +7,10 @@
 /// leaves the phone and what never does, are all checked against
 /// `DeviceIdService`, `byok_middleware.dart` and the backend's own models.
 ///
-/// 🔴 THEY ARE A DRAFT FOR A LAWYER TO APPROVE, NOT LEGAL ADVICE. Everything
-/// in square brackets is an operator detail nobody in this repository knows —
-/// who the data controller legally is, at what address, reachable at what
-/// email. Georgia's Law on Personal Data Protection requires a named
-/// controller and a route to reach them; shipping with the brackets still in
-/// is worse than shipping nothing, because it reads as a policy while
-/// answering none of the questions a policy exists to answer.
-///
-/// See `.user_tasks/production_preparation.md` §5 step 7 for what has to be
-/// filled in, and by whom.
+/// 🔴 A GEORGIAN LAWYER HAS NOT YET SIGNED THESE OFF. They are accurate about
+/// what the software does; whether they are sufficient under Georgia's Law on
+/// Personal Data Protection is a question for someone qualified. See
+/// `.user_tasks/production_preparation.md` §5 step 7.
 library;
 
 /// One heading plus its paragraphs.
@@ -30,11 +24,12 @@ typedef LegalDocument = ({
   List<LegalSection> sections,
 });
 
-/// Substitute the real values before release — see
-/// `.user_tasks/production_preparation.md` §5 step 7.
-const String legalOperatorName = '[ოპერატორის სახელი]';
-const String legalOperatorContact = '[კონტაქტის ელფოსტა]';
-const String legalLastUpdated = '[თარიღი]';
+/// The data controller is the company's registered legal entity, spelled
+/// exactly as on its registration (`~/FuzzyCore_HQ/company/LAUNCH_GATES.md`).
+/// The contact is a Cloudflare-routed address the owner actually reads.
+const String legalOperatorName = 'Fuzzy Core LLC';
+const String legalOperatorContact = 'support@fuzzzycore.com';
+const String legalLastUpdated = '20 სექტემბერი, 2026';
 
 const LegalDocument privacyPolicy = (
   title: 'კონფიდენციალურობის პოლიტიკა',
