@@ -15,6 +15,12 @@ from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+# What a conversation is called until its first message names it. Georgian,
+# because it is shown as-is in the history sheet; the old "New Conversation"
+# was also what the "name it after the first message" check compared against
+# an empty string, so nothing was ever renamed.
+UNTITLED = "ახალი საუბარი"
+
 
 class ConversationRepository:
     """Data access layer for conversation records."""
@@ -32,7 +38,7 @@ class ConversationRepository:
         conv = Conversation(
             id=uuid.uuid4(),
             user_id=user_id,
-            title=title or "New Conversation",
+            title=title or UNTITLED,
             phase=phase,
         )
         self._db.add(conv)

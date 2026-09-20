@@ -14,7 +14,7 @@ from functools import lru_cache
 from typing import Any
 
 from google import genai
-from google.genai.types import GenerateContentConfig, ThinkingConfig
+from google.genai.types import GenerateContentConfig, ThinkingConfig, ThinkingLevel
 
 from app.config.constants import (
     GEMINI_MAX_OUTPUT_TOKENS,
@@ -86,7 +86,16 @@ async def with_retry(operation, *, what: str):
     raise last  # unreachable; keeps type checkers honest
 
 
-def _apply_thinking(config: GenerateContentConfig, thinking_budget: int | None) -> None:
+# Models that reject `thinking_budget` and want `thinking_level` instead
+# (gemini-flash-lite-latest answers 400 INVALID_ARGUMENT to a budget of 0,
+# the 3.x flash models accept it). Learned per process from the first
+# rejection, so the wasted call happens once per model, not once per turn.
+_MODELS_WANTING_LEVEL: set[str] = set()
+
+
+def _apply_thinking(
+    config: GenerateContentConfig, thinking_budget: int | None, model: str = "",
+) -> None:
     """Set the thinking budget when the caller asked for one.
 
     WHY THIS EXISTS: on a thinking model, reasoning tokens are drawn from
@@ -96,9 +105,25 @@ def _apply_thinking(config: GenerateContentConfig, thinking_budget: int | None) 
     as a soft failure silently stops working. That is exactly what happened to
     the guardrail on the 3.7-flash retarget (47 of its 50 tokens went to
     thinking). Mechanical, schema-shaped calls pass thinking_budget=0.
+
+    A budget of 0 is expressed as ``thinking_level=MINIMAL`` on a model known
+    to want levels — see ``_MODELS_WANTING_LEVEL``.
     """
-    if thinking_budget is not None:
+    if thinking_budget is None:
+        return
+    if thinking_budget == 0 and model in _MODELS_WANTING_LEVEL:
+        config.thinking_config = ThinkingConfig(thinking_level=ThinkingLevel.MINIMAL)
+    else:
         config.thinking_config = ThinkingConfig(thinking_budget=thinking_budget)
+
+
+def _rejects_thinking_budget(exc: Exception, config: GenerateContentConfig) -> bool:
+    """True when the provider refused the request over its thinking budget."""
+    return (
+        config.thinking_config is not None
+        and config.thinking_config.thinking_budget is not None
+        and "INVALID_ARGUMENT" in f"{type(exc).__name__}: {exc}"
+    )
 
 
 @lru_cache(maxsize=BYOK_CLIENT_CACHE_SIZE)
@@ -247,17 +272,23 @@ class VertexAIClient:
         if response_mime_type:
             config.response_mime_type = response_mime_type
 
-        _apply_thinking(config, thinking_budget)
-
         model = model_name or await self._default_model()
-        response = await with_retry(
-            lambda: client.aio.models.generate_content(
-                model=model,
-                contents=prompt,
-                config=config,
-            ),
-            what=f"generate:{model}",
-        )
+        _apply_thinking(config, thinking_budget, model)
+
+        async def call():
+            return await client.aio.models.generate_content(
+                model=model, contents=prompt, config=config,
+            )
+
+        try:
+            response = await with_retry(call, what=f"generate:{model}")
+        except Exception as exc:
+            if not _rejects_thinking_budget(exc, config):
+                raise
+            logger.info("gemini_thinking_level_model", model=model)
+            _MODELS_WANTING_LEVEL.add(model)
+            _apply_thinking(config, thinking_budget, model)
+            response = await with_retry(call, what=f"generate:{model}")
 
         # An empty body on a thinking model almost always means the output
         # budget was eaten by reasoning. Say so, rather than leaving each
@@ -353,9 +384,9 @@ class VertexAIClient:
         if response_mime_type:
             config.response_mime_type = response_mime_type
 
-        _apply_thinking(config, thinking_budget)
-
         model = model_name or await self._default_model()
+        _apply_thinking(config, thinking_budget, model)
+
         chat = client.aio.chats.create(
             model=model,
             config=config,

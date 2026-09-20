@@ -166,15 +166,28 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
 
             limit = TIER_RATE_LIMITS.get(tier_val, 5)
             allowed, retry_after = await check_redis_rate_limit(rate_limit_key, limit)
+            from app.models.database import get_session_factory
+
             if not allowed:
+                message_ka = f"მოთხოვნების ლიმიტი ამოიწურა. გთხოვთ დაელოდოთ {retry_after} წამი."
+                # The refusal is part of the conversation like any other
+                # outcome: live, the user sees their message and the reason;
+                # a reopen used to show neither. Ownership is checked here as
+                # it is on the normal path below, since this runs before it.
+                async with get_session_factory()() as rdb:
+                    refused = ConversationService(rdb)
+                    owned = await refused.get_conversation(conversation_id)
+                    if owned and (owned.get("user_id") == uid or settings.app_env == "development"):
+                        await refused.save_user_message(conversation_id, user_message)
+                        await refused.save_error_message(conversation_id, message_ka)
+                        await rdb.commit()
                 await websocket.send_json({
                     "type": "error",
-                    "message": f"მოთხოვნების ლიმიტი ამოიწურა. გთხოვთ დაელოდოთ {retry_after} წამი.",
+                    "message": message_ka,
                     "code": "rate_limited"
                 })
                 continue
 
-            from app.models.database import get_session_factory
             async with get_session_factory()() as db:
                 conv_svc = ConversationService(db)
 
@@ -210,6 +223,10 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
 
                 history = await conv_svc.get_conversation_history(conversation_id)
                 await conv_svc.save_user_message(conversation_id, user_message)
+                if not history:
+                    await conv_svc.name_after_first_message(
+                        conversation_id, conv.get("title"), user_message,
+                    )
                 # The user's message is a fact the moment it arrives. It used
                 # to ride the same transaction as the answer, committed only
                 # at the end of the turn: a reload mid-turn showed the

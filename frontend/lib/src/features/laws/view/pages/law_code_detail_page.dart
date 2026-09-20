@@ -43,7 +43,8 @@ class LawCodeDetailPage extends StatelessWidget {
     if (structure == null) return const SizedBox.shrink();
 
     // Extract article chunks from the structure response
-    final rawChunks = structure['chunks'] as List<dynamic>? ??
+    final rawChunks =
+        structure['chunks'] as List<dynamic>? ??
         structure['articles'] as List<dynamic>? ??
         [];
 
@@ -83,11 +84,10 @@ class LawCodeDetailPage extends StatelessWidget {
         final title = firstChunk.articleTitle.isNotEmpty
             ? firstChunk.articleTitle
             : firstChunk.articleNumber.isNotEmpty
-                ? firstChunk.articleNumber
-                : articleId;
-        final snippet = firstChunk.content.length > 120
-            ? '${firstChunk.content.substring(0, 120)}…'
-            : firstChunk.content;
+            ? firstChunk.articleNumber
+            : articleId;
+        final body = firstChunk.bodyText;
+        final snippet = body.length > 120 ? '${body.substring(0, 120)}…' : body;
 
         return Container(
           decoration: BoxDecoration(
@@ -112,7 +112,11 @@ class LawCodeDetailPage extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            trailing: Icon(Icons.chevron_right, color: colors.inkMute, size: 20),
+            trailing: Icon(
+              Icons.chevron_right,
+              color: colors.inkMute,
+              size: 20,
+            ),
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
@@ -150,7 +154,8 @@ class LawCodeDetailPage extends StatelessWidget {
           ),
           SizedBox(height: space.l),
           ElevatedButton(
-            onPressed: () => context.read<LawsCubit>().loadCodeStructure(code.id),
+            onPressed: () =>
+                context.read<LawsCubit>().loadCodeStructure(code.id),
             child: const Text('ხელახლა ცდა'),
           ),
         ],

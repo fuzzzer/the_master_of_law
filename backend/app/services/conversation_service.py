@@ -16,7 +16,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.constants import ConversationPhase, CreditAction
-from app.repositories.conversation_repository import ConversationRepository
+from app.repositories.conversation_repository import UNTITLED, ConversationRepository
 from app.repositories.message_repository import MessageRepository
 from app.utils.logger import get_logger
 from app.services.turn_registry import turn_in_progress
@@ -67,6 +67,18 @@ class ConversationService:
         if not conv_uuid:
             return
         await self._conv_repo.update_title(conv_uuid, title)
+
+    async def name_after_first_message(
+        self, conversation_id: str, current_title: str | None, message: str,
+    ) -> None:
+        """Give a still-untitled conversation the opening of its first message."""
+        if current_title not in (None, "", UNTITLED, "New Conversation"):
+            return
+        preview = " ".join(message.split())[:60].strip()
+        if len(message) > 60:
+            preview += "…"
+        if preview:
+            await self.update_title(conversation_id, preview)
 
     async def get_conversation(self, conversation_id: str) -> dict[str, Any] | None:
         """Get conversation with messages."""
@@ -242,6 +254,9 @@ class ConversationService:
             current_phase = ConversationPhase(conv.phase)
         except ValueError:
             current_phase = ConversationPhase.GREETING
+
+        if new_phase == current_phase:
+            return True  # nothing to do, and not worth a warning every turn
 
         valid_next = _VALID_TRANSITIONS.get(current_phase, [])
         if new_phase not in valid_next:

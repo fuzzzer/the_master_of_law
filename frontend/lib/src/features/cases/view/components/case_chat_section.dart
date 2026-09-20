@@ -882,19 +882,22 @@ class _MessageBubble extends StatelessWidget {
                 ),
                 SizedBox(height: space.s),
               ],
-              SelectableText(
-                text,
-                onTap: openErrorSheet,
-                // `height: 1.5` deleted — line-height belongs to the type role
-                // (M6b). Sent text takes the inverted `actionPrimaryFg`.
-                style: type.body.copyWith(
-                  color: message.isError
-                      ? colors.destructiveText
-                      : isUser
-                      ? colors.actionPrimaryFg
-                      : colors.ink,
-                ),
-              ),
+              if (isUser || message.isError)
+                SelectableText(
+                  text,
+                  onTap: openErrorSheet,
+                  // `height: 1.5` deleted — line-height belongs to the type role
+                  // (M6b). Sent text takes the inverted `actionPrimaryFg`.
+                  style: type.body.copyWith(
+                    color: message.isError
+                        ? colors.destructiveText
+                        : isUser
+                        ? colors.actionPrimaryFg
+                        : colors.ink,
+                  ),
+                )
+              else
+                AssistantMarkdown(text),
               if (message.citations != null &&
                   message.citations!.isNotEmpty) ...[
                 SizedBox(height: space.m),

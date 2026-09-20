@@ -14,6 +14,11 @@ dependencies = [
     "google-genai>=1.0",
     "firebase-admin>=6.5",
     "chromadb==0.6.3",
+    # chromadb 0.6 calls posthog.capture(distinct_id, event, props); posthog 4+
+    # changed that signature and every query logged "capture() takes 1
+    # positional argument but 3 were given" — even with telemetry disabled,
+    # since the TypeError fires before the disabled flag is consulted.
+    "posthog<4",
     "redis>=5.0",
     "httpx>=0.27",
     "structlog>=24.0",

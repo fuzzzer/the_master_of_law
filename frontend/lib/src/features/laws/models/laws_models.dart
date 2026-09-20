@@ -47,7 +47,28 @@ class LawChunk {
   /// label in [articleNumber] ("მუხლი 1") is never an id.
   String get articleId => chunkId.split('.chunk_').first;
 
+  /// The article's text alone. Each chunk in the corpus is wrapped for
+  /// embedding: a header line ("code | (#n) | chapter | article | title"), a
+  /// "წყარო:" line, then the body, then a one-line disclaimer. The screens
+  /// show the code, number and title themselves, so the wrapper is noise.
+  String get bodyText {
+    var text = content.trim();
+    final firstBreak = text.indexOf('\n\n');
+    if (firstBreak > 0 && text.substring(0, firstBreak).contains(' | ')) {
+      text = text.substring(firstBreak + 2);
+    }
+    final lastBreak = text.lastIndexOf('\n\n');
+    if (lastBreak > 0 &&
+        text
+            .substring(lastBreak)
+            .contains('მხოლოდ საინფორმაციო მიზნებისთვის')) {
+      text = text.substring(0, lastBreak);
+    }
+    return text.trim();
+  }
+
   String get codeName => metadata['code_name']?.toString() ?? '';
+
   /// Human label, already prefixed by the corpus: "მუხლი 1".
   String get articleNumber => metadata['article_number']?.toString() ?? '';
   String get articleTitle => metadata['article_title']?.toString() ?? '';
@@ -102,8 +123,9 @@ class LawArticleDetail {
     );
   }
 
-  String get combinedContent => chunks.map((c) => c.content).join('\n\n');
+  String get combinedContent => chunks.map((c) => c.bodyText).join('\n\n');
   String get codeName => chunks.isNotEmpty ? chunks.first.codeName : '';
-  String get articleNumber => chunks.isNotEmpty ? chunks.first.articleNumber : '';
+  String get articleNumber =>
+      chunks.isNotEmpty ? chunks.first.articleNumber : '';
   String get articleTitle => chunks.isNotEmpty ? chunks.first.articleTitle : '';
 }

@@ -73,12 +73,7 @@ async def send_message(
     # Save user message to DB
     await conv_svc.save_user_message(conversation_id, body.message)
 
-    # Auto-generate title from first user message if conversation has no title
-    if not conv.get("title"):
-        title_preview = body.message[:60].strip()
-        if len(body.message) > 60:
-            title_preview += '...'
-        await conv_svc.update_title(conversation_id, title_preview)
+    await conv_svc.name_after_first_message(conversation_id, conv.get("title"), body.message)
 
     # Step 0: Guardrail — classify before RAG
     user_info = getattr(request.state, "user", None)

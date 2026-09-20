@@ -51,7 +51,8 @@ class _LawSearchPageState extends State<LawSearchPage> {
             focusedBorder: InputBorder.none,
             contentPadding: EdgeInsets.zero,
           ),
-          onChanged: (query) => context.read<LawsCubit>().searchLawsDebounced(query),
+          onChanged: (query) =>
+              context.read<LawsCubit>().searchLawsDebounced(query),
         ),
         actions: [
           BlocBuilder<LawsCubit, LawsState>(
@@ -102,8 +103,10 @@ class _LawSearchPageState extends State<LawSearchPage> {
         children: [
           Icon(Icons.search, size: 64, color: colors.inkFaint),
           SizedBox(height: space.l),
-          Text('შეიყვანეთ მინიმუმ 2 სიმბოლო',
-              style: type.body.copyWith(color: colors.inkMute)),
+          Text(
+            'შეიყვანეთ მინიმუმ 2 სიმბოლო',
+            style: type.body.copyWith(color: colors.inkMute),
+          ),
         ],
       ),
     );
@@ -123,11 +126,15 @@ class _LawSearchPageState extends State<LawSearchPage> {
           children: [
             Icon(Icons.search_off, size: 48, color: colors.inkFaint),
             SizedBox(height: space.l),
-            Text('შედეგები ვერ მოიძებნა',
-                style: type.titleS.copyWith(color: colors.ink)),
+            Text(
+              'შედეგები ვერ მოიძებნა',
+              style: type.titleS.copyWith(color: colors.ink),
+            ),
             SizedBox(height: space.s),
-            Text('სცადეთ სხვა საძიებო სიტყვები',
-                style: type.bodyS.copyWith(color: colors.inkMute)),
+            Text(
+              'სცადეთ სხვა საძიებო სიტყვები',
+              style: type.bodyS.copyWith(color: colors.inkMute),
+            ),
           ],
         ),
       );
@@ -139,15 +146,18 @@ class _LawSearchPageState extends State<LawSearchPage> {
         Padding(
           // Screen inset horizontally so the header aligns with the cards.
           padding: density.screen.copyWith(top: space.m, bottom: space.s),
-          child: Text('${results.total} შედეგი',
-              style: type.bodyS.copyWith(color: colors.inkMute)),
+          child: Text(
+            '${results.total} შედეგი',
+            style: type.bodyS.copyWith(color: colors.inkMute),
+          ),
         ),
         Expanded(
           child: ListView.separated(
             padding: density.screen.copyWith(top: 0, bottom: 0),
             itemCount: results.results.length,
             separatorBuilder: (_, __) => SizedBox(height: space.s),
-            itemBuilder: (context, index) => _buildResultCard(context, results.results[index]),
+            itemBuilder: (context, index) =>
+                _buildResultCard(context, results.results[index]),
           ),
         ),
       ],
@@ -164,9 +174,10 @@ class _LawSearchPageState extends State<LawSearchPage> {
     final title = chunk.articleTitle.isNotEmpty
         ? chunk.articleTitle
         : chunk.articleNumber.isNotEmpty
-            ? chunk.articleNumber
-            : chunk.chunkId;
-    final snippet = chunk.content.length > 200 ? '${chunk.content.substring(0, 200)}…' : chunk.content;
+        ? chunk.articleNumber
+        : chunk.chunkId;
+    final body = chunk.bodyText;
+    final snippet = body.length > 200 ? '${body.substring(0, 200)}…' : body;
 
     return Container(
       decoration: BoxDecoration(
@@ -179,9 +190,12 @@ class _LawSearchPageState extends State<LawSearchPage> {
         title: Row(
           children: [
             Expanded(
-              child: Text(title,
-                  style: type.titleS.copyWith(color: colors.ink),
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
+              child: Text(
+                title,
+                style: type.titleS.copyWith(color: colors.ink),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
             if (chunk.codeName.isNotEmpty) ...[
               SizedBox(width: space.s),
@@ -197,9 +211,12 @@ class _LawSearchPageState extends State<LawSearchPage> {
                     border: Border.all(color: colors.line),
                     borderRadius: BorderRadius.circular(radius.s),
                   ),
-                  child: Text(chunk.codeName,
-                      style: type.bodyS.copyWith(color: colors.ink),
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  child: Text(
+                    chunk.codeName,
+                    style: type.bodyS.copyWith(color: colors.ink),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
             ],
@@ -207,9 +224,12 @@ class _LawSearchPageState extends State<LawSearchPage> {
         ),
         subtitle: Padding(
           padding: EdgeInsets.only(top: space.xs),
-          child: Text(snippet,
-              style: type.bodyS.copyWith(color: colors.inkMute),
-              maxLines: 3, overflow: TextOverflow.ellipsis),
+          child: Text(
+            snippet,
+            style: type.bodyS.copyWith(color: colors.inkMute),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
         onTap: () {
           final articleId = chunk.articleId;
@@ -217,7 +237,11 @@ class _LawSearchPageState extends State<LawSearchPage> {
             MaterialPageRoute<void>(
               builder: (_) => BlocProvider.value(
                 value: context.read<LawsCubit>()..loadArticle(articleId),
-                child: LawArticlePage(articleId: articleId, articleTitle: title, codeName: chunk.codeName),
+                child: LawArticlePage(
+                  articleId: articleId,
+                  articleTitle: title,
+                  codeName: chunk.codeName,
+                ),
               ),
             ),
           );
@@ -236,11 +260,15 @@ class _LawSearchPageState extends State<LawSearchPage> {
         children: [
           Icon(Icons.error_outline, size: 48, color: colors.inkFaint),
           SizedBox(height: space.l),
-          Text('ძიება ვერ მოხერხდა',
-              style: type.titleS.copyWith(color: colors.ink)),
+          Text(
+            'ძიება ვერ მოხერხდა',
+            style: type.titleS.copyWith(color: colors.ink),
+          ),
           SizedBox(height: space.l),
           ElevatedButton(
-            onPressed: () => context.read<LawsCubit>().searchLawsDebounced(_searchController.text),
+            onPressed: () => context.read<LawsCubit>().searchLawsDebounced(
+              _searchController.text,
+            ),
             child: const Text('ხელახლა ცდა'),
           ),
         ],

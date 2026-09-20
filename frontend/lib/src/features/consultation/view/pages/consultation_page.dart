@@ -699,13 +699,14 @@ class _ConsultationPageState extends State<ConsultationPage>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SelectableText(
-                message.displayText,
-                // `height: 1.6` deleted — line-height belongs to the type role.
-                style: type.body.copyWith(
-                  color: message.isUser ? colors.actionPrimaryFg : colors.ink,
-                ),
-              ),
+              if (message.isUser)
+                SelectableText(
+                  message.displayText,
+                  // `height: 1.6` deleted — line-height belongs to the type role.
+                  style: type.body.copyWith(color: colors.actionPrimaryFg),
+                )
+              else
+                AssistantMarkdown(message.displayText),
               if (message.toolResults != null &&
                   message.toolResults!.isNotEmpty) ...[
                 SizedBox(height: space.s),
