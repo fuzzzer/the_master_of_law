@@ -433,3 +433,79 @@ def test_the_conversation_says_a_turn_is_in_progress_while_it_runs():
     assert [m["role"] for m in during["messages"]] == ["user"]
     assert after["turn_in_progress"] is False
     assert [m["role"] for m in after["messages"]] == ["user", "assistant"]
+
+
+def test_no_login_mode_never_meters_credits_on_the_socket():
+    """Under no-login / bring-your-own-key the user pays Google with their own
+    key, so there is no operator spend to meter. The HTTP credit gate already
+    stands down in that mode; the socket did not, and QA found production's
+    launch mode refusing the sixth message of the day for a balance that
+    measured nothing.
+    """
+    from unittest.mock import MagicMock
+
+    import app.models.database as db_module
+    from app.config.settings import settings
+    from app.utils.anonymous_identity import ANON_UID_PREFIX
+
+    db_module._engine = None
+    db_module._session_factory = None
+
+    device_id = f"qa-device-{uuid.uuid4().hex[:8]}"
+    uid = f"{ANON_UID_PREFIX}{device_id}"
+
+    from app.models.database import get_session_factory
+    from app.repositories.credit_repository import CreditRepository
+    from app.repositories.user_repository import UserRepository
+    from app.services.conversation_service import ConversationService
+
+    async def db_setup() -> str:
+        async with get_session_factory()() as db:
+            user = await UserRepository(db).create_or_update(firebase_uid=uid)
+            credits = await CreditRepository(db).get_or_create(user.id)
+            credits.daily_credits_used = 999  # nothing left, if it were metered
+            conv = await ConversationService(db).create_conversation(
+                user_id=uid, title="byok"
+            )
+            await db.commit()
+            return conv["id"]
+
+    conversation_id = asyncio.run(db_setup())
+    db_module._engine = None
+    db_module._session_factory = None
+
+    result = MagicMock()
+    result.response_text = "პასუხი"
+    result.chunks = []
+    result.verified_citations = []
+    result.tool_results = []
+    allow = GuardrailDecision(category="legal", confidence=1.0, should_proceed=True)
+
+    with patch.object(settings, "auth_enabled", False), patch(
+        "app.services.guardrail_service.GuardrailService.classify",
+        new_callable=AsyncMock,
+        return_value=allow,
+    ), patch(
+        "app.services.agent_pipeline_service.AgentPipelineService.run",
+        new_callable=AsyncMock,
+        return_value=result,
+    ), TestClient(app) as client:
+        with client.websocket_connect(
+            f"/api/v1/chat/{conversation_id}/ws?device_id={device_id}"
+        ) as ws:
+            for text in ("პირველი", "მეორე"):
+                ws.send_json({"message": text, "mode": "chat"})
+                frame = _drain_until(ws, ws.receive_json(), stop={"error", "done"})
+                assert frame["type"] == "done", frame
+
+    db_module._engine = None
+    db_module._session_factory = None
+
+    async def used() -> int:
+        async with get_session_factory()() as db:
+            user = await UserRepository(db).get_by_firebase_uid(uid)
+            return (await CreditRepository(db).get_or_create(user.id)).daily_credits_used
+
+    assert asyncio.run(used()) == 999, "nothing was deducted"
+    db_module._engine = None
+    db_module._session_factory = None

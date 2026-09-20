@@ -59,7 +59,7 @@ FastAPI Backend (~10K lines, 90 files)
   │ Grounding: article store (SQLite+FTS5) + get_article/browse_code tools + retrieval repair
   │ Gemini 3.1 Pro legal analysis + source-specific prompt injection
   │ Pipeline transparency traces (per-request step log + admin dashboard)
-  │ 652 tests across 42 test files — all pass (see below)
+  │ 653 tests across 42 test files — all pass (see below)
   ▼
 Data: PostgreSQL + ChromaDB (3 collections, 20,513 docs live) + Redis
   │ georgian_laws: 15,338 (12 legal codes)
@@ -134,8 +134,8 @@ three tests fail on whatever else owns `:5432`. Start one with
 
 | Where it runs | Result |
 |---|---|
-| With corpus + test DB | 652 passed, 0 skipped |
-| Without the corpus (CI) | 640 passed, 12 skipped |
+| With corpus + test DB | 653 passed, 0 skipped |
+| Without the corpus (CI) | 641 passed, 12 skipped |
 
 The 12 skips are corpus-dependent tests, named one by one in
 `tests/conftest.py`; a name that stops matching fails the run rather than

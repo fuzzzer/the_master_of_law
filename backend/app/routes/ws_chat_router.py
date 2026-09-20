@@ -16,6 +16,7 @@ import uuid as _uuid
 from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from starlette.websockets import WebSocketState
 from google.genai import types
 
 from app.config.settings import settings
@@ -120,6 +121,13 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
 
     try:
         while True:
+            # A turn that finished after its client left has already seen the
+            # disconnect (inside `_safe_send`), and Starlette then raises a
+            # bare RuntimeError from `receive_text()` rather than
+            # WebSocketDisconnect — which used to land in the log as ws_error
+            # with a traceback, for the most ordinary thing a phone does.
+            if websocket.client_state == WebSocketState.DISCONNECTED:
+                raise WebSocketDisconnect()
             data = await websocket.receive_text()
 
             try:
@@ -173,12 +181,19 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                     await websocket.send_json({"type": "error", "code": "forbidden", "message": "ამ საუბარზე წვდომა არ გაქვთ."})
                     continue
 
-                # Credit check (non-admin only)
+                # Credits meter the OPERATOR's spend on the user's behalf.
+                # Under no-login / bring-your-own-key there is none: the user
+                # pays Google with their own key, and the ceiling is their own
+                # quota. The HTTP credit gate already stands down in that mode
+                # (credit_gate_middleware.py); this socket must too, or the
+                # sixth message of the day is refused for a balance that
+                # measures nothing. Admins are never metered either way.
                 is_admin = user_tier in ("ADMIN", "SUPERADMIN")
+                credits_metered = settings.auth_enabled and not is_admin
                 cost = CreditAction.CHAT.cost
                 credit_repo = CreditRepository(db)
 
-                if not is_admin:
+                if credits_metered:
                     credits_bal = await credit_repo.get_balance(user_db_id)
                     if not credit_repo.has_sufficient_credits(credits_bal, cost):
                         await websocket.send_json({
@@ -428,7 +443,7 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                             await turn_conv.transition_phase(conversation_id, next_phase)
 
                             # Deduct credits
-                            if not is_admin:
+                            if credits_metered:
                                 await turn_credits.deduct(
                                     user_id=user_db_id,
                                     cost=cost,
