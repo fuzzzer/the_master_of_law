@@ -190,4 +190,40 @@ void main() {
       await cubit.close();
     },
   );
+
+  test(
+    'citations read back from history keep their code and article',
+    () async {
+      final source = _FakeSource()
+        ..stored.addAll([
+          {'id': 'u1', 'role': 'user', 'content': 'კითხვა'},
+          {
+            'id': 'a1',
+            'role': 'assistant',
+            'content': 'პასუხი',
+            'citations': [
+              {
+                'article_number': '174',
+                'raw_text': 'სამოქალაქო კოდექსი, მუხლი 174',
+                'code_name': 'სამოქალაქო კოდექსი',
+                'citation_text': '…',
+                'verified': true,
+              },
+            ],
+          },
+        ]);
+      final cubit = ConsultationCubit(
+        repository: ConsultationRepository(remoteDataSource: source),
+        turns: ChatTurnRegistry(),
+      );
+      await cubit.loadConversation('c1');
+
+      final citation = cubit.state.messages.last.citations!.single;
+      expect(citation.articleTitle, 'სამოქალაქო კოდექსი, მუხლი 174');
+      expect(citation.codeTitle, 'სამოქალაქო კოდექსი');
+      expect(citation.articleId, '174');
+      expect(citation.trustLevel, 'verified');
+      await cubit.close();
+    },
+  );
 }

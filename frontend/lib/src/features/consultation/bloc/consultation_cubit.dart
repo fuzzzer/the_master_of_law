@@ -156,7 +156,11 @@ class ConsultationCubit extends Cubit<ConsultationState> {
         timestamp:
             DateTime.tryParse(map['created_at']?.toString() ?? '') ??
             DateTime.now(),
-        citations: _parseCitations(map['citations']),
+        // Stored citations are the very objects the `done` frame streamed
+        // (article_number / raw_text / code_name), so they read the same
+        // way; parsing them by another key set left every chip after a
+        // reload labelled just "მუხლი".
+        citations: _parseChatCitations(map['citations']),
         trustLevel: map['trust_level']?.toString(),
         // A turn that failed is stored by the server as a message of role
         // `error`, its text the server's Georgian sentence — the same shape
@@ -731,21 +735,6 @@ class ConsultationCubit extends Cubit<ConsultationState> {
         requiresConfirmation: map['requires_confirmation'] == true,
         confirmationId: map['confirmation_id']?.toString(),
         description: map['description']?.toString(),
-      );
-    }).toList();
-  }
-
-  List<CitationData>? _parseCitations(dynamic raw) {
-    if (raw is! List) return null;
-    return raw.map((c) {
-      final map = c as Map<String, dynamic>;
-      return CitationData(
-        articleId: map['article_id']?.toString() ?? '',
-        articleTitle: map['article_title']?.toString() ?? '',
-        codeTitle: map['code_title']?.toString() ?? '',
-        snippet: map['snippet']?.toString() ?? '',
-        trustLevel: map['trust_level']?.toString() ?? 'guidance',
-        url: map['article_url']?.toString() ?? map['source_url']?.toString(),
       );
     }).toList();
   }
