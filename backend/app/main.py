@@ -100,7 +100,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Fuzzzy Law API",
         description="AI-powered legal advocate backend for Georgian citizens — ბუნდოვანი კანონი",
-        version="0.2.10",
+        version="0.2.11",
         lifespan=lifespan,
         docs_url="/docs" if not settings.is_production else None,
         redoc_url="/redoc" if not settings.is_production else None,
