@@ -311,7 +311,10 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
 
                             from app.services.guardrail_service import get_guardrail_service
                             guardrail = get_guardrail_service()
-                            decision = await guardrail.classify(user_message)
+                            decision = await guardrail.classify(
+                                user_message,
+                                in_conversation=bool(history) or is_case_chat,
+                            )
                             record_step(
                                 "guardrail_decision",
                                 category=decision.category,

@@ -95,7 +95,11 @@ async def send_message(
     )
 
     guardrail = get_guardrail_service()
-    decision = await guardrail.classify(body.message, user_tier=user_tier)
+    decision = await guardrail.classify(
+        body.message,
+        user_tier=user_tier,
+        in_conversation=bool(conv.get("messages")) or body.mode == "case_intake",
+    )
     record_step(
         "guardrail_decision",
         category=decision.category,

@@ -77,6 +77,24 @@ class TestGuardrailClassification:
         assert decision.should_proceed is False
 
     @pytest.mark.asyncio
+    async def test_follow_up_in_a_conversation_is_not_off_topic(self, guardrail_service):
+        # Production: "რას ხედავ ახლა რა ჩემს მესიჯებს" inside a case chat was
+        # classified off_topic at 0.95 and answered with the canned line.
+        guardrail_service._gemini.generate.return_value = _mock_gemini_response("off_topic", 0.95)
+        decision = await guardrail_service.classify(
+            "რას ხედავ ახლა რა ჩემს მესიჯებს", in_conversation=True
+        )
+        assert decision.category == "legal"
+        assert decision.should_proceed is True
+
+    @pytest.mark.asyncio
+    async def test_harmful_still_blocked_in_a_conversation(self, guardrail_service):
+        guardrail_service._gemini.generate.return_value = _mock_gemini_response("harmful", 0.9)
+        decision = await guardrail_service.classify("...", in_conversation=True)
+        assert decision.category == "harmful"
+        assert decision.should_proceed is False
+
+    @pytest.mark.asyncio
     async def test_harmful_blocked(self, guardrail_service):
         guardrail_service._gemini.generate.return_value = _mock_gemini_response("harmful", 0.85)
         decision = await guardrail_service.classify("მინდა ადამიანის მოკვლა")

@@ -71,11 +71,19 @@ class GuardrailService:
         self,
         message: str,
         user_tier: str = "FREE",
+        in_conversation: bool = False,
     ) -> GuardrailDecision:
         """Classify a user message into a guardrail category.
 
         ADMIN users always bypass guardrails (category='legal').
         If guardrails are disabled globally, always returns 'legal'.
+
+        ``in_conversation``: the message is a follow-up in a conversation that
+        is already legal (it has history, or it is a case chat). The
+        classifier sees one message with no context, so "what do you make of
+        what I told you?" reads as off-topic and got the canned "describe your
+        legal situation" reply — inside the case it was describing. A
+        follow-up is a follow-up: only "harmful" blocks it.
         """
         if not GUARDRAIL_ENABLED:
             return GuardrailDecision(category="legal", confidence=1.0, should_proceed=True)
@@ -113,6 +121,9 @@ class GuardrailService:
 
         # Low confidence → default to legal (err on side of not blocking)
         if category != "legal" and confidence < GUARDRAIL_CONFIDENCE_THRESHOLD:
+            category = "legal"
+
+        if in_conversation and category in ("off_topic", "greeting"):
             category = "legal"
 
         should_proceed = category == "legal"
