@@ -42,7 +42,13 @@ class LawChunk {
     );
   }
 
+  /// What the backend's `/articles/{id}` resolves: the chunk id without its
+  /// `.chunk_N` suffix (e.g. `admin_offences_code.article_1`). The human
+  /// label in [articleNumber] ("მუხლი 1") is never an id.
+  String get articleId => chunkId.split('.chunk_').first;
+
   String get codeName => metadata['code_name']?.toString() ?? '';
+  /// Human label, already prefixed by the corpus: "მუხლი 1".
   String get articleNumber => metadata['article_number']?.toString() ?? '';
   String get articleTitle => metadata['article_title']?.toString() ?? '';
   String get citationText => metadata['citation_text']?.toString() ?? '';

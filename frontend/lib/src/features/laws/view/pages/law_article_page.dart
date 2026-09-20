@@ -90,7 +90,7 @@ class LawArticlePage extends StatelessWidget {
           if (article.articleNumber.isNotEmpty) ...[
             SizedBox(height: space.xs),
             Text(
-              'მუხლი ${article.articleNumber}',
+              article.articleNumber,
               style: type.body.copyWith(color: colors.inkMute),
             ),
           ],

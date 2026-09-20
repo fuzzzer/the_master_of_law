@@ -63,27 +63,28 @@ class LawCodeDetailPage extends StatelessWidget {
       );
     }
 
-    // Group chunks by article_number
+    // Group chunks by the article id the backend can resolve, not the label.
     final articleGroups = <String, List<LawChunk>>{};
     for (final raw in rawChunks) {
       final chunk = LawChunk.fromMap(raw as Map<String, dynamic>);
-      final key = chunk.articleNumber.isNotEmpty ? chunk.articleNumber : chunk.chunkId;
-      articleGroups.putIfAbsent(key, () => []).add(chunk);
+      articleGroups.putIfAbsent(chunk.articleId, () => []).add(chunk);
     }
 
-    final articleKeys = articleGroups.keys.toList();
+    final articleIds = articleGroups.keys.toList();
 
     return ListView.separated(
       padding: density.screen,
-      itemCount: articleKeys.length,
+      itemCount: articleIds.length,
       separatorBuilder: (_, __) => SizedBox(height: space.xs),
       itemBuilder: (context, index) {
-        final articleNumber = articleKeys[index];
-        final chunks = articleGroups[articleNumber]!;
+        final articleId = articleIds[index];
+        final chunks = articleGroups[articleId]!;
         final firstChunk = chunks.first;
         final title = firstChunk.articleTitle.isNotEmpty
             ? firstChunk.articleTitle
-            : 'მუხლი $articleNumber';
+            : firstChunk.articleNumber.isNotEmpty
+                ? firstChunk.articleNumber
+                : articleId;
         final snippet = firstChunk.content.length > 120
             ? '${firstChunk.content.substring(0, 120)}…'
             : firstChunk.content;
@@ -116,9 +117,9 @@ class LawCodeDetailPage extends StatelessWidget {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (_) => BlocProvider.value(
-                    value: context.read<LawsCubit>()..loadArticle(articleNumber),
+                    value: context.read<LawsCubit>()..loadArticle(articleId),
                     child: LawArticlePage(
-                      articleId: articleNumber,
+                      articleId: articleId,
                       articleTitle: title,
                       codeName: code.name,
                     ),

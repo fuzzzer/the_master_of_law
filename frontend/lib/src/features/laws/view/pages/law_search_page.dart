@@ -164,7 +164,7 @@ class _LawSearchPageState extends State<LawSearchPage> {
     final title = chunk.articleTitle.isNotEmpty
         ? chunk.articleTitle
         : chunk.articleNumber.isNotEmpty
-            ? 'მუხლი ${chunk.articleNumber}'
+            ? chunk.articleNumber
             : chunk.chunkId;
     final snippet = chunk.content.length > 200 ? '${chunk.content.substring(0, 200)}…' : chunk.content;
 
@@ -212,7 +212,7 @@ class _LawSearchPageState extends State<LawSearchPage> {
               maxLines: 3, overflow: TextOverflow.ellipsis),
         ),
         onTap: () {
-          final articleId = chunk.articleNumber.isNotEmpty ? chunk.articleNumber : chunk.chunkId;
+          final articleId = chunk.articleId;
           Navigator.of(context).push(
             MaterialPageRoute<void>(
               builder: (_) => BlocProvider.value(
