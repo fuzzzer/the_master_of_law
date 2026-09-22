@@ -1,0 +1,45 @@
+# Production launcher icon — the approved Fuzzzy Law mark (scales hanging across the
+# blood red sun), night skin.
+#
+# Deliberately the unsuffixed config: the production build reads Android
+# src/main/res, which is exactly where an unsuffixed run generates. A file named
+# flutter_launcher_icons-production.yaml would instead invent a "production" Android
+# source set this app does not have, and an iOS ProductionAppIcon set no build
+# configuration reads.
+#
+# Android only. iOS is filled by scripts/ios_app_icons.py instead, because
+# flutter_launcher_icons writes flavour icons to AppIcon-<flavour>.appiconset while
+# this project's build configurations read AppIcon / StagingAppIcon /
+# DevelopmentAppIcon, and it rewrites ASSETCATALOG_COMPILER_APPICON_NAME in the Xcode
+# project while doing so — flattening all three flavours onto the production icon.
+# With `ios: false` the generator never touches ios/Runner.xcodeproj at all.
+#
+# adaptive_icon_foreground_inset is 0: the exported foreground already fills the
+# 108dp adaptive canvas at the designed scale, so the package's default 16% inset
+# would shrink the mark away from the approved artwork.
+#
+# Source artwork: ~/FuzzyCore_HQ/company/brand/logo/law/v1/prod/night/
+# The copies under assets/launcher_icons/ are build inputs only — they are NOT
+# registered in the pubspec `flutter: assets:` list and never ship in the bundle.
+#
+# Regenerate everything, from frontend/:
+#   fvm flutter pub get
+#   fvm dart run flutter_launcher_icons -f flutter_launcher_icons-staging.yaml
+#   fvm dart run flutter_launcher_icons -f flutter_launcher_icons.yaml
+#   python3 scripts/ios_app_icons.py
+# Note the package ignores -f whenever any flutter_launcher_icons-<flavour>.yaml
+# exists: that first command does staging AND development in one pass, and skips this
+# unsuffixed file. Move the two flavour configs aside for the production run.
+#
+# Web is not generated here. The brand kit ships favicons at the exact sizes the web
+# build needs, so web/favicon.png and web/icons/Icon-{,maskable-}{192,512}.png are
+# copied straight from assets/launcher_icons/prod/web/ rather than resampled from the
+# 1024 plate. Web has no flavours, so it always carries the production mark.
+flutter_launcher_icons:
+  android: "ic_launcher"
+  image_path: "assets/launcher_icons/prod/AppIcon-1024.png"
+  adaptive_icon_foreground: "assets/launcher_icons/prod/ic_launcher_foreground.png"
+  adaptive_icon_background: "assets/launcher_icons/prod/ic_launcher_background.png"
+  adaptive_icon_foreground_inset: 0
+  ios: false
+  remove_alpha_ios: true
