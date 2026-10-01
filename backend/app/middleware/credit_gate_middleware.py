@@ -30,6 +30,16 @@ class CreditGateMiddleware(BaseHTTPMiddleware):
     """Block AI requests when user has no credits remaining."""
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint):
+        # ── No-login / BYOK mode ──────────────────────────────
+        # Credits meter the OPERATOR's spend on the user's behalf. When each
+        # caller supplies their own Google key there is no operator spend to
+        # meter: the ceiling is their own free-tier quota, enforced by Google
+        # and surfaced by provider_errors. Charging a local credit balance on
+        # top would deny users access to an API they are paying for
+        # themselves.
+        if not settings.auth_enabled:
+            return await call_next(request)
+
         path = request.url.path
 
         # Only check credit-consuming routes
@@ -56,6 +66,11 @@ class CreditGateMiddleware(BaseHTTPMiddleware):
 
         uid = user_info.get("uid", "")
         tier = user_info.get("tier", "FREE")
+        
+        # Bypass credit check for app testers and admins
+        if tier in ("ADMIN", "SUPERADMIN"):
+            return await call_next(request)
+            
         cost = credit_action.cost if credit_action else 1
 
         # Query real credit balance from DB
@@ -70,9 +85,15 @@ class CreditGateMiddleware(BaseHTTPMiddleware):
                 user = await user_repo.get_by_firebase_uid(uid)
 
                 if not user:
-                    # User not yet in DB — allow through, auth/verify-token
-                    # will create them. This handles first-request edge case.
-                    return await call_next(request)
+                    logger.warning("credit_gate_blocked_user_missing", uid=uid)
+                    return JSONResponse(
+                        status_code=401,
+                        content={
+                            "error": "unauthorized",
+                            "message": "მომხმარებელი ვერ მოიძებნა. გთხოვთ გაიაროთ ავტორიზაცია.",
+                            "message_en": "User account not initialized. Please authenticate first."
+                        }
+                    )
 
                 credit_repo = CreditRepository(db)
                 credits = await credit_repo.get_balance(user.id)

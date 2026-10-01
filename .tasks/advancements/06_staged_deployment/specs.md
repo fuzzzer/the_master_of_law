@@ -9,7 +9,7 @@
 | Aspect | Specification |
 |--------|---------------|
 | Hosting | VPS (same as backend) via Nginx |
-| Domain | `masteroflaw.ge` (or equivalent — confirm with user) |
+| Domain | `fuzzzylaw.ge` (or equivalent — confirm with user) |
 | SSL | Let's Encrypt via Certbot, auto-renewal |
 | CDN | Not required for MVP. Add Cloudflare later if traffic warrants. |
 | Build | `flutter build web --release` with `--dart-define=API_URL=https://api.domain` |
@@ -22,7 +22,7 @@
 
 | Aspect | Android | iOS |
 |--------|---------|-----|
-| Package | `ge.fuzzycore.masteroflaw` | `ge.fuzzycore.masteroflaw` |
+| Package | `ge.fuzzycore.fuzzzylaw` | `ge.fuzzycore.fuzzzylaw` |
 | Min SDK | Android 7.0 (API 24) | iOS 14.0 |
 | Build | `flutter build appbundle` | `flutter build ios` |
 | Distribution | Google Play | App Store |
@@ -38,10 +38,10 @@
 ```nginx
 server {
     listen 443 ssl http2;
-    server_name masteroflaw.ge;
+    server_name fuzzzylaw.ge;
 
-    ssl_certificate /etc/letsencrypt/live/masteroflaw.ge/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/masteroflaw.ge/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/fuzzzylaw.ge/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/fuzzzylaw.ge/privkey.pem;
 
     root /opt/master-of-law/web;
     index index.html;
@@ -127,6 +127,6 @@ scripts/
 - No dev mode bypass (Firebase auth enforced)
 - Credit system active (no free unlimited)
 - Rate limiting enforced
-- CORS restricted to `masteroflaw.ge` only
+- CORS restricted to `fuzzzylaw.ge` only
 - No debug endpoints exposed
 - Secrets never in Git (use `.env` + Docker secrets)

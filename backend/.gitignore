@@ -4,6 +4,8 @@
 /stories/
 .config/
 
+api_keys.json
+
 # Ignore custom user directories for temporary work.
 /stash/
 /.0_stash/
@@ -18,6 +20,7 @@
 .env
 .env.*
 !.env.example
+.deploy.env
 
 
 # --- Python Virtual Environments ---

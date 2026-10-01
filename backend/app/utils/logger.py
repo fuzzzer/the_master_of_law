@@ -20,11 +20,49 @@ Usage:
 from __future__ import annotations
 
 import logging
+import re
 import sys
 
 from app.config.settings import settings
 
 _LOGGING_CONFIGURED = False
+
+# ── Secret redaction ─────────────────────────────────────────
+# Under bring-your-own-key the caller's Google credential travels in the
+# WebSocket URL, because browsers cannot set headers on a WebSocket
+# handshake. Uvicorn's access logger writes the full request line, so
+# without this every chat connection would deposit a working, billable
+# third-party API key into the container logs — and from there into any
+# log shipper, backup or support paste. Redaction happens at the logging
+# layer rather than at each call site precisely because the leak comes
+# from code we do not own.
+_SECRET_PATTERNS = (
+    # api_key=... in a query string, up to the next separator.
+    re.compile(r"(api[_-]?key=)[^&\s\"']+", re.IGNORECASE),
+    # A Google AI Studio key anywhere at all, however it got there.
+    re.compile(r"AIza[0-9A-Za-z_\-]{35}"),
+)
+
+
+def redact_secrets(text: str) -> str:
+    """Replace anything that looks like a caller credential."""
+    text = _SECRET_PATTERNS[0].sub(r"\1<redacted>", text)
+    return _SECRET_PATTERNS[1].sub("AIza<redacted>", text)
+
+
+class _RedactingFilter(logging.Filter):
+    """Scrub credentials from a record before any handler formats it."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        try:
+            message = record.getMessage()
+        except Exception:  # noqa: BLE001 - never let logging break a request
+            return True
+
+        if "AIza" in message or "api_key=" in message.lower():
+            record.msg = redact_secrets(message)
+            record.args = ()
+        return True
 
 
 def setup_logging() -> None:
@@ -40,13 +78,26 @@ def setup_logging() -> None:
         datefmt="%Y-%m-%dT%H:%M:%S",
     )
 
+    redactor = _RedactingFilter()
+
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(formatter)
+    handler.addFilter(redactor)
 
     root = logging.getLogger()
     root.handlers.clear()
     root.addHandler(handler)
     root.setLevel(log_level)
+
+    # Uvicorn installs its own handlers and sets propagate=False on these, so
+    # the root handler above never sees their records. The access logger is
+    # the one that writes request URLs — the exact place a WebSocket key would
+    # surface — so the filter is attached to each of them directly.
+    for uvicorn_logger in ("uvicorn", "uvicorn.access", "uvicorn.error"):
+        log = logging.getLogger(uvicorn_logger)
+        log.addFilter(redactor)
+        for h in log.handlers:
+            h.addFilter(redactor)
 
     # Quieten noisy libraries
     for noisy in ("chromadb", "httpcore", "httpx", "urllib3", "google", "posthog"):

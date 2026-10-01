@@ -26,7 +26,8 @@ Thumbs.db
 *.log
 
 # ── Law corpus data (all pipeline-generated — large) ──
-law_corpus/data/
+law_corpus/data/*
+!law_corpus/data/thresholds/
 
 # ── Eval corpus data (large, downloaded/generated) ──
 eval/test_cases/raw/
@@ -38,3 +39,6 @@ eval/test_cases/generations/
 
 
 
+
+# Eval run archives (raw traces) — regenerable via eval/run_*.py; summarized in .tasks/audits/
+eval/results/

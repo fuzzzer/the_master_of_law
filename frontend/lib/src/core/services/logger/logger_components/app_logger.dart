@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'package:fuzzzy_law/src/src.dart';
 import 'package:logger/logger.dart';
-import 'package:themasteroflaw/src/src.dart';
 
 class AppLogger {
   static Logger _logger = Logger(

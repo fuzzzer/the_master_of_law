@@ -5,6 +5,7 @@ Message repository — persistence for chat messages.
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,6 +40,7 @@ class MessageRepository:
             citations=citations,
             retrieved_chunk_ids=retrieved_chunk_ids,
             credit_cost=credit_cost,
+            created_at=datetime.now(timezone.utc),
         )
         self._db.add(msg)
         await self._db.flush()
@@ -53,7 +55,7 @@ class MessageRepository:
         stmt = (
             select(Message)
             .where(Message.conversation_id == conversation_id)
-            .order_by(Message.created_at.asc())
+            .order_by(Message.created_at.asc(), Message.role.desc())
             .limit(limit)
         )
         result = await self._db.execute(stmt)

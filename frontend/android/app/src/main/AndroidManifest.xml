@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="ge.fuzzycore.themasteroflaw">
+    package="ge.fuzzycore.fuzzzylaw">
 
     <!-- TODO add internet permission if needed -->
     <!-- <uses-permission android:name="android.permission.INTERNET" /> -->

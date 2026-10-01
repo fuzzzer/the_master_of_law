@@ -1,0 +1,15 @@
+# Dev override — hot-reload on save
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+
+services:
+  api:
+    build: .
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    volumes:
+      - ./app:/app/app:ro
+      - ./tests:/app/tests:ro
+      - ../law_corpus/data:/app/law_corpus_data:ro
+      - ../law_corpus/data/chroma:/app/law_corpus_data/chroma:rw
+      - ${GCP_SA_KEY_PATH}:/app/secrets/gcp-sa-key.json:ro
+    ports:
+      - "127.0.0.1:8000:8000"

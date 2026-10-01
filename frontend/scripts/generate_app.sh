@@ -1,5 +1,5 @@
 #!/bin/bash
-# Generate directory structure for The Master of Law
+# Generate directory structure for Fuzzzy Law
 # Run from frontend/ directory
 
 set -e

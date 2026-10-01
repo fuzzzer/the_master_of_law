@@ -1,31 +1,34 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:themasteroflaw/src/src.dart';
+import 'package:fuzzzy_law/src/src.dart';
 
 /// Remote data source for Laws browser API (all free endpoints).
 class LawsRemoteDataSource {
-  final ThemasteroflawHttpClient _httpClient;
+  final FuzzzyLawHttpClient _httpClient;
 
   LawsRemoteDataSource()
-      : _httpClient = sl.get<ThemasteroflawHttpClient>();
+      : _httpClient = sl.get<FuzzzyLawHttpClient>();
 
   Uri _uri(String path, [Map<String, String>? queryParams]) => Uri.parse(
         '${dotenv.env['API_BASE_URL'] ?? 'http://127.0.0.1:8000'}$path',
       ).replace(queryParameters: queryParams);
 
   /// GET /api/v1/laws/search?q=... — search across all laws.
-  Future<List<dynamic>> searchLaws(String query) async {
-    final response = await _httpClient.get<List<dynamic>>(
-      _uri('/api/v1/laws/search', {'q': query}),
+  Future<LawSearchResults> searchLaws(String query, {int topK = 20}) async {
+    final response = await _httpClient.get<Map<String, dynamic>>(
+      _uri('/api/v1/laws/search', {'q': query, 'top_k': topK.toString()}),
     );
-    return response.data ?? [];
+    return LawSearchResults.fromMap(response.data!);
   }
 
   /// GET /api/v1/laws/codes — list all legal codes.
-  Future<List<dynamic>> getCodes() async {
-    final response = await _httpClient.get<List<dynamic>>(
+  Future<List<LawCode>> getCodes() async {
+    final response = await _httpClient.get<Map<String, dynamic>>(
       _uri('/api/v1/laws/codes'),
     );
-    return response.data ?? [];
+    final rawCodes = response.data!['codes'] as List<dynamic>? ?? [];
+    return rawCodes
+        .map((c) => LawCode.fromMap(c as Map<String, dynamic>))
+        .toList();
   }
 
   /// GET /api/v1/laws/codes/{id} — get code structure (chapters, articles).
@@ -37,10 +40,10 @@ class LawsRemoteDataSource {
   }
 
   /// GET /api/v1/laws/articles/{id} — get full article text.
-  Future<Map<String, dynamic>> getArticle(String articleId) async {
+  Future<LawArticleDetail> getArticle(String articleId) async {
     final response = await _httpClient.get<Map<String, dynamic>>(
       _uri('/api/v1/laws/articles/$articleId'),
     );
-    return response.data!;
+    return LawArticleDetail.fromMap(response.data!);
   }
 }

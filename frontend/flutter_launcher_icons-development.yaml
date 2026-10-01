@@ -1,0 +1,17 @@
+# development launcher icon — the approved Fuzzzy Law mark, development skin
+# (steel blue, DEV corner tag), night. The flavour suffix in this file name is what routes the
+# output to android/app/src/development/res, the source set that build actually
+# reads, so do not rename this file.
+#
+# Android only; iOS is filled by scripts/ios_app_icons.py. See
+# flutter_launcher_icons.yaml for why, and for how to run all of this.
+#
+# Source artwork: ~/FuzzyCore_HQ/company/brand/logo/law/v1/dev/night/
+flutter_launcher_icons:
+  android: "ic_launcher"
+  image_path: "assets/launcher_icons/dev/AppIcon-1024.png"
+  adaptive_icon_foreground: "assets/launcher_icons/dev/ic_launcher_foreground.png"
+  adaptive_icon_background: "assets/launcher_icons/dev/ic_launcher_background.png"
+  adaptive_icon_foreground_inset: 0
+  ios: false
+  remove_alpha_ios: true

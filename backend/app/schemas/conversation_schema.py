@@ -28,8 +28,13 @@ class ConversationDetail(BaseModel):
     title: str = ""
     phase: str = "GREETING"
     legal_domain: str = ""
+    case_ready: bool = False
     messages: list[dict] = Field(default_factory=list)
     created_at: str = ""
+    # A turn is running for this conversation right now: its result will
+    # appear as the next message. The client waits and polls rather than
+    # treating the missing answer as final.
+    turn_in_progress: bool = False
 
 
 class ConversationListResponse(BaseModel):

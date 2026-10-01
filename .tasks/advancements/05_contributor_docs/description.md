@@ -36,7 +36,7 @@ Documentation must be easily readable, well-structured, and cover both the "why"
    - System requirements (macOS/Linux, Python 3.11+, Flutter 3.x, Docker)
    - Clone and initial setup
    - Backend: `cd backend && docker compose up -d` → health check
-   - Flutter: `cd fuzzy_starter && flutter run`
+   - Flutter: `cd frontend && flutter run`
    - First API call: curl example
    - Common errors and fixes
 2. Include a "verify your setup" checklist at the end

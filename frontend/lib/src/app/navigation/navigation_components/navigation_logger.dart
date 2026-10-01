@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:themasteroflaw/src/core/core.dart';
+import 'package:fuzzzy_law/src/core/core.dart';
 
 class NavigationLogger extends NavigatorObserver {
   @override

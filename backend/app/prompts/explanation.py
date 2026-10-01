@@ -27,7 +27,7 @@ SIMPLIFY_TEXT = PromptTemplate(
     ),
     description="Simplifies complex legal text into plain language for laypersons.",
     variables=("legal_text",),
-    temperature=0.2,
+    temperature=1,
     max_output_tokens=4096,
 )
 
@@ -48,6 +48,6 @@ EXPLAIN_ARTICLE = PromptTemplate(
     ),
     description="Explains a specific law article with practical examples and consequences.",
     variables=("code_name", "article_number", "article_text"),
-    temperature=0.2,
+    temperature=1,
     max_output_tokens=4096,
 )

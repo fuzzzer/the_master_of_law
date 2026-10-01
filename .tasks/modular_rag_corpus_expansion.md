@@ -369,7 +369,7 @@ The Flutter app should:
 3. Pass selection in `rag_config` field when sending chat/building cases
 4. Store per-case preferences (so a criminal case auto-enables court_practice+grand_chamber)
 
-Reference for Flutter architecture: `fuzzy_starter/.agents/orchestrator.md`
+Reference for Flutter architecture: `frontend/.agents/orchestrator.md`
 
 ---
 

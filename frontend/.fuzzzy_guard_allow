@@ -1,0 +1,66 @@
+# fuzzzy_ui_kit consumer-guard allow-list — fuzzzy_law
+#
+#   fvm dart run fuzzzy_ui_kit:guard lib --allow=.fuzzzy_guard_allow
+#
+# One `path:line` pin per line, each with a stated reason. A pin without a
+# reason is how an allow-list rots into a whitelist (guard.dart:36).
+#
+# TWO THINGS THAT WILL BITE YOU:
+#   1. Paths are relative to the SCANNED ROOT. These pins are written for
+#      `guard lib`, so they start `src/…`. Scanning `lib/src/features/x`
+#      instead makes every pin here a no-op.
+#   2. Pins are line-exact. If a pinned line moves, the pin silently stops
+#      matching and the violation comes back — which is the correct, loud
+#      failure. Re-check this file whenever a pinned file is edited.
+#
+# ── literal-colour · the legal-domain taxonomy ──────────────────────────────
+# The eight legal-domain colours are APP-SUPPLIED by owner ruling
+# (design/harvest/mol.md §3; MAPPING.md §2.1 marks the row "locked"): the kit
+# deliberately does not bake a legal taxonomy, and ships the neutral mechanism
+# instead (FuzzzyFilterChip.dotColor / FuzzzyCard.leadingRule take a
+# caller-supplied colour). These 16 literals are the fork's own hexes, re-homed
+# app-side at M7 so the taxonomy survives the fork's deletion at M12. They are
+# the ONLY correct `Color(0x…)` in this app, they appear on screen only as a
+# 4px rule or an 8px dot, and every other pixel stays role-driven.
+#
+# 🔴 RE-PINNED AT M12 (53–60/65–72 → 55–62/67–74). A two-line doc edit at the
+# top of that file moved all 16 literals down by two, and the guard immediately
+# reported 4 blocking + 16 "pinned" — i.e. 12 pins still matched by luck and 4
+# had silently stopped matching. THAT is what warning 2 above looks like in
+# practice: a pin that stops matching does not warn, it just quietly re-fails
+# somewhere else. Re-run the guard after ANY edit to a pinned file, including a
+# comment-only one.
+src/app/theme/legal_domain_colors.dart:55   # night · criminal
+src/app/theme/legal_domain_colors.dart:56   # night · civil
+src/app/theme/legal_domain_colors.dart:57   # night · administrative
+src/app/theme/legal_domain_colors.dart:58   # night · labor
+src/app/theme/legal_domain_colors.dart:59   # night · tax
+src/app/theme/legal_domain_colors.dart:60   # night · family
+src/app/theme/legal_domain_colors.dart:61   # night · property
+src/app/theme/legal_domain_colors.dart:62   # night · other
+src/app/theme/legal_domain_colors.dart:67   # paper · criminal
+src/app/theme/legal_domain_colors.dart:68   # paper · civil
+src/app/theme/legal_domain_colors.dart:69   # paper · administrative
+src/app/theme/legal_domain_colors.dart:70   # paper · labor
+src/app/theme/legal_domain_colors.dart:71   # paper · tax
+src/app/theme/legal_domain_colors.dart:72   # paper · family
+src/app/theme/legal_domain_colors.dart:73   # paper · property
+src/app/theme/legal_domain_colors.dart:74   # paper · other
+#
+# ── literal-motion · snackbar dwell times ───────────────────────────────────
+# RESOLVED BY DELETION AT M11 — NOTHING TO PIN, AND THAT IS THE POINT.
+# Six SnackBar `duration:` sites used to fail here (a toast DWELL is not
+# animation timing, and `fuzzzyMotion` tops out at 420ms, so no role fit). They
+# were deliberately left FAILING rather than pinned, to keep pressure on the
+# FuzzzyToast swap. M11 made every one of them disappear — `FuzzzyToast` owns
+# its own dwell, so the app no longer states one — and M13 re-verified that
+# zero survive. **This block is kept as the worked example**: when no role fits,
+# the first question is whether the app should be saying the thing at all. A
+# pin would have ended the argument; leaving it red finished the migration.
+#
+# ── the 24 advisory hits are NOT pinned, on purpose ─────────────────────────
+# Advisory rules cannot fail a build, so a pin buys nothing and costs the
+# review. Twelve are reviewed dimensions carrying a `// Dimension:` reason at
+# the site; twelve are `core/services/dev_panel/` geometry that has not been
+# swapped onto roles yet. The sort is written up in `test/fuzzzy_guard_test.dart`
+# (`_advisoryBudget`), which is where the count is now enforced.

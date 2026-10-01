@@ -1,6 +1,6 @@
 ## Project Description
 
-- [Project Description](documents/description.md) - Here you'll find an in-depth overview of themasteroflaw's description of features, architecture and etc..
+- [Project Description](documents/description.md) - Here you'll find an in-depth overview of fuzzzy_law's description of features, architecture and etc..
 
 - [How to Work With Various Modules](documents/modules.md) - Here you'll find some guides of how to work with various modules, like translations in the app, etc..
 
@@ -10,7 +10,7 @@
 
 ## Contributing
 
-- [Contribution](documents/contribution.md) - Guidelines for contributing to themasteroflaw, covering code style, pull request process, bug reporting, and feature requests.
+- [Contribution](documents/contribution.md) - Guidelines for contributing to fuzzzy_law, covering code style, pull request process, bug reporting, and feature requests.
 
 - [Code Generation](documents/code_generation.md) - Information about any automated code generation processes used in the project to generate templates for various kind of services, following project structure and coding style.
 
@@ -18,4 +18,4 @@
 
 ## End-User Documentation
 
-- [User Guide](documents/user_guide.md) - Instructions for end-users on how to use themasteroflaw, including account creation, navigation, and gameplay features.
+- [User Guide](documents/user_guide.md) - Instructions for end-users on how to use fuzzzy_law, including account creation, navigation, and gameplay features.

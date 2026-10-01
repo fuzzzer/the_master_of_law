@@ -16,20 +16,22 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.constants import ConversationPhase, CreditAction
-from app.repositories.conversation_repository import ConversationRepository
+from app.repositories.conversation_repository import UNTITLED, ConversationRepository
 from app.repositories.message_repository import MessageRepository
 from app.utils.logger import get_logger
+from app.services.turn_registry import turn_in_progress
 
 logger = get_logger(__name__)
 
 # Valid phase transitions
 _VALID_TRANSITIONS: dict[ConversationPhase, list[ConversationPhase]] = {
     ConversationPhase.GREETING: [ConversationPhase.INTAKE],
-    ConversationPhase.INTAKE: [ConversationPhase.CLARIFICATION, ConversationPhase.ANALYSIS],
+    ConversationPhase.INTAKE: [ConversationPhase.QUESTIONNAIRE, ConversationPhase.CLARIFICATION, ConversationPhase.ANALYSIS],
+    ConversationPhase.QUESTIONNAIRE: [ConversationPhase.CLARIFICATION, ConversationPhase.ANALYSIS],
     ConversationPhase.CLARIFICATION: [ConversationPhase.ANALYSIS, ConversationPhase.INTAKE],
     ConversationPhase.ANALYSIS: [ConversationPhase.ADVICE],
     ConversationPhase.ADVICE: [ConversationPhase.FOLLOW_UP, ConversationPhase.ANALYSIS],
-    ConversationPhase.FOLLOW_UP: [ConversationPhase.ANALYSIS, ConversationPhase.FOLLOW_UP],
+    ConversationPhase.FOLLOW_UP: [ConversationPhase.ANALYSIS, ConversationPhase.QUESTIONNAIRE, ConversationPhase.FOLLOW_UP],
 }
 
 
@@ -42,6 +44,7 @@ class ConversationService:
     """
 
     def __init__(self, db: AsyncSession) -> None:
+        self._db = db
         self._conv_repo = ConversationRepository(db)
         self._msg_repo = MessageRepository(db)
 
@@ -58,6 +61,25 @@ class ConversationService:
         )
         return self._conv_to_dict(conv)
 
+    async def update_title(self, conversation_id: str, title: str) -> None:
+        """Update the title of a conversation."""
+        conv_uuid = self._parse_uuid(conversation_id)
+        if not conv_uuid:
+            return
+        await self._conv_repo.update_title(conv_uuid, title)
+
+    async def name_after_first_message(
+        self, conversation_id: str, current_title: str | None, message: str,
+    ) -> None:
+        """Give a still-untitled conversation the opening of its first message."""
+        if current_title not in (None, "", UNTITLED, "New Conversation"):
+            return
+        preview = " ".join(message.split())[:60].strip()
+        if len(message) > 60:
+            preview += "…"
+        if preview:
+            await self.update_title(conversation_id, preview)
+
     async def get_conversation(self, conversation_id: str) -> dict[str, Any] | None:
         """Get conversation with messages."""
         conv_uuid = self._parse_uuid(conversation_id)
@@ -70,6 +92,7 @@ class ConversationService:
 
         messages = await self._msg_repo.get_for_conversation(conv_uuid)
         result = self._conv_to_dict(conv)
+        result["turn_in_progress"] = turn_in_progress(conversation_id)
         result["messages"] = [
             {
                 "id": str(m.id),
@@ -156,6 +179,36 @@ class ConversationService:
             "created_at": msg.created_at.isoformat() if msg.created_at else "",
         }
 
+    async def save_error_message(
+        self,
+        conversation_id: str,
+        content: str,
+    ) -> dict[str, Any] | None:
+        """Persist that a turn failed, as a message with role ``error``.
+
+        The failure used to reach only the socket and the trace. A client
+        that had left by then came back to its question and silence, with
+        nothing to tell it that the turn was over. Now the failure is part
+        of the conversation like any other message; the client renders it
+        as an error bubble, and :meth:`get_conversation_history` keeps it
+        out of the model's context.
+        """
+        conv_uuid = self._parse_uuid(conversation_id)
+        if not conv_uuid:
+            return None
+
+        msg = await self._msg_repo.create(
+            conversation_id=conv_uuid,
+            role="error",
+            content=content,
+        )
+        return {
+            "id": str(msg.id),
+            "role": msg.role,
+            "content": msg.content,
+            "created_at": msg.created_at.isoformat() if msg.created_at else "",
+        }
+
     async def get_conversation_history(
         self,
         conversation_id: str,
@@ -165,6 +218,8 @@ class ConversationService:
         Get conversation history formatted for Gemini context.
 
         Returns list of {"role": "user"|"assistant", "content": "..."}.
+        Failed turns (role ``error``) are not part of the exchange and are
+        left out.
         """
         conv_uuid = self._parse_uuid(conversation_id)
         if not conv_uuid:
@@ -174,6 +229,7 @@ class ConversationService:
         return [
             {"role": m.role, "content": m.content}
             for m in messages
+            if m.role in ("user", "assistant")
         ]
 
     async def transition_phase(
@@ -199,6 +255,9 @@ class ConversationService:
         except ValueError:
             current_phase = ConversationPhase.GREETING
 
+        if new_phase == current_phase:
+            return True  # nothing to do, and not worth a warning every turn
+
         valid_next = _VALID_TRANSITIONS.get(current_phase, [])
         if new_phase not in valid_next:
             logger.warning(
@@ -212,6 +271,16 @@ class ConversationService:
 
         await self._conv_repo.update_phase(conv_uuid, new_phase.value)
         return True
+
+    async def mark_case_ready(self, conversation_id: str) -> None:
+        """Flag a conversation as ready for case file generation."""
+        conv_uuid = self._parse_uuid(conversation_id)
+        if not conv_uuid:
+            return
+        conv = await self._conv_repo.get_by_id(conv_uuid)
+        if conv:
+            conv.case_ready = True
+            await self._db.flush()
 
     async def determine_next_phase(
         self,
@@ -237,8 +306,11 @@ class ConversationService:
         if current == ConversationPhase.GREETING.value and message_count >= 1:
             return ConversationPhase.INTAKE
 
-        # After enough intake → move to ANALYSIS
-        if current == ConversationPhase.INTAKE.value and message_count >= 3:
+        # INTAKE stays as INTAKE — user explicitly chooses when to proceed
+        # (via questionnaire, free-text extract, or skip-to-analysis)
+
+        # After questionnaire → move to ANALYSIS
+        if current == ConversationPhase.QUESTIONNAIRE.value:
             return ConversationPhase.ANALYSIS
 
         # After analysis → ADVICE
@@ -273,6 +345,7 @@ class ConversationService:
             "title": conv.title or "",
             "phase": conv.phase,
             "legal_domain": conv.legal_domain or "",
+            "case_ready": conv.case_ready if conv.case_ready is not None else False,
             "created_at": conv.created_at.isoformat() if conv.created_at else "",
             "updated_at": conv.updated_at.isoformat() if conv.updated_at else "",
         }

@@ -35,11 +35,15 @@ echo "▶ Step 5: Indexing into vector store…"
 python -m pipeline.main index --backend "${VECTOR_STORE_BACKEND:-chroma}"
 
 echo ""
-echo "▶ Step 6: Validating corpus…"
+echo "▶ Step 6: Building article store (exact-lookup grounding DB)…"
+python scripts/build_article_store.py
+
+echo ""
+echo "▶ Step 7: Validating corpus…"
 python -m pipeline.main validate
 
 echo ""
-echo "▶ Step 7: Statistics…"
+echo "▶ Step 8: Statistics…"
 python -m pipeline.main stats
 
 echo ""

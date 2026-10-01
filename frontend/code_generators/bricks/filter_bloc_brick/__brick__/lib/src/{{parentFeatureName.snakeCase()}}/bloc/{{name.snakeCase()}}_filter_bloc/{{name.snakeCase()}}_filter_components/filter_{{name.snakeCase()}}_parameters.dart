@@ -1,4 +1,4 @@
-import 'package:themasteroflaw/src/src.dart';
+import 'package:fuzzzy_law/src/src.dart';
 
 /// Object passed to `compute()` so that the heavy filtering work
 /// runs in a background isolate.  Must be **top-level / const**.

@@ -69,7 +69,7 @@ POST /api/v1/chat/{id}/send       → ChatResponse (with rag_config in body)
 - Chat: streaming via WebSocket preferred, fallback to HTTP POST
 
 ### Design
-- Follow design tokens from `packages/open-design/design-systems/kanonis-ostati/DESIGN.md`
+- Follow design tokens from `packages/open-design/design-systems/fuzzzy-law/DESIGN.md`
 - Match existing tab navigation style
 - Citation links: blue underlined text, distinct from regular text
 - Mode indicator: use chip/badge component from design system
