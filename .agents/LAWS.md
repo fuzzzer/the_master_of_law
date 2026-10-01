@@ -396,15 +396,15 @@ Setup, once per fresh worktree, in this order (none is a check):
 4. `python3.11 -m venv backend/.venv`, then install `backend/pyproject.toml`'s `dependencies` and `dev` extra by name (`pip install -e` fails): `backend/.venv/bin/python -c "import tomllib; p = tomllib.load(open('backend/pyproject.toml', 'rb'))['project']; print('\n'.join(p['dependencies'] + p['optional-dependencies']['dev']))" | backend/.venv/bin/python -m pip install -r /dev/stdin`
 5. `backend/scripts/test-db.sh up` (disposable Postgres on `127.0.0.1:55432`, migrated with `alembic upgrade head`) and a disposable Redis: `docker run -d --name fuzzzy_law_test_redis -p 127.0.0.1:56379:6379 redis:7-alpine`.
 
-| Name | Command |
-|---|---|
-| frontend analyze | `cd frontend && fvm flutter analyze --no-fatal-infos` |
-| frontend barrels | `env -Cfrontend ./exp.sh && git diff --exit-code -- frontend/lib` |
-| frontend l10n | `env -Cfrontend fvm flutter gen-l10n && git diff --exit-code -- frontend/lib/src/core/l10n/generated_localizations` |
-| frontend kit guard | `cd frontend && fvm dart run fuzzzy_ui_kit:guard lib --allow=.fuzzzy_guard_allow` |
-| frontend test | `cd frontend && fvm flutter test` |
-| backend lint | `backend/.venv/bin/ruff check --select E9,F63,F7,F82 backend/app backend/tests` |
-| backend test | `cd backend && DATABASE_URL=$(scripts/test-db.sh url) REDIS_URL=redis://127.0.0.1:56379/0 CHROMA_PERSIST_DIR=/nonexistent/chroma .venv/bin/python -m pytest tests/ -q -p no:cacheprovider --deselect tests/test_ws_user_message_persists.py::test_answer_is_stored_even_if_the_client_drops_during_the_guardrail` |
+| Name | Command | Fails on drift |
+|---|---|---|
+| frontend analyze | `cd frontend && fvm flutter analyze --no-fatal-infos` | — |
+| frontend barrels | `env -Cfrontend ./exp.sh && git diff --exit-code -- frontend/lib` | yes |
+| frontend l10n | `env -Cfrontend fvm flutter gen-l10n && git diff --exit-code -- frontend/lib/src/core/l10n/generated_localizations` | yes |
+| frontend kit guard | `cd frontend && fvm dart run fuzzzy_ui_kit:guard lib --allow=.fuzzzy_guard_allow` | — |
+| frontend test | `cd frontend && fvm flutter test` | — |
+| backend lint | `backend/.venv/bin/ruff check --select E9,F63,F7,F82 backend/app backend/tests` | — |
+| backend test | `cd backend && DATABASE_URL=$(scripts/test-db.sh url) REDIS_URL=redis://127.0.0.1:56379/0 CHROMA_PERSIST_DIR=/nonexistent/chroma .venv/bin/python -m pytest tests/ -q -p no:cacheprovider --deselect tests/test_ws_user_message_persists.py::test_answer_is_stored_even_if_the_client_drops_during_the_guardrail` | — |
 
 At base: frontend test 129 passed; backend test 577 passed, 81 skipped, 1 deselected (the law corpus and the article store are absent; the deselected test is pending below).
 
@@ -475,6 +475,7 @@ Pending (red at base or not runnable here; never a must-pass check):
 - Local run is Docker Compose (`backend/dev_runner.sh`, read, not run). Deploy scripts are owner-gated (README "Never").
 
 ### Generators
+- Applies to: `frontend/**`, `backend/alembic/**`
 
 | Command | Rewrites |
 |---|---|
