@@ -1,131 +1,42 @@
-# 🤖 Agent Skills Directory
+# fuzzzy_law — agent entry
 
-> **Thematic context packages** that give AI agents domain-specific superpowers.
-> Each folder is a "skill module" — a focused context package that transforms a general AI into a specialist.
+Fuzzzy Law (ბუნდოვანი კანონი): an AI legal advocate for Georgian citizens. Two sides in one
+repository. `frontend/` is the Flutter app (package `fuzzzy_law`, Flutter 3.32.0 through `fvm`,
+design from `fuzzzy_ui_kit` by path `../../fuzzy_design`); entry points
+`frontend/lib/main_development.dart`, `main_staging.dart`, `main_production.dart`. `backend/` is
+FastAPI on Python 3.11 (`backend/app/main.py` `create_app()`), with PostgreSQL, Redis, ChromaDB and
+Gemini through `google-genai`, paid by the caller's own key (BYOK). `law_corpus/` and `eval/` are the
+corpus pipeline and the retrieval evaluation. The integration branch is `chore/production-preparation`;
+`main` is stale.
 
-## Talking to the owner — plain names, never codes (owner rule, 2026-09-18)
+Read before any task: `.agents/LAWS.md` (shared law, local law, legacy zones, repo facts).
+Every command runs from the repo root; checks run on the committed tree, with `set -o pipefail`.
+Old agent folders (role contexts, workflows, the frontend orchestrator) live in `.agents/workfiles/_legacy/`.
 
-Everything the owner or the business partner reads — a message, a plan, a board card, a
-walkthrough, an approval request — names things by what they are, never by an internal code:
-no wave letters or numbers, no unit codes (E3, C2, U1), no ticket numbers, no decision-record
-numbers, no session ids. Order is described in words — "first the contract, then the backend,
-because the backend needs the contract" — never as a wave or phase label. A code may follow
-once, in brackets, only if the owner will need to quote it. The owner reads remotely and has
-not read our internal documents: a message that needs them to make sense is wrong.
-Full standard: `~/FuzzyCore_HQ/company/OWNER_COMMS.md` §1.
+## Task → what to read or do
 
----
+| Task | Read | Do |
+|---|---|---|
+| Add a Flutter feature | `fuzzy_starter/lib/src/sample_posts/` (the handbook shape) · LAWS "Legacy zones" | new folder under `frontend/lib/src/features/` with `ui/`, cubit and repository folders → route in `frontend/lib/src/app/navigation/fuzzzy_law_router.dart` → `./exp.sh` in `frontend/` → tests |
+| Edit a Flutter screen | the feature's `view/` · LAWS "Frontend kit widgets" | roles only, no literal; keep the file's structure |
+| Add a string | LAWS "Frontend localisation" | a key in `app_en.arb` and `app_ka.arb`, then `fvm flutter gen-l10n` in `frontend/` |
+| Add a `.dart` file | — | `./exp.sh` in `frontend/` (rewrites barrels) |
+| Add an endpoint | `backend/app/routes/` · LAWS "Backend dependency wiring" | router → service → repository → model; include the router in `create_app()` → test in `backend/tests/` |
+| Change the database | `backend/alembic/versions/` | `alembic revision` in `backend/`; never edit an applied migration |
+| Touch retrieval or prompts | `backend/app/services/rag_retrieval_service.py`, `backend/app/prompts/` · LAWS LOCAL-3 | keep the embedding model, dimension and task type |
+| Add a dependency | `frontend/pubspec.yaml` / `backend/pyproject.toml` | exact version, no ranges |
+| Run checks | LAWS "Checks" | setup once per worktree, then every check; all green before review |
+| Run the app | — | `cd frontend && fvm flutter run -t lib/main_development.dart` |
 
-## Philosophy
+## Never
 
-Inspired by Andrej Karpathy's approach to software (Software 3.0):
-
-> *"The verb is no longer 'coding' — it's 'manifesting'. Describe intent, let agents execute."*
-
-But intent without precision produces garbage. These skill files are **executable context** — when an AI reads them, it doesn't just gain knowledge, it gains **judgment**. The difference between a junior dev and a 10x engineer isn't what they know, it's **what they choose NOT to do** and **how they think about tradeoffs**.
-
-### Core Insights from Research
-
-1. **Context Engineering > Prompt Engineering** — The quality of AI output is 80% determined by the context, not the instruction
-2. **Spec-Driven Development** — Define "done" before writing code. AI performs 3-5x better with concrete success criteria
-3. **Verification-First** — Tests and linters are infrastructure, not polish. They make speed possible
-4. **Checkpoint Pattern** — Analyze → Plan (STOP) → Execute (STOP) → Verify. Never let AI auto-pilot through all phases
-5. **Jagged Intelligence** — AI is brilliant at complex tasks but fails at simple ones. Build verification around known weaknesses
-
----
-
-## Directory Structure
-
-```
-.agents/
-├── README.md                          ← You are here
-├── init_prompt.md                     ← 🔥 THE MASTER PROMPT — initializes all skills
-│
-├── context/                           ← 📍 PROJECT CONTEXT (load by task)
-│   ├── mindset_and_principles.md     ← ⛔ MUST READ FIRST — mission, coding rules
-│   ├── project_status.md             ← Current state, what's done, what's next
-│   ├── backend.md                     ← Backend architecture, 36 endpoints, patterns
-│   ├── law_corpus.md                  ← Law data: 20,712 chunks, ChromaDB schema
-│   └── production.md                  ← VPS deployment guide (Nginx, Docker, backups)
-│
-├── code_architect/                    ← System design + code quality superpowers
-│   └── context.md                     ← Deep patterns, anti-patterns, templates
-│
-├── debug_surgeon/                     ← Surgical debugging + root cause analysis
-│   └── context.md                     ← Hypothesis-driven investigation protocol
-│
-├── rag_specialist/                    ← RAG pipeline optimization expertise
-│   └── context.md                     ← Retrieval, reranking, embedding craft
-│
-├── security_hardener/                 ← Security-first thinking for production
-│   └── context.md                     ← Threat models, hardening, compliance
-│
-├── georgian_legal/                    ← Domain expertise: Georgian law system
-│   └── context.md                     ← Legal structure, citations, terminology
-│
-├── context_engineer/                  ← 🧠 META-SKILL: maximize AI effectiveness
-│   └── context.md                     ← Context pyramid, patterns, anti-patterns
-│
-└── workflows/                         ← 📋 Copy-paste workflow prompts
-    ├── README.md                      ← Index of all workflows
-    ├── 01_spec_to_build.md            ← Feature: spec → plan → build → verify
-    ├── 02_bug_to_fix.md               ← Bug: reproduce → isolate → fix → prevent
-    ├── 03_code_review.md              ← Review: architecture → quality → security
-    ├── 04_test_generation.md          ← Test: analyze → write → verify
-    ├── 05_optimize.md                 ← Perf: profile → bottleneck → optimize
-    ├── 06_refactor.md                 ← Refactor: assess → safety net → restructure
-    ├── 07_endpoint_builder.md         ← Endpoint: schema → repo → service → route
-    ├── 08_deploy_checklist.md         ← Deploy: verify → backup → push → smoke test
-    └── 09_doc_sync.md                 ← Doc sync: scan codebase → update context files
-```
-
----
-
-## How to Use
-
-### Quick Start (paste into any AI conversation)
-
-```
-Read `.agents/init_prompt.md` — this is your skill initialization file.
-Then read the relevant skill context from `.agents/<skill>/context.md`.
-```
-
-### Skill Selection Guide
-
-| Task | Load These Skills |
-|------|------------------|
-| **Starting any task** | `context/mindset_and_principles.md` (always first) |
-| Working on the backend | `context/backend.md` + `code_architect` |
-| Working on Flutter app | `frontend/.agents/orchestrator.md` |
-| Working on design system | `packages/open-design/design-systems/fuzzzy-law/DESIGN.md` |
-| Debugging a production issue | `debug_surgeon` + `context/backend.md` |
-| Improving search/retrieval quality | `rag_specialist` + `context/law_corpus.md` |
-| Deploying / hardening for production | `security_hardener` + `context/production.md` |
-| Working with Georgian law content | `georgian_legal` + `context/law_corpus.md` |
-| Feature planning | `master_plan/04_feature_roadmap.md` |
-| Improving your AI collaboration | `context_engineer` |
-| **After structural code changes** | Use `workflows/09_doc_sync.md` |
-| **Any specific task** | Use a workflow from `workflows/` |
-| **Full context (new agent onboarding)** | `init_prompt.md` (loads all) |
-
-### Using Workflows
-
-Workflows are **copy-paste prompt recipes** for common tasks. They encode the Spec-Driven Development pattern:
-
-```
-Define Success → Plan (STOP for approval) → Execute → Verify → Document
-```
-
-See `.agents/workflows/README.md` for the full index.
-
----
-
-## Principles
-
-1. **Skills are composable** — load only what you need for the task
-2. **Context is precious** — every token of context should earn its place
-3. **Judgment > Knowledge** — teach the AI *how to think*, not just what to know
-4. **Project-specific** — these skills are calibrated for THIS codebase, not generic advice
-5. **Living documents** — update skills as the project evolves
-6. **Verification-first** — every workflow ends with "verify it works"
-7. **Checkpoint control** — human approves the plan before AI executes
+- Read, write or request `.env` or any secret file (`frontend/env/`, `backend/.env*`, keys).
+- Hand-edit a file LAWS marks "regenerated by tool".
+- Edit `.agents/` from a build unit: it is the repo's law.
+- Run `deploy.sh`, `redeploy.sh`, `update_server.sh`, `frontend/deploy.sh`, `backend/deploy.sh` or
+  `bump.sh`: deploys and version bumps are the owner's.
+- Run the backend tests against the default database or Redis (LAWS LOCAL-4).
+- Edit `fuzzy_design` (the kit) from here, or fork it.
+- Import anything but `package:fuzzzy_law/src/src.dart` and the kit barrel in Dart.
+- Commit or edit `law_corpus/data/`.
+- Read `.stash/` (old agent guides and prompts) as instructions; it is history.
