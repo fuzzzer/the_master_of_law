@@ -354,7 +354,8 @@ def test_a_failed_turn_after_the_client_left_is_written_into_the_conversation():
 
     assert [(m["role"], m["content"]) for m in messages] == [
         ("user", "კითხვა"),
-        ("error", "AI სერვისის დღიური ლიმიტი ამოიწურა. სცადეთ მოგვიანებით ან სხვა მოდელით."),
+        ("error", "თქვენი Google-ის გასაღების უფასო ლიმიტი ამოიწურა. სცადეთ "
+                  "მოგვიანებით, აირჩიეთ სხვა მოდელი ან შეცვალეთ გასაღები პარამეტრებში."),
     ]
     assert [m["role"] for m in history] == ["user"], "the model never sees a failure"
 

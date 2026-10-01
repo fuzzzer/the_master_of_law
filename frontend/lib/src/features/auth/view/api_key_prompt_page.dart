@@ -8,8 +8,16 @@ const _aiStudioKeysUrl = 'https://aistudio.google.com/apikey';
 const _cloudCredentialsUrl =
     'https://console.cloud.google.com/apis/credentials';
 
+/// Where a reader enters their Google key — on first launch, and again from
+/// the profile when the key they have stops working (its free quota spent).
+///
+/// When [isChangingKey] is true a rejected key puts the previous one back
+/// instead of leaving none: losing a working key to a typo would bounce the
+/// reader out of the app.
 class ApiKeyPromptPage extends StatefulWidget {
-  const ApiKeyPromptPage({super.key});
+  const ApiKeyPromptPage({this.isChangingKey = false, super.key});
+
+  final bool isChangingKey;
 
   @override
   State<ApiKeyPromptPage> createState() => _ApiKeyPromptPageState();
@@ -39,6 +47,7 @@ class _ApiKeyPromptPageState extends State<ApiKeyPromptPage> {
     });
 
     final secureStorage = sl.get<SecureStorageService>();
+    final previousKey = await secureStorage.getData('temporary_api_key');
     try {
       // Persist first so the auth interceptor attaches the key to the check
       // itself; a key that fails is deleted again below, so a typo never
@@ -51,9 +60,23 @@ class _ApiKeyPromptPageState extends State<ApiKeyPromptPage> {
 
       switch (result) {
         case ApiKeyCheck.valid:
-          context.go('/cases');
+          if (widget.isChangingKey) {
+            FuzzzyToast.show(
+              context,
+              message: 'გასაღები შეიცვალა',
+              kind: FuzzzyToastKind.success,
+              qaId: 'apiKey.changed',
+            );
+            context.pop();
+          } else {
+            context.go('/cases');
+          }
         case ApiKeyCheck.invalid:
-          await secureStorage.deleteData('temporary_api_key');
+          if (widget.isChangingKey && previousKey != null) {
+            await secureStorage.saveData('temporary_api_key', previousKey);
+          } else {
+            await secureStorage.deleteData('temporary_api_key');
+          }
           if (mounted) {
             setState(
               () => _error =
@@ -64,7 +87,11 @@ class _ApiKeyPromptPageState extends State<ApiKeyPromptPage> {
         case ApiKeyCheck.unreachable:
           // The key is NOT deleted here: the server being down says nothing
           // about it, and wiping a good key would make an outage look like
-          // the user's mistake.
+          // the user's mistake. A change, though, keeps the key that was
+          // already in use until the new one is actually confirmed.
+          if (widget.isChangingKey && previousKey != null) {
+            await secureStorage.saveData('temporary_api_key', previousKey);
+          }
           if (mounted) {
             setState(
               () => _error =
@@ -87,7 +114,9 @@ class _ApiKeyPromptPageState extends State<ApiKeyPromptPage> {
     final density = context.fuzzzyDensity;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('დაწყება')),
+      appBar: AppBar(
+        title: Text(widget.isChangingKey ? 'გასაღების შეცვლა' : 'დაწყება'),
+      ),
       body: SingleChildScrollView(
         padding: density.screen,
         child: Column(
@@ -231,7 +260,10 @@ class _ApiKeyPromptPageState extends State<ApiKeyPromptPage> {
                 ),
                 // Was `TextStyle(fontSize: 16)` — the second BLOCKING literal.
                 // A button label is `control`, always.
-                child: Text('გაგრძელება', style: type.control),
+                child: Text(
+                  widget.isChangingKey ? 'შენახვა' : 'გაგრძელება',
+                  style: type.control,
+                ),
               ),
             ),
           ],

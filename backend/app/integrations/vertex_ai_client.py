@@ -28,8 +28,8 @@ from app.utils.logger import get_logger
 logger = get_logger(__name__)
 
 # ── Transient-failure retry ──────────────────────────────────
-# The provider returns 503 UNAVAILABLE ("high demand") and 429 RESOURCE_EXHAUSTED
-# under load. Without a retry these do NOT surface as errors anywhere the user
+# The provider returns 503 UNAVAILABLE ("high demand") under load. Without a
+# retry these do NOT surface as errors anywhere the user
 # can see: every caller in this app has a defensive fallback, so a transient
 # blip silently degrades output quality instead. The planner is the worst case —
 # it falls back to searching the raw user message as ONE query instead of the
@@ -42,9 +42,14 @@ BYOK_CLIENT_CACHE_SIZE = 64
 RETRY_MAX_ATTEMPTS = 3
 RETRY_BASE_DELAY_S = 0.75
 _TRANSIENT_MARKERS = (
-    "503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED",
+    "503", "UNAVAILABLE",
     "500", "INTERNAL", "deadline", "DEADLINE_EXCEEDED",
 )
+# A spent quota (429 RESOURCE_EXHAUSTED) is NOT transient on our timescale:
+# Google asks for a 20-60 s wait, and every retry a second later is refused
+# AND counted against the same per-minute limit — on a free key that is what
+# starved the final answer of the budget it needed.
+_QUOTA_MARKERS = ("429", "RESOURCE_EXHAUSTED")
 
 
 def _is_transient(exc: Exception) -> bool:
@@ -55,15 +60,16 @@ def _is_transient(exc: Exception) -> bool:
     hard dependency on the SDK's private error hierarchy.
     """
     text = f"{type(exc).__name__}: {exc}"
+    if any(m in text for m in _QUOTA_MARKERS):
+        return False
     return any(m in text for m in _TRANSIENT_MARKERS)
 
 
 async def with_retry(operation, *, what: str):
     """Await ``operation()``, retrying transient provider failures.
 
-    Quota exhaustion (a hard 429 with no remaining budget) looks identical to
-    rate limiting from here, so attempts are capped low and backoff is short:
-    the goal is to ride out a spike, not to grind against a spent quota.
+    Attempts are capped low and backoff is short: the goal is to ride out a
+    spike, not to grind. A spent quota is never retried — see _QUOTA_MARKERS.
     """
     last: Exception | None = None
     for attempt in range(RETRY_MAX_ATTEMPTS):

@@ -150,6 +150,7 @@ class ProfilePage extends StatelessWidget {
               style: type.control.copyWith(color: colors.inkMute),
             ),
           ),
+          const _ApiKeyTile(),
           const ModelSection(),
           SettingsTile(
             icon: Icons.info_outline,
@@ -251,6 +252,53 @@ class _ToolTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The reader's Google key, shown by its last four characters, tap to change.
+///
+/// A free key runs out of quota; the way back is a different key, so the row
+/// leads straight to the screen that takes one.
+class _ApiKeyTile extends StatefulWidget {
+  const _ApiKeyTile();
+
+  @override
+  State<_ApiKeyTile> createState() => _ApiKeyTileState();
+}
+
+class _ApiKeyTileState extends State<_ApiKeyTile> {
+  late Future<String?> _key = _readKey();
+
+  Future<String?> _readKey() =>
+      sl.get<SecureStorageService>().getData('temporary_api_key');
+
+  Future<void> _change() async {
+    await context.push('/profile/api-key');
+    if (mounted) setState(() => _key = _readKey());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
+
+    return FutureBuilder<String?>(
+      future: _key,
+      builder: (context, snapshot) {
+        final key = snapshot.data;
+        return SettingsTile(
+          icon: Icons.key,
+          title: 'Google-ის გასაღები',
+          trailing: Text(
+            key == null || key.length < 4
+                ? ''
+                : '…${key.substring(key.length - 4)}',
+            style: type.control.copyWith(color: colors.inkMute),
+          ),
+          onTap: _change,
+        );
+      },
     );
   }
 }

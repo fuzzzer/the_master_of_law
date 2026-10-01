@@ -66,7 +66,35 @@ class TestClassification:
         Georgian-only app — an English one lands in the conversation."""
         msg = classify(RuntimeError(text)).message_ka
         assert msg and any("Ⴀ" <= ch <= "ჿ" for ch in msg), msg
-        assert not any(ch.isascii() and ch.isalpha() for ch in msg.replace("AI", ""))
+        latin_names = msg.replace("AI", "").replace("Google", "")
+        assert not any(ch.isascii() and ch.isalpha() for ch in latin_names)
+
+    def test_a_spent_quota_says_whose_limit_and_how_long_to_wait(self):
+        """The reader has to learn it is their own free Google key, how long
+        Google asked them to wait, and that another key is a way out now."""
+        msg = classify(RuntimeError(QUOTA_429)).message_ka
+        assert "Google-ის გასაღების უფასო ლიმიტი" in msg
+        assert "25 წამში" in msg
+        assert "შეცვალეთ გასაღები" in msg
+
+
+class TestRetry:
+    @pytest.mark.asyncio
+    async def test_a_spent_quota_is_not_retried(self):
+        """A retry a second later is refused too, and counts against the same
+        per-minute limit the final answer still needs."""
+        from app.integrations.vertex_ai_client import with_retry
+
+        calls = 0
+
+        async def spent():
+            nonlocal calls
+            calls += 1
+            raise RuntimeError(QUOTA_429)
+
+        with pytest.raises(RuntimeError):
+            await with_retry(spent, what="test")
+        assert calls == 1
 
 
 class TestMiddlewareIntegration:

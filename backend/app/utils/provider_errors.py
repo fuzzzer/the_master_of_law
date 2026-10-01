@@ -45,11 +45,24 @@ class ProviderError:
 
 # User-facing copy. Georgian, because the app is Georgian — an English string
 # here lands verbatim in the conversation as a chat bubble.
-# Under bring-your-own-key a spent bucket is per MODEL on the user's own key,
-# so switching model is a way out right now, not only waiting — say so.
+# Under bring-your-own-key a spent bucket is the free limit of the user's own
+# Google key, per MODEL — so besides waiting, another model or another key is
+# a way out right now. Say all three, and how long the wait is when Google
+# told us.
 _QUOTA_KA = (
-    "AI სერვისის დღიური ლიმიტი ამოიწურა. სცადეთ მოგვიანებით ან სხვა მოდელით."
+    "თქვენი Google-ის გასაღების უფასო ლიმიტი ამოიწურა. {wait} აირჩიეთ სხვა "
+    "მოდელი ან შეცვალეთ გასაღები პარამეტრებში."
 )
+_QUOTA_WAIT_KA = "სცადეთ {seconds} წამში,"
+_QUOTA_WAIT_UNKNOWN_KA = "სცადეთ მოგვიანებით,"
+
+
+def _quota_message(retry_after_s: int | None) -> str:
+    wait = (
+        _QUOTA_WAIT_KA.format(seconds=retry_after_s)
+        if retry_after_s else _QUOTA_WAIT_UNKNOWN_KA
+    )
+    return _QUOTA_KA.format(wait=wait)
 _UNAVAILABLE_KA = (
     "AI სერვისი დროებით გადატვირთულია. გთხოვთ, სცადოთ რამდენიმე წამში."
 )
@@ -131,14 +144,15 @@ def classify(exc: BaseException) -> ProviderError:
         )
 
     if any(m in text for m in _QUOTA_MARKERS):
+        retry_after_s = _retry_after(text)
         return ProviderError(
             kind=ProviderErrorKind.QUOTA_EXHAUSTED,
             # 503, not 429: 429 means THIS CLIENT sent too many requests, and
             # the user did not — the server's own upstream budget is spent.
             status_code=503,
             error_code="ai_quota_exhausted",
-            message_ka=_QUOTA_KA,
-            retry_after_s=_retry_after(text),
+            message_ka=_quota_message(retry_after_s),
+            retry_after_s=retry_after_s,
         )
 
     if any(m in text for m in _UNAVAILABLE_MARKERS):

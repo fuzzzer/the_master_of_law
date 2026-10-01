@@ -127,6 +127,11 @@ class AppRouter {
                     path: 'terms',
                     builder: (context, state) => const TermsOfServicePage(),
                   ),
+                  GoRoute(
+                    path: 'api-key',
+                    builder: (context, state) =>
+                        const ApiKeyPromptPage(isChangingKey: true),
+                  ),
                 ],
               ),
             ],

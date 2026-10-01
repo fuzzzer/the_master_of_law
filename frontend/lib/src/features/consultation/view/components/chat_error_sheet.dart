@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fuzzzy_law/src/src.dart';
 import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
+import 'package:go_router/go_router.dart';
 
 /// What opens when the reader taps a failed turn's bubble.
 ///
@@ -48,6 +49,21 @@ Future<void> showChatErrorSheet(
               ),
               SizedBox(height: space.s),
               const ModelSection(),
+              SizedBox(height: space.m),
+              Text(
+                'ან ჩასვით სხვა Google-ის გასაღები:',
+                style: type.bodyS.copyWith(color: colors.inkMute),
+              ),
+              SizedBox(height: space.s),
+              FuzzzyButton(
+                label: 'გასაღების შეცვლა',
+                variant: FuzzzyButtonVariant.secondary,
+                icon: const Icon(Icons.key),
+                onPressed: () {
+                  Navigator.of(sheetContext).pop();
+                  context.go('/profile/api-key');
+                },
+              ),
               SizedBox(height: space.m),
               Align(
                 alignment: Alignment.centerRight,
