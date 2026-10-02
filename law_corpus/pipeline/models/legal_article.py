@@ -41,6 +41,10 @@ class LegalArticle(BaseModel):
     article_title: Optional[str] = Field(
         default=None, description="Article heading / title (if any)"
     )
+    source_anchor: Optional[str] = Field(
+        default=None,
+        description="matsne's own anchor for the article, e.g. 'part_233' (page#part_233)",
+    )
     content_ka: str = Field(
         ..., description="Full article text in Georgian"
     )

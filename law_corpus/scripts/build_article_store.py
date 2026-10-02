@@ -48,7 +48,7 @@ CREATE TABLE articles (
     content_ka    TEXT NOT NULL,
     paragraphs_json TEXT NOT NULL,         -- JSON: [{number, text, sub_points}]
     cross_references_json TEXT NOT NULL,   -- JSON: ["labour_code.article_47", ...]
-    article_url   TEXT NOT NULL,           -- source_url#article_<norm>
+    article_url   TEXT NOT NULL,           -- source_url#part_<uid> (matsne's own anchor)
     is_repealed   INTEGER NOT NULL DEFAULT 0,
     effective_date TEXT
 );
@@ -67,9 +67,13 @@ CREATE VIRTUAL TABLE articles_fts USING fts5(
 
 
 def _article_norm(article_id: str, article_number: str) -> str:
-    """Bare article number used for lookups and the matsne anchor."""
+    """Canonical article number used for lookups: "52", "52-1" (52¹).
+
+    A dated version ("article_61@2026-09-01") shares its article's number;
+    the date stays in article_id so both versions are kept.
+    """
     if "article_" in article_id:
-        return article_id.rsplit("article_", 1)[-1]
+        return article_id.rsplit("article_", 1)[-1].split("@", 1)[0]
     return "".join(ch for ch in article_number if ch.isdigit())
 
 
@@ -116,7 +120,9 @@ def build(parsed_dir: Path, out_path: Path) -> dict[str, int]:
             norm = _article_norm(art.get("article_id", ""), art.get("article_number", ""))
             paragraphs = art.get("paragraphs") or []
             conn.execute(
-                "INSERT OR REPLACE INTO articles VALUES "
+                # Plain INSERT: a repeated article_id is a parser defect, and
+                # "OR REPLACE" hid one by silently dropping 83 articles.
+                "INSERT INTO articles VALUES "
                 "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     art.get("article_id"),
@@ -131,7 +137,8 @@ def build(parsed_dir: Path, out_path: Path) -> dict[str, int]:
                     art.get("content_ka") or "",
                     json.dumps(paragraphs, ensure_ascii=False),
                     json.dumps(art.get("cross_references") or [], ensure_ascii=False),
-                    f"{source_url}#article_{norm}" if source_url else "",
+                    (f"{source_url}#{art['source_anchor']}" if art.get("source_anchor") else source_url)
+                    if source_url else "",
                     1 if art.get("is_repealed") else 0,
                     art.get("effective_date"),
                 ),

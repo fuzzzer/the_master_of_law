@@ -170,7 +170,7 @@ class LegalChunker:
 
         # Append source URL line for explicit citation grounding
         if meta.source_url:
-            article_url = self._build_article_url(meta.source_url, article.article_number)
+            article_url = self._build_article_url(meta.source_url, article.source_anchor)
             header += f"\nწყარო: {article_url}"
         if meta.adoption_date:
             header += f" | მიღებულია: {meta.adoption_date.isoformat()}"
@@ -178,18 +178,18 @@ class LegalChunker:
         return header
 
     @staticmethod
-    def _build_article_url(source_url: str, article_number: str) -> str:
+    def _build_article_url(source_url: str, anchor: str | None) -> str:
         """
-        Build a deep-link URL to a specific article on matsne.gov.ge.
+        Deep link to an article with matsne's own anchor.
 
-        Example: https://matsne.gov.ge/ka/document/view/31702 + მუხლი 45
-              → https://matsne.gov.ge/ka/document/view/31702#article_45
+        Example: https://matsne.gov.ge/ka/document/view/1155567 + part_174
+              → https://matsne.gov.ge/ka/document/view/1155567#part_174
+
+        matsne anchors articles as name="part_<uid>"; there is no
+        "#article_N" on its pages. Without an anchor, the code's page.
         """
-        import re
-        num_match = re.search(r"(\d+(?:-\d+)?)", article_number)
-        if num_match:
-            return f"{source_url.split('?')[0]}#article_{num_match.group(1)}"
-        return source_url
+        base = source_url.split('?')[0]
+        return f"{base}#{anchor}" if anchor else base
 
     @staticmethod
     def _build_citation(
@@ -230,7 +230,7 @@ class LegalChunker:
         meta = document.metadata
         chunk_id = f"{article.article_id}.chunk_{chunk_index}"
         source_url = meta.source_url or ""
-        article_url = self._build_article_url(source_url, article.article_number) if source_url else ""
+        article_url = self._build_article_url(source_url, article.source_anchor) if source_url else ""
         adoption_str = meta.adoption_date.isoformat() if meta.adoption_date else None
 
         citation = self._build_citation(

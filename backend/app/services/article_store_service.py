@@ -10,7 +10,9 @@ its matsne anchor, or proves the article does not exist in the corpus.
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -22,23 +24,60 @@ logger = get_logger(__name__)
 
 _GEO_PREFIX = "საქართველოს "
 
-# Superscript digits used in article numbers like "მუხლი 166¹" — stored in the
-# article store as plain concatenated digits ("1661", from the article_id).
+# Article 166¹ is stored as "166-1" — the corpus pipeline's canonical form.
+# It used to be flattened to "1661", where it collided with real articles.
 _SUPERSCRIPT_MAP = str.maketrans("¹²³⁴⁵⁶⁷⁸⁹⁰", "1234567890")
+_ARTICLE_NUMBER_RE = re.compile(r"(\d+)(?:\s*([¹²³⁴⁵⁶⁷⁸⁹⁰]+)|-(\d+)(?![ა-ჰ]))?")
 
 
 def _normalize_article(article: str) -> str:
-    """'მუხლი 48', '48-ე', '48', '166¹' → bare stored form ('48', '1661')."""
-    a = article.replace("მუხლი", "").strip()
-    a = a.translate(_SUPERSCRIPT_MAP)
-    # strip ordinal/genitive suffixes like "-ე", "-ის"
-    if "-" in a:
-        a = a.split("-", 1)[0]
-    return a.strip()
+    """'მუხლი 48', '48-ე', '166¹', '166¹-ე', '166-1' → stored form ('48', '166-1')."""
+    m = _ARTICLE_NUMBER_RE.search(article.replace("მუხლი", ""))
+    if not m:
+        return ""
+    sub = (m.group(2) or "").translate(_SUPERSCRIPT_MAP) or m.group(3)
+    return f"{m.group(1)}-{sub}" if sub else m.group(1)
+
+
+def _version_date(article_id: str) -> date | None:
+    """The date a dated version takes effect: 'article_61@2026-09-01'."""
+    if "@" not in article_id:
+        return None
+    try:
+        return date.fromisoformat(article_id.rsplit("@", 1)[1])
+    except ValueError:
+        return None
+
+
+def _in_force(rows: list, today: date) -> Any:
+    """Of an article's versions, the one in force today.
+
+    matsne prints a coming text after the current one, under the same
+    number, marked "(ამოქმედდეს …)". The latest version whose date has come
+    wins over the undated text; a version still to come is used only when
+    nothing else exists.
+    """
+    started = [r for r in rows if (d := _version_date(r["article_id"])) and d <= today]
+    if started:
+        return max(started, key=lambda r: _version_date(r["article_id"]))
+    undated = [r for r in rows if _version_date(r["article_id"]) is None]
+    return (undated or sorted(rows, key=lambda r: _version_date(r["article_id"])))[0]
+
+
+def _in_force_per_article(rows: list, today: date) -> list:
+    """Rows in order, one per (code, article) — the version in force."""
+    groups: dict[tuple[str, str], list] = {}
+    for r in rows:
+        groups.setdefault((r["document_id"], r["article_norm"]), []).append(r)
+    chosen = {id(_in_force(g, today)) for g in groups.values()}
+    return [r for r in rows if id(r) in chosen]
 
 
 def _normalize_code(code: str) -> str:
     return code.removeprefix(_GEO_PREFIX).strip().lower()
+
+
+_PARAGRAPH_NUMBER_RE = re.compile(r"\d+(?:-\d+)?")
 
 
 def provision_text(paragraphs: list[dict], paragraph: str, sub_point: str = "") -> str | None:
@@ -52,7 +91,7 @@ def provision_text(paragraphs: list[dict], paragraph: str, sub_point: str = "") 
     parent = ""
     for p in paragraphs:
         number = str(p.get("number", "")).strip()
-        if number.isdigit():
+        if _PARAGRAPH_NUMBER_RE.fullmatch(number):  # "2", or "2-1" for 2¹
             parent = number
             if number == paragraph and not sub_point:
                 return p.get("text", "")
@@ -123,7 +162,7 @@ class ArticleStoreService:
             document_id ("labour_code") or Georgian code name (with or
             without the "საქართველოს" prefix).
         article : str
-            "48", "მუხლი 48", "48-ე" or superscript forms ("166¹").
+            "48", "მუხლი 48", "48-ე", or 166¹ as "166¹" or "166-1".
         paragraph : str | None
             If given, the matching paragraph is surfaced under "paragraph".
         """
@@ -134,22 +173,19 @@ class ArticleStoreService:
         if not norm:
             return None
 
-        # Some numbers map to several rows (removed placeholders, flattened
-        # superscript articles) — prefer live rows with substantive content.
-        selection = (
-            "ORDER BY (article_title LIKE '%ამოღებულია%') ASC, "
-            "LENGTH(article_id) ASC LIMIT 1"
-        )
+        # One number is one article; several rows are its dated versions.
         with self._connect() as conn:
             if doc_id:
-                row = conn.execute(
-                    f"SELECT * FROM articles WHERE document_id = ? AND article_norm = ? {selection}",
+                rows = conn.execute(
+                    "SELECT * FROM articles WHERE document_id = ? AND article_norm = ?",
                     (doc_id, norm),
-                ).fetchone()
+                ).fetchall()
             else:
-                row = conn.execute(
-                    f"SELECT * FROM articles WHERE article_norm = ? {selection}", (norm,)
-                ).fetchone()
+                rows = conn.execute(
+                    "SELECT * FROM articles WHERE article_norm = ? ORDER BY document_id", (norm,)
+                ).fetchall()
+                rows = [r for r in rows if r["document_id"] == rows[0]["document_id"]] if rows else []
+        row = _in_force(rows, date.today()) if rows else None
 
         result = self._row_to_article(row) if row else None
         if result and paragraph:
@@ -229,7 +265,7 @@ class ArticleStoreService:
         sql += " ORDER BY CAST(article_norm AS INTEGER), article_norm"
         with self._connect() as conn:
             rows = conn.execute(sql, params).fetchall()
-        return [self._row_to_article(r) for r in rows]
+        return [self._row_to_article(r) for r in _in_force_per_article(rows, date.today())]
 
     def get_code_full_text(self, code: str) -> tuple[str, int] | None:
         """Concatenated full text of a code for whole-code context injection.

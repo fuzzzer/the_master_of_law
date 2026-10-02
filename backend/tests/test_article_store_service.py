@@ -35,7 +35,7 @@ class TestNormalization:
         assert _normalize_article("მუხლი 48") == "48"
         assert _normalize_article("48") == "48"
         assert _normalize_article("48-ე") == "48"
-        assert _normalize_article("166¹") == "1661"
+        assert _normalize_article("166¹") == "166-1"
 
     def test_code_prefix_stripped(self):
         assert _normalize_code("საქართველოს შრომის კოდექსი") == "შრომის კოდექსი"
