@@ -146,3 +146,24 @@ def test_the_final_citations_describe_the_final_text():
         (c,) = svc._checked_citations(text, [chunk])
 
     assert c["verified"] is False and c["unverified_reason"] == "paragraph_not_found"
+
+
+def test_an_article_named_only_to_say_it_does_not_exist_is_not_a_citation():
+    """QA, 2026-10-01: "Labour Code art. 500 does not exist" — correct —
+    carried two `verified: false` citations, so the app warned on a right
+    answer. Naming an article in order to deny it is not citing it."""
+    from unittest.mock import MagicMock, patch
+
+    from app.services.agent_pipeline_service import AgentPipelineService
+
+    text = (f"{LABOUR}ის 500-ე მუხლი არ არსებობს — კოდექსში ამდენი მუხლი არ არის. "
+            f"გათავისუფლების წესს {LABOUR}ის 48-ე მუხლი ადგენს.")
+    chunk = {"chunk_id": "c", "content": "…", "metadata": {"code_name": LABOUR, "article_number": "მუხლი 48"}}
+    store = MagicMock()
+    store.get_article.side_effect = lambda code, article: None if "500" in article else {"paragraphs": []}
+    svc = AgentPipelineService(gemini=MagicMock(), citation_svc=CitationService())
+
+    with patch("app.services.agent_pipeline_service.get_article_store_service", return_value=store):
+        cited = svc._checked_citations(text, [chunk])
+
+    assert [c["article_number"] for c in cited] == ["მუხლი 48"]

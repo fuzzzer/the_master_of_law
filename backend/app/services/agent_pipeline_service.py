@@ -961,10 +961,21 @@ class AgentPipelineService:
             found = store.get_article(code, article)
             return found["paragraphs"] if found else None
 
-        verified = self.citation_svc.verify_citations(
-            self.citation_svc.extract_citations(text), chunks
-        )
+        # An article named only to say it does not exist ("მუხლი 500 არ
+        # არსებობს") is a correct statement, not a citation to verify — but
+        # only when the store agrees it does not exist.
+        extracted = [
+            c for c in self.citation_svc.extract_citations(text)
+            if not (
+                self._DENIES_EXISTENCE_RE.search(c.get("claim", ""))
+                and store.is_available
+                and store.get_article(c.get("code_name", ""), c.get("article_number", "")) is None
+            )
+        ]
+        verified = self.citation_svc.verify_citations(extracted, chunks)
         return apply_provision_check(verified, paragraphs_of, rejected)
+
+    _DENIES_EXISTENCE_RE = re.compile(r"არ\s+არსებობს|არ\s+გააჩნია|does not exist|не существует")
 
     async def _faithfulness_pass(
         self, response_text: str, chunks: list[dict]
