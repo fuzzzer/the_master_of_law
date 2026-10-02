@@ -377,3 +377,113 @@ class TestFormatVerificationResults:
         }
         result = AgentPipelineService._format_verification_results(verification)
         assert "FOUND_NOT_IN_CONTEXT" in result
+
+
+# ── Tool loop: the turn always ends in a written answer ──────
+
+def _tool_call_response():
+    """A model turn that asks for a tool instead of answering."""
+    part = types.Part.from_function_call(name="get_article", args={"code": "labor_code", "article": "48"})
+    response = MagicMock()
+    response.candidates = [MagicMock(content=MagicMock(parts=[part]))]
+    response.text = None
+    return response
+
+
+def _text_response(text):
+    response = MagicMock()
+    response.candidates = [MagicMock(content=MagicMock(parts=[types.Part.from_text(text=text)]))]
+    response.text = text
+    return response
+
+
+class TestToolLoopEndsInAnswer:
+    """Production, 2026-10-01: a labour question ran 137 s and the user got
+    `done` with an empty answer, because the model was still asking for tools
+    when the loop ran out of rounds and nothing made it write the answer."""
+
+    def _service(self, mock_gemini, chat):
+        mock_gemini.create_chat = AsyncMock(return_value=chat)
+        svc = AgentPipelineService(gemini=mock_gemini)
+        svc._execute_tool = AsyncMock(return_value={"found": True})
+        return svc
+
+    async def _execute(self, svc):
+        return await svc._phase_2_execute(
+            plan=PipelinePlan(needs_rag=False), user_message="q", system_prompt="",
+            history=[], collections=None, case_file_id=None, user_id=None,
+            conversation_id=None, db=None, redis_client=None, is_case_chat=False,
+        )
+
+    @pytest.mark.asyncio
+    async def test_a_model_that_keeps_asking_for_tools_still_answers(self, mock_gemini):
+        chat = MagicMock()
+        chat.send_message = AsyncMock(return_value=_tool_call_response())
+        chat.send_message_answer_only = AsyncMock(return_value=_text_response("პასუხი"))
+        svc = self._service(mock_gemini, chat)
+
+        text, _, _, _ = await self._execute(svc)
+
+        assert text == "პასუხი"
+        chat.send_message_answer_only.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_the_last_round_runs_no_tools_whose_results_nobody_reads(self, mock_gemini):
+        """Each law search costs two more model calls on the user's own key;
+        a round whose results are never sent back is pure waste."""
+        from app.services.agent_pipeline_service import MAX_TOOL_CALLS_PER_MESSAGE
+
+        chat = MagicMock()
+        chat.send_message = AsyncMock(return_value=_tool_call_response())
+        chat.send_message_answer_only = AsyncMock(return_value=_text_response("პასუხი"))
+        svc = self._service(mock_gemini, chat)
+
+        await self._execute(svc)
+
+        assert svc._execute_tool.await_count == MAX_TOOL_CALLS_PER_MESSAGE
+        assert chat.send_message.await_count + chat.send_message_answer_only.await_count \
+            == MAX_TOOL_CALLS_PER_MESSAGE + 1, "no extra model call"
+
+    @pytest.mark.asyncio
+    async def test_an_empty_answer_is_a_failure_not_a_reply(self, mock_gemini):
+        from app.utils.provider_errors import EmptyModelAnswerError
+
+        chat = MagicMock()
+        chat.send_message = AsyncMock(return_value=_tool_call_response())
+        chat.send_message_answer_only = AsyncMock(return_value=_text_response(""))
+        svc = self._service(mock_gemini, chat)
+
+        with pytest.raises(EmptyModelAnswerError):
+            await self._execute(svc)
+
+    @pytest.mark.asyncio
+    async def test_an_empty_direct_response_is_not_sent_as_the_answer(self, mock_gemini):
+        plan_chat = MagicMock()
+        plan_chat.send_message = AsyncMock(return_value=_text_response(json.dumps(
+            {"needs_rag": False, "direct_response": "", "intent": "greeting"})))
+        svc = AgentPipelineService(gemini=mock_gemini)
+        mock_gemini.create_chat = AsyncMock(return_value=plan_chat)
+
+        plan = await svc._phase_1_plan("გამარჯობა", [])
+
+        assert plan.direct_response is None
+
+
+class TestAnswerOnlySend:
+    @pytest.mark.asyncio
+    async def test_the_real_sdk_chat_gets_function_calling_switched_off(self):
+        """Against the SDK's own chat object: the final round keeps the
+        session's tools and prompt but forbids calling them."""
+        from google import genai
+        from app.integrations.vertex_ai_client import _RetryingChat
+
+        config = types.GenerateContentConfig(system_instruction="sys", tools=ALWAYS_TOOLS)
+        sdk_chat = genai.Client(api_key="test").aio.chats.create(model="m", config=config)
+        sdk_chat.send_message = AsyncMock(return_value=_text_response("ok"))
+
+        await _RetryingChat(sdk_chat, "m").send_message_answer_only("msg")
+
+        sent = sdk_chat.send_message.await_args.kwargs["config"]
+        assert sent.tool_config.function_calling_config.mode == types.FunctionCallingConfigMode.NONE
+        assert sent.tools == ALWAYS_TOOLS and sent.system_instruction == "sys"
+        assert config.tool_config is None, "the session's own config is untouched"

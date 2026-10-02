@@ -138,3 +138,16 @@ class TestMiddlewareIntegration:
 
         assert r.status_code == 500
         assert r.json()["error"] == "internal_server_error"
+
+
+class TestEmptyAnswer:
+    """An empty model answer is reported, never delivered as a blank reply."""
+
+    def test_an_empty_answer_says_so_in_georgian(self):
+        from app.utils.provider_errors import EmptyModelAnswerError
+
+        p = classify(EmptyModelAnswerError())
+        assert p.kind is ProviderErrorKind.EMPTY_ANSWER
+        assert p.error_code == "ai_empty_answer"
+        assert p.is_provider_fault
+        assert "პასუხი" in p.message_ka

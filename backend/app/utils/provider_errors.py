@@ -27,7 +27,16 @@ class ProviderErrorKind(str, Enum):
     QUOTA_EXHAUSTED = "quota_exhausted"      # billing/limit — waiting helps
     PROVIDER_UNAVAILABLE = "provider_unavailable"  # overload — retrying helps
     INVALID_KEY = "invalid_key"              # the caller's own key — only they can fix it
+    EMPTY_ANSWER = "empty_answer"            # the model wrote nothing — retrying or another model helps
     UNKNOWN = "unknown"                      # a real bug — surface as 500
+
+
+class EmptyModelAnswerError(Exception):
+    """The model finished its turn without writing any answer text.
+
+    Raised rather than returned as "": a blank reply delivered as a finished
+    answer is a failure that pretends to be success.
+    """
 
 
 @dataclass(frozen=True)
@@ -67,6 +76,9 @@ _UNAVAILABLE_KA = (
     "AI სერვისი დროებით გადატვირთულია. გთხოვთ, სცადოთ რამდენიმე წამში."
 )
 _UNKNOWN_KA = "დაფიქსირდა შეცდომა. გთხოვთ, სცადოთ თავიდან."
+_EMPTY_ANSWER_KA = (
+    "მოდელმა პასუხი ვერ დაწერა. გთხოვთ, სცადოთ თავიდან ან აირჩიოთ სხვა მოდელი."
+)
 # Under bring-your-own-key the credential belongs to the USER, so a rejected
 # key is not an outage and waiting will not fix it — the message has to say
 # what they must do. Left unclassified this arrives as "an error occurred",
@@ -128,6 +140,14 @@ def classify(exc: BaseException) -> ProviderError:
     fault — those must keep surfacing as 500s, because turning a genuine bug
     into a soothing "try again later" is how defects get shipped.
     """
+    if isinstance(exc, EmptyModelAnswerError):
+        return ProviderError(
+            kind=ProviderErrorKind.EMPTY_ANSWER,
+            status_code=502,
+            error_code="ai_empty_answer",
+            message_ka=_EMPTY_ANSWER_KA,
+        )
+
     text = f"{type(exc).__name__}: {exc}"
 
     # Checked before quota: a disabled-API error carries PERMISSION_DENIED and

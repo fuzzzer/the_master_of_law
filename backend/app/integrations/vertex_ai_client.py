@@ -14,6 +14,7 @@ from functools import lru_cache
 from typing import Any
 
 from google import genai
+from google.genai import types
 from google.genai.types import GenerateContentConfig, ThinkingConfig, ThinkingLevel
 
 from app.config.constants import (
@@ -216,6 +217,21 @@ class _RetryingChat:
             lambda: self._chat.send_message(*args, **kwargs),
             what=f"chat:{self._model}",
         )
+
+    async def send_message_answer_only(self, message: Any) -> Any:
+        """Send with function calling switched off for this one turn.
+
+        The tool loop's last round: the model may no longer ask for a tool,
+        so it has to write its answer from what it has gathered.
+        """
+        config = self._chat._config.model_copy(update={
+            "tool_config": types.ToolConfig(
+                function_calling_config=types.FunctionCallingConfig(
+                    mode=types.FunctionCallingConfigMode.NONE,
+                ),
+            ),
+        })
+        return await self.send_message(message, config=config)
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._chat, name)

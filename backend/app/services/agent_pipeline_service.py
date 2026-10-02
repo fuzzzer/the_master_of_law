@@ -37,6 +37,7 @@ from app.services.rag_retrieval_service import RAGRetrievalService, get_rag_serv
 from app.services.trace_service import record_step
 from app.tools.case_tools import ALWAYS_TOOLS, CASE_CREATION_TOOLS, FULL_CASE_TOOLS
 from app.utils.logger import get_logger
+from app.utils.provider_errors import EmptyModelAnswerError
 from app.services.model_config_service import cheap_model, strong_model
 
 logger = get_logger(__name__)
@@ -288,7 +289,8 @@ class AgentPipelineService:
             if isinstance(result, dict):
                 plan = PipelinePlan(
                     needs_rag=result.get("needs_rag", True),
-                    direct_response=result.get("direct_response"),
+                    # "" is not an answer — let the turn go the normal way.
+                    direct_response=result.get("direct_response") or None,
                     search_queries=[
                         q for q in result.get("search_queries", [])
                         if isinstance(q, str) and q.strip()
@@ -396,7 +398,14 @@ class AgentPipelineService:
         response_text = ""
 
         for iteration in range(MAX_TOOL_CALLS_PER_MESSAGE + 1):
-            response = await chat.send_message(full_message)
+            # The last round may not ask for tools: a turn that ends on a
+            # function_call has no answer, and the tools of a round whose
+            # results are never sent back are calls spent for nothing.
+            is_last_round = iteration == MAX_TOOL_CALLS_PER_MESSAGE
+            if is_last_round:
+                response = await chat.send_message_answer_only(full_message)
+            else:
+                response = await chat.send_message(full_message)
 
             # Collect ALL function calls in this turn. Gemini emits parallel
             # function calls when multiple tools are declared; replying with a
@@ -409,7 +418,7 @@ class AgentPipelineService:
                 else []
             )
             function_calls = [p.function_call for p in parts if p.function_call]
-            has_function_call = bool(function_calls)
+            has_function_call = bool(function_calls) and not is_last_round
 
             if has_function_call:
                 record_step(
@@ -487,8 +496,9 @@ class AgentPipelineService:
                 record_step("llm_response", iteration=iteration, text=response.text or "")
                 break
 
-        if not response_text and response.text:
-            response_text = response.text
+        if not response_text.strip():
+            record_step("empty_model_answer", iteration=iteration)
+            raise EmptyModelAnswerError()
 
         return response_text, chunks, tool_results, bool(full_code_context)
 
