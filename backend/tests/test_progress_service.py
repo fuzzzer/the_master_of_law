@@ -91,6 +91,18 @@ class TestEmission:
         assert frames[0]["key"] == "tools"
         assert frames[0]["detail"] == "ფაქტი დაემატა"
 
+    def test_a_law_lookup_is_not_called_updating_the_case_file(self, frames):
+        """QA, 2026-10-01: a plain consultation's search_law showed
+        "საქმის განახლება / Updating your case file"."""
+        emit_progress("llm_requested_tools", {"calls": [{"tool": "search_law"}]})
+        emit_progress("tool_executed", {"tool": "get_article"})
+        assert {f["key"] for f in frames} == {"lookup"}
+        assert all(f["label"] == "მუხლების მოძიება" for f in frames)
+
+    def test_a_case_tool_still_says_case_file(self, frames):
+        emit_progress("llm_requested_tools", {"calls": [{"tool": "search_law"}, {"tool": "add_fact"}]})
+        assert frames[0]["key"] == "tools"
+
     def test_no_sink_installed_is_a_no_op(self):
         clear_progress_sink()
         emit_progress("llm_response", {})  # must not raise

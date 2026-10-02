@@ -50,6 +50,7 @@ STAGES: tuple[Stage, ...] = (
     Stage("rank",    "მუხლების შერჩევა",             "Picking the most relevant articles"),
     Stage("code",    "კოდექსის სრულად ჩატვირთვა",    "Loading the full code"),
     Stage("draft",   "პასუხის მომზადება",            "Drafting the answer"),
+    Stage("lookup",  "მუხლების მოძიება",             "Looking up articles"),
     Stage("tools",   "საქმის განახლება",             "Updating your case file"),
     Stage("verify",  "მუხლების გადამოწმება",         "Verifying every citation"),
     Stage("repair",  "წყაროებთან შედარება",          "Re-checking against the source text"),
@@ -107,6 +108,25 @@ _TOOL_LABELS_KA: dict[str, str] = {
     "get_article": "მუხლის ამოღება",
     "browse_code": "კოდექსის დათვალიერება",
 }
+
+
+# Tools that only read the law. A step made of these alone is a lookup, not
+# a change to the user's case file.
+_LAW_LOOKUP_TOOLS = frozenset({"search_law", "get_article", "browse_code"})
+
+
+def _stage_key(step: str, data: dict[str, Any]) -> str | None:
+    key = _STEP_TO_STAGE.get(step)
+    if key != "tools":
+        return key
+    try:
+        if step == "tool_executed":
+            tools = {str(data.get("tool", ""))}
+        else:
+            tools = {str(c.get("tool", "")) for c in data.get("calls") or [] if isinstance(c, dict)}
+    except Exception:  # noqa: BLE001 — progress must never break a request
+        return key
+    return "lookup" if tools and tools <= _LAW_LOOKUP_TOOLS else key
 
 
 def _detail_ka(step: str, data: dict[str, Any]) -> str | None:
@@ -175,7 +195,7 @@ def emit_progress(step: str, data: dict[str, Any]) -> None:
     if sink is None:
         return
 
-    key = _STEP_TO_STAGE.get(step)
+    key = _stage_key(step, data or {})
     if key is None:
         return
 
