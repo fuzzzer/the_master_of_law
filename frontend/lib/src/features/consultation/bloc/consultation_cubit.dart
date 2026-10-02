@@ -486,8 +486,11 @@ class ConsultationCubit extends Cubit<ConsultationState> {
                 : null,
           );
 
+          // What the server already sent stays — the emergency reply goes
+          // out before any model call, and a failure after it must not
+          // take it away. Only an empty placeholder is dropped.
           final msgs = List<ChatMessage>.from(state.messages)
-            ..removeWhere((m) => m.id == streamingId);
+            ..removeWhere((m) => m.id == streamingId && m.text.isEmpty);
 
           _safeEmit(
             state.copyWith(

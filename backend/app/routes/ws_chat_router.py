@@ -37,7 +37,12 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/chat", tags=["chat-ws"])
 
 
-async def _fail_turn(websocket: WebSocket, conversation_id: str, exc: Exception) -> None:
+async def _fail_turn(
+    websocket: WebSocket,
+    conversation_id: str,
+    exc: Exception,
+    already_answered: str = "",
+) -> None:
     """Record a failed turn everywhere it has to be recorded.
 
     The message is rendered VERBATIM as a chat bubble in a Georgian-only
@@ -45,7 +50,8 @@ async def _fail_turn(websocket: WebSocket, conversation_id: str, exc: Exception)
     wrong rather than "an error". It goes into the conversation as a
     message of role ``error`` — on its own session, because the turn's may
     be poisoned by the very failure — into the trace, and to the socket if
-    anyone is still there.
+    anyone is still there. ``already_answered`` is text the user was already
+    sent (the emergency reply) — it is kept as the assistant's message.
     """
     from app.models.database import get_session_factory
     from app.utils.provider_errors import classify
@@ -66,6 +72,14 @@ async def _fail_turn(websocket: WebSocket, conversation_id: str, exc: Exception)
     await save_current_trace(status="failed", error=str(exc))
     try:
         async with get_session_factory()() as edb:
+            if already_answered:
+                await ConversationService(edb).save_assistant_message(
+                    conversation_id=conversation_id,
+                    content=already_answered.rstrip(),
+                    citations=[],
+                    retrieved_chunk_ids=[],
+                    credit_cost=0,
+                )
             await ConversationService(edb).save_error_message(
                 conversation_id=conversation_id, content=provider.message_ka,
             )
@@ -293,9 +307,20 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                     # up from the conversation on its next load.
                     import asyncio
 
+                    # Immediate danger is answered before anything that can
+                    # fail — the guardrail and the pipeline are model calls on
+                    # the user's own, possibly spent, key.
+                    from app.utils.emergency import detect_immediate_danger
+
+                    emergency = detect_immediate_danger(user_message)
+                    emergency_lead = f"{emergency.reply_ka}\n\n" if emergency else ""
+
                     async def complete_turn():
                         turn_started(conversation_id)
                         try:
+                            if emergency:
+                                record_step("emergency_reply_sent", kind=emergency.kind.value)
+                                await _safe_send(websocket, {"type": "chunk", "content": emergency_lead})
                             await run_turn()
                         except Exception as e:
                             # Handled HERE, in the task, not in the handler
@@ -303,7 +328,7 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                             # be gone with it, and the failure still has to be
                             # written into the conversation or the user comes
                             # back to their question and silence.
-                            await _fail_turn(websocket, conversation_id, e)
+                            await _fail_turn(websocket, conversation_id, e, emergency_lead)
                         finally:
                             turn_finished(conversation_id)
 
@@ -327,7 +352,7 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                             )
 
                             if not decision.should_proceed:
-                                response_text = decision.response_text or ""
+                                response_text = emergency_lead + (decision.response_text or "")
                                 await turn_conv.save_assistant_message(
                                     conversation_id=conversation_id,
                                     content=response_text,
@@ -402,6 +427,7 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                             # Stream the response to client
                             if response_text:
                                 await _safe_send(websocket, {"type": "chunk", "content": response_text})
+                            response_text = emergency_lead + response_text
 
                             # Send tool results to client
                             for tr in result.tool_results:

@@ -87,6 +87,31 @@ void main() {
   );
 
   test(
+    'text the server already sent stays when the turn then fails: a person '
+    'in danger keeps the 112 reply even if the model call behind it fails',
+    () async {
+      final source = _FakeSource();
+      final cubit = _cubitFor(source);
+      unawaited(cubit.sendMessage('ქმარი მცემს'));
+      await Future<void>.delayed(Duration.zero);
+
+      const emergency = 'თუ ახლა საფრთხეში ხართ, დაუყოვნებლივ დარეკეთ 112-ზე.';
+      const quota = 'ამ მოდელის დღიური უფასო ლიმიტი ამოიწურა.';
+      source.socket
+        ..add({'type': 'chunk', 'content': emergency})
+        ..add({'type': 'error', 'code': 'ai_quota_exhausted', 'message': quota});
+      await Future<void>.delayed(Duration.zero);
+
+      final replies = cubit.state.messages.where((m) => !m.isUser).toList();
+      expect(replies.map((m) => m.text), [emergency, quota]);
+      expect(replies.first.isError, isFalse);
+      expect(replies.last.isError, isTrue);
+      expect(cubit.state.isSending, isFalse);
+      await cubit.close();
+    },
+  );
+
+  test(
     'a socket that drops mid-turn is not an error: the answer that the '
     'server finished without us is fetched and shown',
     () async {

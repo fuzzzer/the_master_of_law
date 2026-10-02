@@ -28,6 +28,8 @@ from app.prompts.chat import CASE_INTAKE_SYSTEM, CHAT_SYSTEM
 from app.services.agent_pipeline_service import get_agent_pipeline_service
 from app.services.conversation_service import ConversationService
 from app.services.guardrail_service import get_guardrail_service
+from app.utils.emergency import detect_immediate_danger
+from app.utils.provider_errors import classify
 from app.services.trace_service import record_step, save_current_trace, start_trace
 from app.utils.logger import get_logger
 
@@ -94,12 +96,23 @@ async def send_message(
         user_tier=user_tier,
     )
 
+    # Immediate danger is answered whatever the model calls below do.
+    emergency = detect_immediate_danger(body.message)
+    emergency_lead = f"{emergency.reply_ka}\n\n" if emergency else ""
+    if emergency:
+        record_step("emergency_reply_sent", kind=emergency.kind.value)
+
     guardrail = get_guardrail_service()
-    decision = await guardrail.classify(
-        body.message,
-        user_tier=user_tier,
-        in_conversation=bool(conv.get("messages")) or body.mode == "case_intake",
-    )
+    try:
+        decision = await guardrail.classify(
+            body.message,
+            user_tier=user_tier,
+            in_conversation=bool(conv.get("messages")) or body.mode == "case_intake",
+        )
+    except Exception as e:
+        if not emergency:
+            raise
+        return await _emergency_reply_after_failure(conv_svc, db, conversation_id, emergency_lead, e)
     record_step(
         "guardrail_decision",
         category=decision.category,
@@ -109,7 +122,7 @@ async def send_message(
     )
 
     if not decision.should_proceed:
-        response_text = decision.response_text or ""
+        response_text = emergency_lead + (decision.response_text or "")
         await conv_svc.save_assistant_message(
             conversation_id=conversation_id,
             content=response_text,
@@ -160,6 +173,8 @@ async def send_message(
             db=db,
         )
     except Exception as e:
+        if emergency:
+            return await _emergency_reply_after_failure(conv_svc, db, conversation_id, emergency_lead, e)
         await save_current_trace(status="failed", error=str(e))
         raise
     response_text = result.response_text
@@ -189,6 +204,7 @@ async def send_message(
     tag_ready = bool(re.search(r'\[CASE_READY\]', response_text))
     if tag_ready:
         response_text = re.sub(r'\s*\[CASE_READY\]\s*', '', response_text).rstrip()
+    response_text = emergency_lead + response_text
 
     # Save assistant response to DB (clean, without tag)
     credit_cost = CreditAction.CHAT.cost
@@ -263,3 +279,31 @@ async def send_message(
         suggest_questionnaire=suggest_questionnaire,
     )
 
+
+async def _emergency_reply_after_failure(
+    conv_svc: ConversationService,
+    db: AsyncSession,
+    conversation_id: str,
+    emergency_lead: str,
+    exc: Exception,
+) -> ChatSendResponse:
+    """A model call failed on a message signalling danger: the emergency
+    reply is still the answer, followed by an honest note of the failure."""
+    provider = classify(exc)
+    logger.warning("chat_failed_after_emergency_reply", kind=provider.kind.value, error=str(exc)[:300])
+    await conv_svc.save_assistant_message(
+        conversation_id=conversation_id,
+        content=emergency_lead.rstrip(),
+        citations=[],
+        retrieved_chunk_ids=[],
+        credit_cost=0,
+    )
+    await conv_svc.save_error_message(conversation_id=conversation_id, content=provider.message_ka)
+    await db.commit()
+    await save_current_trace(status="failed", error=str(exc))
+    return ChatSendResponse(
+        response=emergency_lead + provider.message_ka,
+        citations=[],
+        retrieved_chunks=[],
+        credits_remaining=None,
+    )
