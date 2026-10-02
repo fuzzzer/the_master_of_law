@@ -48,16 +48,17 @@ class Settings(BaseSettings):
     #   CHEAP  — mechanical work whose output is checked or discarded:
     #            guardrail, planning, rerank, verification, guard passes.
     #
-    # They currently resolve to the same model (gemini-3.7-flash). The split
-    # is kept because it is a COST and TRUST boundary, not a model-name alias:
-    # the moment the tiers diverge again, every call site is already correct.
+    # They resolve to DIFFERENT models on purpose: a free Google key's limit
+    # is per model per day (20 requests on gemini-3.7-flash), and one
+    # question makes several cheap calls for each strong one. On one model
+    # they shared that budget and a free key answered 1–3 questions a day.
     gemini_strong_model: str = Field(
         default="gemini-3.7-flash",
         validation_alias=AliasChoices("GEMINI_STRONG_MODEL", "GEMINI_MODEL"),
         description="Model for high-stakes generation (phase 2, case analysis, documents).",
     )
     gemini_cheap_model: str = Field(
-        default="gemini-3.7-flash",
+        default="gemini-3.5-flash-lite",
         validation_alias=AliasChoices("GEMINI_CHEAP_MODEL", "GEMINI_CHAT_MODEL"),
         description="Model for planning, reranking, verification and guard passes.",
     )

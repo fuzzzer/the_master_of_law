@@ -303,8 +303,8 @@ SEARCH_LAW_DECLARATION = types.FunctionDeclaration(
     description=(
         "Search the Georgian law database for a specific law article when you need to verify "
         "exact wording, check a specific article number, or find laws related to a topic. "
-        "Use this when the initially retrieved context doesn't contain the specific article "
-        "you need, or when the user asks about a specific article number. "
+        "Use it ONLY for an article that is NOT already in the retrieved context or in the "
+        "full code text of this message — never to re-check wording you already have. "
         "კანონის მონაცემთა ბაზაში კონკრეტული მუხლის ძებნა. "
         "გამოიყენე, როდესაც საჭიროა კონკრეტული მუხლის ზუსტი ტექსტის შემოწმება."
     ),

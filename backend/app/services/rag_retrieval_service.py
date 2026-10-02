@@ -148,6 +148,7 @@ class RAGRetrievalService:
         top_k: int = RAG_RERANK_TOP_K,
         collections: list[str] | None = None,
         pre_expanded_queries: list[str] | None = None,
+        rerank: bool = True,
     ) -> list[dict]:
         """Run the full 5-stage RAG pipeline.
 
@@ -162,6 +163,9 @@ class RAGRetrievalService:
         pre_expanded_queries : list[str] | None
             Pre-planned search queries from the agent pipeline. When provided,
             Stage 0 (query expansion) is skipped to avoid double-expansion.
+        rerank : bool
+            False keeps the merged best-match order and makes no model call —
+            for a lookup that needs one article, not a ranked context.
         """
         logger.info(
             "rag_pipeline_start",
@@ -219,7 +223,10 @@ class RAGRetrievalService:
             top_chunk_ids=[m.get("chunk_id") for m in merged[:100]],
         )
 
-        if len(merged) > top_k:
+        if not rerank:
+            reranked = merged[:top_k]
+            record_step("rag_rerank", skipped=True, reason="lookup without rerank")
+        elif len(merged) > top_k:
             # We send top_k (which is now larger, e.g. 35) to Gemini for reranking.
             # The candidate pool is balanced per collection first — otherwise the
             # global distance sort fills it with court practice before statutes.

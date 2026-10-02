@@ -385,10 +385,7 @@ class AgentPipelineService:
         # Build the user message with law context prefix
         message_parts = []
         if full_code_context:
-            message_parts.append(
-                "FULL LEGAL CODE (complete, authoritative — cite articles "
-                f"directly from here):\n{full_code_context}\n\n"
-            )
+            message_parts.append(f"{self._full_code_header()}\n{full_code_context}\n\n")
         if law_context:
             message_parts.append(f"RETRIEVED LAW ARTICLES:\n{law_context}\n\n")
         message_parts.append(user_message)
@@ -511,6 +508,16 @@ class AgentPipelineService:
             raise EmptyModelAnswerError()
 
         return response_text, chunks, tool_results, bool(full_code_context)
+
+    @staticmethod
+    def _full_code_header() -> str:
+        """Heading of the injected code. Without "do not search" the model
+        re-fetched articles it had in full, a law search per article."""
+        return (
+            "FULL LEGAL CODE (complete and authoritative — every article of this "
+            "code is below; cite directly from here and do not search or fetch "
+            "articles of this code with tools):"
+        )
 
     async def _execute_tool(
         self,
@@ -717,9 +724,14 @@ class AgentPipelineService:
 
         # Fall back to RAG search
         if query:
+            # The query is already a precise search phrase written by the
+            # model, and only the top hit is returned: expansion and rerank
+            # would be two model calls on the user's key for nothing.
             results = await self.rag.retrieve(
                 user_message=query,
                 collections=["georgian_laws"],
+                pre_expanded_queries=[query],
+                rerank=False,
             )
             if results:
                 top = results[0]
