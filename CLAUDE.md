@@ -59,7 +59,7 @@ FastAPI Backend (~10K lines, 90 files)
   │ Grounding: article store (SQLite+FTS5) + get_article/browse_code tools + retrieval repair
   │ Gemini 3.1 Pro legal analysis + source-specific prompt injection
   │ Pipeline transparency traces (per-request step log + admin dashboard)
-  │ 659 tests across 43 test files — all pass (see below)
+  │ 769 tests across 54 test files — all pass (see below)
   ▼
 Data: PostgreSQL + ChromaDB (3 collections, 20,513 docs live) + Redis
   │ georgian_laws: 15,338 (12 legal codes)
@@ -112,7 +112,7 @@ After completing any task that changes the codebase structure, you MUST:
 
 ## Current Status
 
-> **Last verified:** 2026-09-06
+> **Last verified:** 2026-10-02
 
 | Component | Status | Location |
 |-----------|--------|----------|
@@ -134,15 +134,17 @@ three tests fail on whatever else owns `:5432`. Start one with
 
 | Where it runs | Result |
 |---|---|
-| With corpus + test DB | 659 passed, 0 skipped |
-| Without the corpus (CI) | 647 passed, 12 skipped |
+| With corpus + test DB | 769 passed, 3 skipped |
+| Without the corpus (CI) | 757 passed, 15 skipped |
 
-The 12 skips are corpus-dependent tests, named one by one in
+12 skips are corpus-dependent tests, named one by one in
 `tests/conftest.py`; a name that stops matching fails the run rather than
-silently dropping coverage. `test_websocket_requires_credits_and_deducts`
+silently dropping coverage. The other 3 need the article store rebuilt with
+superscript article numbers (`law_corpus/data_v2_superscripts`, not yet the
+live corpus); run them with `CHROMA_PERSIST_DIR=<that dir>/chroma`. `test_websocket_requires_credits_and_deducts`
 was skipped for months as "hangs on turn 2"; the cause was the chat turn's
 transaction being poisoned by a failing automatic case build (2026-09-20),
-and it runs again. Frontend: `fvm flutter test` = 129
+and it runs again. Frontend: `fvm flutter test` = 133
 passing, `fvm flutter analyze` = 0 errors / 2 known infos.
 
 ### Before touching deployment

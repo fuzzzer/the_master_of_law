@@ -12,6 +12,62 @@ Harness and scenarios: `scripts/qa/` (see "Reproducing" at the end).
 All QA conversations and case files created in production were deleted afterwards;
 the anonymous `anon:qa-*` user rows remain in the `users` table.
 
+## Fix status (2026-10-02, branch `fix/georgian-qa-findings`)
+
+Each fix has a regression test that failed before it. "Local" = verified in
+tests and against a local build; nothing below is deployed.
+
+| Finding | Status | Commit |
+|---|---|---|
+| A1 calls per question | Owner's choice implemented: lite model for mechanical work by default, a tool law search makes no model calls, the injected code is declared complete. **Committed, not yet evaluated on the production model** — see "Evaluation" below | `cf3a15e` |
+| A2 empty answer | Fixed — last round forbids tools; an empty answer is an honest error | `a16822e` |
+| A3 client timeout | Fixed — server heartbeat every 20 s; a silent socket ends without a fake error | `1368b65` |
+| A4 daily vs per-minute | Fixed — quotaId decides the wording | `6d3e40d` |
+| A5 quota id in logs | Fixed — quota_period / quota_ids / quota_value logged as fields | `6d3e40d` |
+| A6 unusable models listed | Fixed in what the user is told: a zero free limit or a retired model says "not available with your key". The list itself still comes from Google (only a call can tell what a key may use) | `3fed687` |
+| B1 emergency path | Fixed — 112 / 116 006 before any model call, kept if the model then fails (numbers checked at 112.gov.ge) | `7725d1c` |
+| C1 create-case crash | Fixed — users row resolved; each tool runs in a savepoint | `457c05a` |
+| C2 two case files | Fixed — one conversation, one case file; the id goes back to the app | `2060233` |
+| C3 raw English 500 | Fixed — the route no longer swallows errors; guard test for all routes | `19d60ce` |
+| D1 wrong paragraph "verified" | Fixed — paragraph and sub-point checked; the faithfulness pass reads the cited provision | `54539f2` |
+| D2 invented figures | Prompt cause removed (odds asked for; no rule against unsourced figures) | `54539f2` |
+| D3 court-fee claim | Same rule: fees and exemptions only as written in the context | `54539f2` |
+| D4 / D5 deadline, art. 48(7) | Eval cases G31–G34 + check C9 added; still failing on the lite model — see below | `54539f2` |
+| D6 language | Prompt causes removed (English headings, agent role-play, no თქვენ rule); foreign-script letters detected and rejected by QA/eval. Automatic repair would cost a model call — owner's decision | `54539f2` |
+| D7 citations of a non-existent article | Fixed for the "art. 500 does not exist" case. The "87 vs 89 articles" count is a model figure, covered by the figures rule | `3a115bd` |
+| E1 superscript articles | Fixed at the source; article store rebuilt **locally** into `law_corpus/data_v2_superscripts` (5,242 → 5,328 articles, 24 → 0 collisions, real matsne anchors). Chroma not yet rebuilt: 5,275 changed chunks still need embedding (9,807 reuse old vectors). Production data untouched — needs owner go-ahead | `a0d1ac2`, `21a37ed` |
+| E1 code `source_url` | Fixed | `885b426` |
+| E2 search duplicates | Fixed | `2d5f647` |
+| F1 "Updating your case file" | Fixed | `2cb5784` |
+
+Found while fixing (not in the original run): the threshold table gave the
+criminal appeal deadline as 20 days from the **replaced** Criminal Procedure
+Code; the current code says one month (art. 293(1)) — fixed in `a0d1ac2`.
+The parser also dropped the last paragraph of articles printed in two
+versions, often the fine's amount — fixed in the same commit.
+
+### Evaluation (golden set, lite models, free key — owner's choice)
+
+Measured per question before the change (in-process call counter): 5–6
+successful model requests and 30–50k input tokens on a typical question with
+no law searches (guardrail, planner, a ~28k-token rerank, answer, faithfulness);
+the code allowed ~25 in the worst case; production QA saw 15–20.
+
+Golden set, one run each (`eval/results/golden/20261002_*`):
+
+| | before | after all changes |
+|---|---|---|
+| G1–G30, all of C1–C8 | 28/30 | 27/30 (G1 fixed; G14 Latin fragment, G30 grounding — single samples) |
+| G31–G34 accuracy cases (C9) | 2/4 | 1/4 (G32 lost the 48(7) burden-of-proof rule) |
+| law-search tool calls, G1–G30 | 0 | 0 |
+
+What this can and cannot show: the lite model never calls `search_law`, so
+the main saving cannot be seen here; one sample per question at temperature
+1 does not separate the G32 regression from noise. Repeat runs (3× each side)
+were started and stopped when the key's **daily embedding quota (1,000)** ran
+out — spent by the corpus re-embedding. Needed before deploying the calls
+change: the same comparison on the production model, repeated.
+
 ## Scorecard
 
 About 25 questions were sent. Roughly two thirds never produced an answer

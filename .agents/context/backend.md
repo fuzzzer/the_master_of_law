@@ -1,7 +1,7 @@
 # Backend Context — Fuzzzy Law
 
 > FastAPI backend with multi-source RAG pipeline + Gemini legal analysis.
-> **Last verified:** 2026-08-19
+> **Last verified:** 2026-10-02
 
 ---
 
@@ -342,7 +342,7 @@ cd backend && docker compose up --build -d
 docker compose exec api alembic upgrade head
 
 # Tests
-.venv/bin/python -m pytest tests/ -v  # 647 tests (645 pass; 2 pre-existing infra failures)
+.venv/bin/python -m pytest tests/ -q  # 769 pass, 3 skip (needs scripts/test-db.sh up; see CLAUDE.md)
 ```
 
 ---
@@ -362,6 +362,36 @@ docker compose exec api alembic upgrade head
 | Gemini prompts | `app/prompts/` |
 
 ---
+
+## Behaviour fixed after the 2026-10-01 Georgian QA
+
+See `docs/qa/2026-10-01_georgian_qa_findings.md` (status table) for the why.
+
+- **Turn ends in text.** The tool loop's last round goes out with function
+  calling off (`_RetryingChat.send_message_answer_only`); an empty answer raises
+  `EmptyModelAnswerError` → Georgian `ai_empty_answer`, never a blank `done`.
+- **Emergency first.** `utils/emergency.py` (one phrase list) answers present-tense
+  danger with 112 / 116 006 before the guardrail or any model call, on the socket
+  and REST; kept as the assistant message if a model call then fails.
+- **Heartbeat.** A running socket turn sends `{"type": "heartbeat"}` every
+  `WS_HEARTBEAT_INTERVAL_S` (20 s); the app's silence window is 60 s.
+- **Provider errors** (`utils/provider_errors.py`): kinds QUOTA_EXHAUSTED
+  (`quota_period` day/minute from Google's quotaId), MODEL_UNAVAILABLE (zero free
+  limit or retired model), EMPTY_ANSWER, PROVIDER_UNAVAILABLE, INVALID_KEY. Routes
+  must not catch-all and return `str(e)` — the error middleware classifies
+  (guard test `test_no_route_answers_a_catch_all_with_the_exceptions_own_text`).
+- **Case tools** run each in a savepoint; one conversation has one case file.
+- **Citations** carry `paragraph`, `sub_point`, `claim`; `verified` requires the
+  paragraph/sub-point to exist (`apply_provision_check`) and not be rejected by the
+  faithfulness pass, which now sees each cited provision's text. Computed on the
+  final text.
+- **Shared prompt rules** (`prompts/shared_rules.py`): no odds or unsourced
+  figures/fees; formal თქვენ.
+- **Article numbers**: 52¹ is stored `52-1`, shown `მუხლი 52¹`; dated versions are
+  `article_61@2026-09-01` and `get_article` returns the one in force. Needs the
+  rebuilt store (`law_corpus/data_v2_superscripts`) — the live store is still flattened.
+- **Calls**: cheap tier defaults to `gemini-3.5-flash-lite`; `search_law` tool calls
+  skip expansion and rerank (`retrieve(..., rerank=False)`).
 
 ## Gotchas
 
