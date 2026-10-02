@@ -92,7 +92,10 @@ class TestCaseToolExecutor:
 
     @pytest.fixture
     def mock_db(self):
-        return AsyncMock()
+        db = AsyncMock()
+        # As on AsyncSession: a plain call returning an async context manager.
+        db.begin_nested = MagicMock(return_value=AsyncMock())
+        return db
 
     @pytest.fixture
     def mock_case_file(self):

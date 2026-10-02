@@ -14,6 +14,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories.case_file_repository import CaseFileRepository
+from app.repositories.user_repository import UserRepository
 from app.tools.case_tools import DESTRUCTIVE_TOOLS
 from app.utils.logger import get_logger
 
@@ -94,7 +95,7 @@ class CaseToolExecutor:
             )
 
         try:
-            result = await handler(case_file_id, args)
+            result = await self._run_in_savepoint(handler, case_file_id, args)
             self._log_execution(user_id, tool_name, args, "executed")
             return ToolResult(
                 tool_name=tool_name,
@@ -147,7 +148,7 @@ class CaseToolExecutor:
             )
 
         try:
-            result = await handler(pending["case_file_id"], pending["args"])
+            result = await self._run_in_savepoint(handler, pending["case_file_id"], pending["args"])
             await self._clear_pending(confirmation_id)
             self._log_execution(user_id, pending["tool_name"], pending["args"], "confirmed_executed")
             return ToolResult(
@@ -161,6 +162,12 @@ class CaseToolExecutor:
                 status="error",
                 result={"error": str(e)},
             )
+
+    async def _run_in_savepoint(self, handler, case_file_id: str, args: dict) -> dict:
+        """Run one tool's writes so that, if the database rejects them, only
+        they are undone — the turn's session stays usable for its answer."""
+        async with self._db.begin_nested():
+            return await handler(case_file_id, args)
 
     def _get_handler(self, tool_name: str):
         handlers = {
@@ -405,8 +412,12 @@ class CaseToolExecutor:
                     "text": f["text"],
                     "classification": f.get("classification", "neutral"),
                 })
+        # `self._user_id` is the login id; case_files.user_id is the users row.
+        user = await UserRepository(self._db).get_by_firebase_uid(self._user_id)
+        if user is None:
+            return {"error": "Cannot create case: unknown user"}
         cf = await self._repo.create(
-            user_id=self._user_id,
+            user_id=user.id,
             conversation_id=uuid.UUID(self._conversation_id),
             title=title,
             facts=facts,
