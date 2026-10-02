@@ -135,3 +135,34 @@ def test_the_rest_chat_route_answers_with_112_when_the_model_fails():
     assert stored[0] == ("user", DANGER)
     assert stored[1][0] == "assistant" and "112" in stored[1][1]
     assert stored[2][0] == "error"
+
+
+def test_a_turn_slower_than_the_apps_silence_window_keeps_the_socket_alive():
+    """Production, 2026-10-01: one drafting call took 73 s with no frame
+    sent; the app gives up after 60 s of silence, so the user saw an error
+    while the server kept spending their quota. Here the window is shrunk:
+    a pipeline 6× slower than the heartbeat interval."""
+    login_id = f"ws-slow-{uuid.uuid4().hex[:8]}"
+    conversation_id = _conversation(login_id)
+    allow = AsyncMock(return_value=GuardrailDecision(category="legal", confidence=1.0, should_proceed=True))
+    result = MagicMock(response_text="პასუხი", chunks=[], verified_citations=[], tool_results=[])
+
+    async def slow_model_call(*_args, **_kwargs):
+        await asyncio.sleep(0.3)
+        return result
+
+    frames = []
+    with patch("app.routes.ws_chat_router.WS_HEARTBEAT_INTERVAL_S", 0.05), \
+            patch("app.integrations.firebase_client.verify_id_token", return_value={"uid": login_id}), \
+            patch("app.services.guardrail_service.GuardrailService.classify", allow), \
+            patch("app.services.agent_pipeline_service.AgentPipelineService.run", slow_model_call):
+        with TestClient(app).websocket_connect(f"/api/v1/chat/{conversation_id}/ws?token=t") as ws:
+            ws.send_json({"message": "კითხვა", "mode": "chat"})
+            while True:
+                frames.append(ws.receive_json())
+                if frames[-1]["type"] in ("done", "error") or len(frames) > 200:
+                    break
+
+    kinds = [f["type"] for f in frames]
+    assert kinds[-1] == "done", kinds
+    assert kinds.count("heartbeat") >= 3, kinds

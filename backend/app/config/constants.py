@@ -95,6 +95,13 @@ FULL_CODE_INJECTION_DOMAIN_CODES: dict[str, list[str]] = {
     "constitutional": ["constitution"],
 }
 
+# ── Chat socket ──────────────────────────────────────────────
+
+# The app closes a turn's socket after 60 s without a frame
+# (consultation_remote_data_source.dart). One model call can take longer, so
+# a running turn sends a heartbeat well inside that window.
+WS_HEARTBEAT_INTERVAL_S = 20
+
 # ── Gemini ───────────────────────────────────────────────────
 
 GEMINI_TEMPERATURE = 1              

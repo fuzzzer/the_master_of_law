@@ -3,6 +3,31 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:fuzzzy_law/src/src.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
+/// How long a turn's socket may stay silent before it counts as lost. The
+/// server sends a heartbeat every 20 s while a turn runs
+/// (`WS_HEARTBEAT_INTERVAL_S` in the backend), so only a dead connection
+/// stays quiet this long.
+const turnSilenceWindow = Duration(seconds: 60);
+
+/// The decoded frames of one turn, up to and including `done` or `error`.
+///
+/// A socket silent for [silence] just ends: the turn registry reports that
+/// as a lost connection and the answer — which the server finishes without
+/// us — is fetched from the conversation, rather than shown as an error.
+Stream<Map<String, dynamic>> turnFrames(
+  Stream<dynamic> socket, {
+  Duration silence = turnSilenceWindow,
+}) async* {
+  final guarded = socket.timeout(silence, onTimeout: (sink) => sink.close());
+  await for (final data in guarded) {
+    final decoded = jsonDecode(data as String) as Map<String, dynamic>;
+    yield decoded;
+    if (decoded['type'] == 'done' || decoded['type'] == 'error') {
+      break;
+    }
+  }
+}
+
 class ConsultationRemoteDataSource {
   final FuzzzyLawHttpClient _httpClient;
 
@@ -159,23 +184,7 @@ class ConsultationRemoteDataSource {
         }),
       );
 
-      // Per-message inactivity timeout: if the server never sends another
-      // frame (and no done/error), don't let the typing indicator spin forever.
-      final guarded = channel.stream.timeout(
-        const Duration(seconds: 60),
-        onTimeout: (sink) {
-          sink.add(jsonEncode({'type': 'error', 'message': 'timeout'}));
-          sink.close();
-        },
-      );
-
-      await for (final data in guarded) {
-        final decoded = jsonDecode(data as String) as Map<String, dynamic>;
-        yield decoded;
-        if (decoded['type'] == 'done' || decoded['type'] == 'error') {
-          break;
-        }
-      }
+      yield* turnFrames(channel.stream);
     } finally {
       await channel.sink.close();
     }

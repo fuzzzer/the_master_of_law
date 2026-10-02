@@ -20,7 +20,7 @@ from starlette.websockets import WebSocketState
 from google.genai import types
 
 from app.config.settings import settings
-from app.config.constants import CreditAction, UserTier
+from app.config.constants import WS_HEARTBEAT_INTERVAL_S, CreditAction, UserTier
 from app.middleware.rate_limit_middleware import check_redis_rate_limit
 from app.repositories.credit_repository import CreditRepository
 from app.prompts.advocate import compose_advocate_prompt
@@ -315,8 +315,16 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                     emergency = detect_immediate_danger(user_message)
                     emergency_lead = f"{emergency.reply_ka}\n\n" if emergency else ""
 
+                    async def heartbeat():
+                        # A single model call can outlast the app's 60 s
+                        # silence window; this keeps the socket counted alive.
+                        while True:
+                            await asyncio.sleep(WS_HEARTBEAT_INTERVAL_S)
+                            await _safe_send(websocket, {"type": "heartbeat"})
+
                     async def complete_turn():
                         turn_started(conversation_id)
+                        beating = asyncio.create_task(heartbeat())
                         try:
                             if emergency:
                                 record_step("emergency_reply_sent", kind=emergency.kind.value)
@@ -330,6 +338,7 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                             # back to their question and silence.
                             await _fail_turn(websocket, conversation_id, e, emergency_lead)
                         finally:
+                            beating.cancel()
                             turn_finished(conversation_id)
 
                     async def run_turn():
