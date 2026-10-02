@@ -48,7 +48,9 @@ class TestExactLookup:
         assert art is not None
         assert art["article_number"] == "მუხლი 48"
         assert len(art["paragraphs"]) == 9
-        assert art["article_url"].endswith("#article_48")
+        # matsne anchors articles as "#part_<uid>"; older stores carry an
+        # invented "#article_48" that opens the top of the code.
+        assert art["article_url"].startswith("https://matsne.gov.ge/ka/document/view/1155567#")
         assert "30 კალენდარული დღის" in art["content_ka"]
 
     def test_lookup_by_georgian_name(self, store):
