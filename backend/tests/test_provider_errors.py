@@ -151,3 +151,68 @@ class TestEmptyAnswer:
         assert p.error_code == "ai_empty_answer"
         assert p.is_provider_fault
         assert "პასუხი" in p.message_ka
+
+
+# Real, 2026-10-02, a free key calling a model whose free quota is 0. Google
+# lists every bucket the call broke; the day ones decide what the user is told.
+DAILY_429 = (
+    "ClientError: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded "
+    "your current quota, please check your plan and billing details. \\n* Quota exceeded for "
+    "metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, "
+    "model: gemini-2.5-pro\\nPlease retry in 14h54m20.958164783s.', 'status': "
+    "'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.QuotaFailure', "
+    "'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_input_token_count', "
+    "'quotaId': 'GenerateContentInputTokensPerModelPerDay-FreeTier', 'quotaDimensions': {'location': "
+    "'global', 'model': 'gemini-2.5-pro'}}, {'quotaMetric': "
+    "'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': "
+    "'GenerateRequestsPerMinutePerProjectPerModel-FreeTier', 'quotaDimensions': {'location': "
+    "'global', 'model': 'gemini-2.5-pro'}}, {'quotaMetric': "
+    "'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': "
+    "'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'model': "
+    "'gemini-2.5-pro', 'location': 'global'}, 'quotaValue': '20'}]}, {'@type': "
+    "'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '53660s'}]}}"
+)
+# The per-minute shape: same body, only a minute bucket broken.
+MINUTE_429 = (
+    "ClientError: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded "
+    "your current quota. Please retry in 41.2s.', 'status': 'RESOURCE_EXHAUSTED', 'details': "
+    "[{'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': "
+    "'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': "
+    "'GenerateRequestsPerMinutePerProjectPerModel-FreeTier', 'quotaDimensions': {'location': "
+    "'global', 'model': 'gemini-3.7-flash'}, 'quotaValue': '5'}]}, {'@type': "
+    "'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '41s'}]}}"
+)
+
+
+class TestDailyVersusPerMinute:
+    """Production, 2026-10-01: a spent DAILY bucket was reported as "try
+    again in 41 seconds" — the user waited and failed again. And when
+    Google's delay is the rest of the day, it read "try in 53660 seconds"."""
+
+    def test_a_spent_daily_limit_says_so_and_offers_the_way_out(self):
+        p = classify(RuntimeError(DAILY_429))
+        assert p.kind is ProviderErrorKind.QUOTA_EXHAUSTED
+        assert p.quota_period == "day"
+        assert "დღიური" in p.message_ka
+        assert "სხვა მოდელი" in p.message_ka and "შეცვალეთ გასაღები" in p.message_ka
+        assert "წამში" not in p.message_ka, "waiting seconds will not help"
+        assert p.retry_after_s is None
+
+    def test_a_spent_minute_limit_says_how_many_seconds(self):
+        p = classify(RuntimeError(MINUTE_429))
+        assert p.quota_period == "minute"
+        assert "41 წამში" in p.message_ka
+        assert "დღიური" not in p.message_ka
+
+    def test_the_broken_buckets_are_named_for_the_log(self):
+        """Production log lines are cut at a few hundred characters, which
+        drops exactly this part of Google's body."""
+        p = classify(RuntimeError(DAILY_429))
+        assert "GenerateRequestsPerDayPerProjectPerModel-FreeTier" in p.quota_ids
+        assert p.quota_value == 20
+
+    @pytest.mark.parametrize("text", [DAILY_429, MINUTE_429])
+    def test_both_stay_georgian(self, text):
+        msg = classify(RuntimeError(text)).message_ka
+        latin_names = msg.replace("AI", "").replace("Google", "")
+        assert not any(ch.isascii() and ch.isalpha() for ch in latin_names), msg

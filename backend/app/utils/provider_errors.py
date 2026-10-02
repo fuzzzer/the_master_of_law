@@ -46,6 +46,11 @@ class ProviderError:
     error_code: str
     message_ka: str
     retry_after_s: int | None = None
+    # Which of Google's buckets broke — "day" or "minute" — and their ids and
+    # limit, so a log line names them even when the raw body is cut short.
+    quota_period: str | None = None
+    quota_ids: tuple[str, ...] = ()
+    quota_value: int | None = None
 
     @property
     def is_provider_fault(self) -> bool:
@@ -64,6 +69,12 @@ _QUOTA_KA = (
 )
 _QUOTA_WAIT_KA = "სცადეთ {seconds} წამში,"
 _QUOTA_WAIT_UNKNOWN_KA = "სცადეთ მოგვიანებით,"
+# A spent DAILY bucket does not come back in seconds — Google's delay is the
+# rest of the day — so the only useful advice is the way out right now.
+_QUOTA_DAILY_KA = (
+    "ამ მოდელის დღიური უფასო ლიმიტი თქვენს Google-ის გასაღებზე ამოიწურა. "
+    "აირჩიეთ სხვა მოდელი ან შეცვალეთ გასაღები პარამეტრებში."
+)
 
 
 def _quota_message(retry_after_s: int | None) -> str:
@@ -117,6 +128,8 @@ _INVALID_KEY_MARKERS = (
     "has not been used in project",
 )
 
+_QUOTA_ID_RE = re.compile(r"quotaId['\"]?\s*[:=]\s*['\"]([\w.-]+)")
+_QUOTA_VALUE_RE = re.compile(r"quotaValue['\"]?\s*[:=]\s*['\"]?(\d+)")
 _RETRY_AFTER_RE = re.compile(r"retryDelay['\"]?\s*[:=]\s*['\"]?(\d+)")
 _RETRY_IN_RE = re.compile(r"retry in ([\d.]+)s", re.IGNORECASE)
 
@@ -130,6 +143,16 @@ def _retry_after(text: str) -> int | None:
                 return max(1, int(float(m.group(1))))
             except ValueError:
                 continue
+    return None
+
+
+def _quota_period(quota_ids: tuple[str, ...]) -> str | None:
+    """A broken day bucket outranks a minute one: waiting a minute cannot
+    help while the day's allowance is spent."""
+    if any("PerDay" in q for q in quota_ids):
+        return "day"
+    if any("PerMinute" in q for q in quota_ids):
+        return "minute"
     return None
 
 
@@ -164,15 +187,21 @@ def classify(exc: BaseException) -> ProviderError:
         )
 
     if any(m in text for m in _QUOTA_MARKERS):
-        retry_after_s = _retry_after(text)
+        quota_ids = tuple(dict.fromkeys(_QUOTA_ID_RE.findall(text)))
+        period = _quota_period(quota_ids)
+        values = [int(v) for v in _QUOTA_VALUE_RE.findall(text)]
+        retry_after_s = None if period == "day" else _retry_after(text)
         return ProviderError(
             kind=ProviderErrorKind.QUOTA_EXHAUSTED,
             # 503, not 429: 429 means THIS CLIENT sent too many requests, and
             # the user did not — the server's own upstream budget is spent.
             status_code=503,
             error_code="ai_quota_exhausted",
-            message_ka=_quota_message(retry_after_s),
+            message_ka=_QUOTA_DAILY_KA if period == "day" else _quota_message(retry_after_s),
             retry_after_s=retry_after_s,
+            quota_period=period,
+            quota_ids=quota_ids,
+            quota_value=min(values) if values else None,
         )
 
     if any(m in text for m in _UNAVAILABLE_MARKERS):

@@ -56,6 +56,9 @@ async def _fail_turn(websocket: WebSocket, conversation_id: str, exc: Exception)
             "ws_provider_error",
             kind=provider.kind.value,
             retry_after_s=provider.retry_after_s,
+            quota_period=provider.quota_period,
+            quota_ids=",".join(provider.quota_ids),
+            quota_value=provider.quota_value,
             error=str(exc)[:300],
         )
     else:
