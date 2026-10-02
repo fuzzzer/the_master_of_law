@@ -422,7 +422,10 @@ class ConsultationCubit extends Cubit<ConsultationState> {
           }
           // Check done-event tool_results for case creation
           final doneToolResults = event['tool_results'] as List<dynamic>? ?? [];
-          String? createdCaseId;
+          // A case file built when the conversation became ready: its id
+          // goes back with the next turn, so that file is updated, not a
+          // second one created.
+          String? createdCaseId = event['case_file_id']?.toString();
           for (final t in doneToolResults) {
             final map = t as Map<String, dynamic>;
             if (map['tool_name'] == 'create_case') {

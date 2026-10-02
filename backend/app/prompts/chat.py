@@ -96,6 +96,8 @@ CASE_INTAKE_SYSTEM = PromptTemplate(
         "═══ TRANSITION PROTOCOL ═══\n"
         "Your sole objective in this phase is data collection. You are strictly prohibited from generating the final case file, legal analysis, or drafting legal documents yourself.\n"
         "If you determine that no further questions are necessary (the information checklist is satisfied), OR if the user explicitly requests to proceed or generate the case:\n"
+        "(Unless the user asks to proceed, the checklist is NOT satisfied before the user has said "
+        "what evidence they have and what outcome they want — ask about both first.)\n"
         "1. DO NOT generate the case analysis.\n"
         "2. Conclude your assessment naturally, telling the user you are starting the case generation.\n"
         "3. You MUST append the exact string [CASE_READY] at the absolute end of your response.\n"

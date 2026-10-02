@@ -35,6 +35,17 @@ class CaseFileRepository:
         result = await self._db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_by_conversation(self, conversation_id: uuid.UUID) -> CaseFile | None:
+        """The case file built from a conversation — there is at most one."""
+        stmt = (
+            select(CaseFile)
+            .where(CaseFile.conversation_id == conversation_id)
+            .order_by(CaseFile.created_at)
+            .limit(1)
+        )
+        result = await self._db.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def list_for_user(self, user_id: uuid.UUID, limit: int = 50) -> list[CaseFile]:
         stmt = (
             select(CaseFile)

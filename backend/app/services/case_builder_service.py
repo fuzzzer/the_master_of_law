@@ -212,6 +212,17 @@ class CaseBuilderService:
         """
         logger.info("case_build_start", conversation_id=conversation_id)
 
+        # One conversation, one case file: a conversation that is ready again
+        # refines its file rather than starting a second one.
+        existing = await CaseFileRepository(db).get_by_conversation(uuid.UUID(conversation_id))
+        if existing:
+            return await self.update_case_file(
+                db=db,
+                case_file_id=existing.id,
+                conversation_id=conversation_id,
+                retrieved_chunks=retrieved_chunks,
+            )
+
         history = await self._load_conversation(db, conversation_id)
         conv_text = self._format_conversation(history)
 

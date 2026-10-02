@@ -412,6 +412,9 @@ class CaseToolExecutor:
                     "text": f["text"],
                     "classification": f.get("classification", "neutral"),
                 })
+        existing = await self._repo.get_by_conversation(uuid.UUID(self._conversation_id))
+        if existing:
+            return {"case_file_id": str(existing.id), "title": existing.title, "status": existing.status}
         # `self._user_id` is the login id; case_files.user_id is the users row.
         user = await UserRepository(self._db).get_by_firebase_uid(self._user_id)
         if user is None:

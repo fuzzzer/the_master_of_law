@@ -456,6 +456,7 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                                     })
 
                             # Handle [CASE_READY]
+                            built_case_file_id = None
                             if tag_ready:
                                 await turn_conv.mark_case_ready(conversation_id)
 
@@ -477,6 +478,7 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                                             conversation_id=conversation_id,
                                             retrieved_chunks=chunks,
                                         )
+                                    built_case_file_id = build_result.get("id")
                                     if "full_analysis_text" in build_result:
                                         extra = "\n\n" + build_result["full_analysis_text"]
                                         response_text += extra
@@ -524,6 +526,9 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str, token: str 
                                 "citations": verified_citations,
                                 "chunk_count": len(chunks),
                                 "case_analysis_ready": tag_ready,
+                                # The app sends this back on its next turn, so
+                                # the file it was told about is the one updated.
+                                **({"case_file_id": built_case_file_id} if built_case_file_id else {}),
                                 "tool_results": [{
                                     "tool_name": t.tool_name,
                                     "status": t.status,

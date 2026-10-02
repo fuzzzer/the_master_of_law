@@ -112,6 +112,28 @@ void main() {
   );
 
   test(
+    'the case file built when the conversation became ready is the one the '
+    'next turn updates',
+    () async {
+      final source = _FakeSource();
+      final cubit = _cubitFor(source);
+      unawaited(cubit.sendMessage('მზად ვარ'));
+      await Future<void>.delayed(Duration.zero);
+
+      source.socket.add({
+        'type': 'done',
+        'full_response': 'საქმე მზადდება.',
+        'case_analysis_ready': true,
+        'case_file_id': 'cf-1',
+      });
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cubit.state.caseFileId, 'cf-1');
+      await cubit.close();
+    },
+  );
+
+  test(
     'a socket that drops mid-turn is not an error: the answer that the '
     'server finished without us is fetched and shown',
     () async {

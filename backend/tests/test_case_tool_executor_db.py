@@ -70,3 +70,40 @@ async def test_a_failed_tool_write_leaves_the_turn_able_to_save_its_answer(db):
     assert result.status == "error"
     still_usable = await db.execute(select(CaseFile.id).limit(1))
     still_usable.all()
+
+
+@pytest.mark.asyncio
+async def test_one_conversation_has_one_case_file_however_often_it_is_ready(db):
+    """QA, 2026-10-01: case-ready fired on turn 3 and again on turn 4, and
+    the conversation got two case files two minutes apart. Rule: one
+    conversation, one case file — a later build updates it."""
+    from unittest.mock import AsyncMock
+
+    from app.services.case_builder_service import CaseBuilderService
+
+    login_id, user_row_id, conversation_id = await _anonymous_caller_with_conversation(db)
+    await ConversationService(db).save_user_message(conversation_id, "გამათავისუფლეს")
+    builder = CaseBuilderService()
+    builder._auto_retrieve_chunks = AsyncMock(return_value=[])
+    builder._generate_full_analysis = AsyncMock(return_value="ანალიზი")
+    builder._generate_case_data = AsyncMock(return_value={"title": "სამსახური"})
+
+    first = await builder.build_case_file(db=db, user_id=login_id, conversation_id=conversation_id)
+    second = await builder.build_case_file(db=db, user_id=login_id, conversation_id=conversation_id)
+
+    rows = (await db.execute(
+        select(CaseFile.id).where(CaseFile.conversation_id == uuid.UUID(conversation_id))
+    )).all()
+    assert len(rows) == 1
+    assert first["id"] == second["id"]
+
+
+@pytest.mark.asyncio
+async def test_create_case_in_a_conversation_that_has_one_returns_it(db):
+    login_id, _, conversation_id = await _anonymous_caller_with_conversation(db)
+    executor = CaseToolExecutor(db, user_id=login_id, conversation_id=conversation_id)
+
+    a = await executor.execute("create_case", {"title": "a"}, "", login_id)
+    b = await executor.execute("create_case", {"title": "b"}, "", login_id)
+
+    assert a.result["case_file_id"] == b.result["case_file_id"]
