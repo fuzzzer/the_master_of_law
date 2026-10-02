@@ -3,6 +3,7 @@ Case builder prompts — defense case file generation.
 """
 
 from app.prompts import PromptRole, PromptTemplate
+from app.prompts.shared_rules import FORMAL_ADDRESS_RULE, GROUNDED_FIGURES_RULE
 
 
 CASE_BUILDER = PromptTemplate(
@@ -37,7 +38,7 @@ CASE_BUILDER = PromptTemplate(
         '  "defense_strategies": [\n'
         "    {{\n"
         '      "name": "...",\n'
-        '      "success_likelihood": "...",\n'
+        '      "success_likelihood": "მაღალი | საშუალო | დაბალი — one sentence why, from the cited law and facts; never a percentage",\n'
         '      "risk_level": "...",\n'
         '      "legal_basis": ["articles"],\n'
         '      "how_it_works": "...",\n'
@@ -77,6 +78,7 @@ CASE_BUILDER = PromptTemplate(
         "  ]\n"
         "}}\n\n"
         "IMPORTANT:\n"
+        + GROUNDED_FIGURES_RULE + FORMAL_ADDRESS_RULE +
         "- Write in Georgian (ქართული)\n"
         "- Every law reference must cite a specific article\n"
         "- Use ONLY laws from the provided context — never fabricate\n"

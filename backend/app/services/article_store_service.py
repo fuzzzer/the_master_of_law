@@ -41,6 +41,26 @@ def _normalize_code(code: str) -> str:
     return code.removeprefix(_GEO_PREFIX).strip().lower()
 
 
+def provision_text(paragraphs: list[dict], paragraph: str, sub_point: str = "") -> str | None:
+    """The text of paragraph (and sub-point) of an article, or None if absent.
+
+    The store keeps an article's provisions as one flat list — "1", "ა",
+    "გ", "2", "5", "ა", "გ" — so a letter belongs to the numbered paragraph
+    above it. Matching a letter anywhere in the list would accept 47(1)(გ)
+    for 47(5)(გ).
+    """
+    parent = ""
+    for p in paragraphs:
+        number = str(p.get("number", "")).strip()
+        if number.isdigit():
+            parent = number
+            if number == paragraph and not sub_point:
+                return p.get("text", "")
+        elif sub_point and number == sub_point and parent == paragraph:
+            return p.get("text", "")
+    return None
+
+
 class ArticleStoreService:
     """Read-only lookups against the article store SQLite DB."""
 

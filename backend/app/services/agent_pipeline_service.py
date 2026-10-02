@@ -33,11 +33,13 @@ from app.config.settings import settings
 from app.integrations.vertex_ai_client import VertexAIClient, get_vertex_ai_client
 from app.prompts.agent_planning import AGENT_PLANNER, CITATION_VERIFIER, FAITHFULNESS_CHECKER
 from app.services.citation_service import CitationService, get_citation_service
+from app.services.article_store_service import get_article_store_service
 from app.services.rag_retrieval_service import RAGRetrievalService, get_rag_service
 from app.services.trace_service import record_step
 from app.tools.case_tools import ALWAYS_TOOLS, CASE_CREATION_TOOLS, FULL_CASE_TOOLS
 from app.utils.logger import get_logger
 from app.utils.provider_errors import EmptyModelAnswerError
+from app.utils.script_purity import foreign_script_words
 from app.services.model_config_service import cheap_model, strong_model
 
 logger = get_logger(__name__)
@@ -197,8 +199,11 @@ class AgentPipelineService:
         )
 
         # ── Generation contract (plan 2.2 / 2.3 / 2.4) ───────
+        rejected_provisions: set = set()
         if settings.faithfulness_check:
-            verified_response = await self._faithfulness_pass(verified_response, chunks)
+            verified_response, rejected_provisions = await self._faithfulness_pass(
+                verified_response, chunks
+            )
 
         from app.services.citation_service import check_anchoring
         anchoring = check_anchoring(verified_response)
@@ -226,6 +231,11 @@ class AgentPipelineService:
                 verified_response, chunks
             )
         verified_response = self._apply_language_fixups(verified_response)
+        # Taken from the text actually sent: the passes above rewrite it, and
+        # a list computed before them can describe sentences that are gone.
+        verified_citations = self._checked_citations(
+            verified_response, chunks, rejected_provisions
+        )
 
         record_step(
             "pipeline_result",
@@ -937,25 +947,57 @@ class AgentPipelineService:
 
     # ── Generation contract (plan 2.3 / 2.4) ─────────────────
 
+    def _checked_citations(
+        self, text: str, chunks: list[dict], rejected: set | frozenset = frozenset()
+    ) -> list[dict]:
+        """Citations of `text`: in context, and naming a paragraph and
+        sub-point the article really has — and that the faithfulness pass did
+        not find unable to back its sentence."""
+        from app.services.citation_service import apply_provision_check
+
+        store = get_article_store_service()
+
+        def paragraphs_of(code: str, article: str) -> list[dict] | None:
+            found = store.get_article(code, article)
+            return found["paragraphs"] if found else None
+
+        verified = self.citation_svc.verify_citations(
+            self.citation_svc.extract_citations(text), chunks
+        )
+        return apply_provision_check(verified, paragraphs_of, rejected)
+
     async def _faithfulness_pass(
         self, response_text: str, chunks: list[dict]
-    ) -> str:
+    ) -> tuple[str, set]:
         """Plan 2.3: batched Flash check that every specific claim is supported.
 
+        Each paragraph-level citation is shown with its provision's own text,
+        so "47(1)(გ)" cited for pregnancy is judged by what 47(1)(გ) says.
         Unsupported claims trigger one correction pass via the citation
-        verifier prompt. Any failure leaves the response unchanged.
+        verifier prompt. Returns the text and the provisions rejected. Any
+        failure leaves the response unchanged.
         """
         if not response_text or not chunks:
-            return response_text
+            return response_text, set()
         context_digest = "\n\n".join(
             f"[{i}] {(c.get('metadata') or {}).get('code_name', '')} "
             f"{(c.get('metadata') or {}).get('article_number', '')}\n"
             f"{c.get('content', '')[:1200]}"
             for i, c in enumerate(chunks[:30], 1)
         )
+        from app.services.citation_service import provision_key
+
+        cited = [c for c in self._checked_citations(response_text, chunks) if c.get("provision_text")]
+        provisions = "\n\n".join(
+            f"[P{i}] {c['code_name']}, {c['article_number']}, პუნქტი {c['paragraph']}"
+            + (f", ქვეპუნქტი „{c['sub_point']}“" if c.get("sub_point") else "")
+            + f"\nTEXT: {c['provision_text'][:800]}\nCITED FOR: {c.get('claim', '')[:500]}"
+            for i, c in enumerate(cited, 1)
+        )
         prompt = (
             f"═══ LEGAL CONTEXT ═══\n{context_digest}\n\n"
-            f"═══ AI RESPONSE ═══\n{response_text}"
+            + (f"═══ CITED PROVISIONS ═══\n{provisions}\n\n" if provisions else "")
+            + f"═══ AI RESPONSE ═══\n{response_text}"
         )
         try:
             verdict = await self.gemini.generate_json(
@@ -967,21 +1009,28 @@ class AgentPipelineService:
         except Exception as e:
             logger.warning("faithfulness_check_failed", error=str(e))
             record_step("faithfulness_check", failed=True, error=str(e))
-            return response_text
+            return response_text, set()
 
         if not isinstance(verdict, dict):
             record_step("faithfulness_check", failed=True, error="non-dict verdict")
-            return response_text
+            return response_text, set()
 
         unsupported = verdict.get("unsupported") or []
+        rejected = {
+            provision_key(cited[n - 1])
+            for u in unsupported if isinstance(u, dict)
+            for n in map(int, re.findall(r"P(\d+)", str(u.get("provision", ""))))
+            if 0 < n <= len(cited)
+        }
         record_step(
             "faithfulness_check",
             supported_count=verdict.get("supported_count"),
             general_count=verdict.get("general_count"),
             unsupported=unsupported,
+            rejected_provisions=sorted(rejected),
         )
         if not unsupported:
-            return response_text
+            return response_text, rejected
 
         issues = "\n\n".join(
             f"NOT_FOUND: {u.get('statement', '')} — ❌ {u.get('reason', 'unsupported by context')}"
@@ -1006,10 +1055,10 @@ class AgentPipelineService:
                     unsupported_count=len(unsupported),
                     corrected_text=corrected,
                 )
-                return corrected
+                return corrected, rejected
         except Exception as e:
             logger.warning("faithfulness_correction_failed", error=str(e))
-        return response_text
+        return response_text, rejected
 
     def _apply_uncertainty_policy(
         self,
@@ -1185,6 +1234,12 @@ class AgentPipelineService:
             applied.extend(f"({g})" for g in glosses)
         if applied:
             record_step("language_purity_fixups", replaced=applied)
+        foreign = foreign_script_words(fixed)
+        if foreign:
+            # No safe mechanical repair for a misspelt word; recorded so the
+            # trace, QA and eval can reject the answer.
+            logger.warning("foreign_script_detected", words=foreign[:10])
+            record_step("foreign_script_detected", words=foreign)
         return fixed
 
     _PRACTICE_CLAIM_RE = re.compile(

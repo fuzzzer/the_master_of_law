@@ -347,3 +347,57 @@ questions:
         article_title: "დაკავების წესი"
         matsne_url: https://matsne.gov.ge/ka/document/view/90034#article_174
         validation_keyword: "დაკავებ"
+  # QA 2026-10-01 accuracy cases. answer_must / answer_must_not are regexes
+  # over the answer (check C9), written from the article store's own text of
+  # Labour Code arts. 47-48 on 2026-10-02.
+  - id: G31
+    domain: labor
+    question: "დამსაქმებელმა წერილობით მაცნობა, რომ ხელშეკრულებას მიწყვეტს, მიზეზი არ დაუწერია. რა ვადაში უნდა მოვითხოვო მიზეზის დასაბუთება და რა ვადაში უნდა მიპასუხოს?"
+    answer_must: ["30\\s*(?:კალენდარული\\s*)?დღ", "7\\s*(?:კალენდარული\\s*)?დღ"]
+    answer_must_not: ["7\\s*(?:კალენდარული\\s*)?დღის?\\s*(?:ვადაში|განმავლობაში)\\s*(?:უნდა\\s*)?(?:გაუგზავნოთ|მოითხოვოთ|მიმართოთ)"]
+    must_ground_in:
+      - code: labour_code
+        code_name: "საქართველოს შრომის კოდექსი"
+        article: '48'
+        article_number: "მუხლი 48"
+        article_title: "შრომითი ხელშეკრულების შეწყვეტის წესი"
+        matsne_url: https://matsne.gov.ge/ka/document/view/1155567#article_48
+        validation_keyword: "30 კალენდარული"
+  - id: G32
+    domain: labor
+    question: "დამსაქმებელს გათავისუფლების მიზეზის წერილობითი დასაბუთება მოვთხოვე, ერთი კვირა გავიდა და არაფერი მიპასუხა. რა ვქნა?"
+    answer_must: ["30\\s*(?:კალენდარული\\s*)?დღ", "მტკიცების\\s+ტვირთ"]
+    must_ground_in:
+      - code: labour_code
+        code_name: "საქართველოს შრომის კოდექსი"
+        article: '48'
+        article_number: "მუხლი 48"
+        article_title: "შრომითი ხელშეკრულების შეწყვეტის წესი"
+        matsne_url: https://matsne.gov.ge/ka/document/view/1155567#article_48
+        validation_keyword: "7 კალენდარული"
+  - id: G33
+    domain: labor
+    question: "ორსულობის შესახებ ვუთხარი დამსაქმებელს და მეორე დღეს გამათავისუფლა. რომელი მუხლი იცავს ორსულ დასაქმებულს?"
+    answer_must: ["47-ე\\s+მუხლის\\s+მე-5|47\\.5|47\\(5\\)"]
+    answer_must_not: ["47-ე\\s+მუხლის\\s+(?:პირველი|1-ლი)\\s+პუნქტის\\s+[„\"]?გ|47\\.1\\.გ|47\\(1\\)\\(გ\\)"]
+    must_ground_in:
+      - code: labour_code
+        code_name: "საქართველოს შრომის კოდექსი"
+        article: '47'
+        article_number: "მუხლი 47"
+        article_title: "შრომითი ხელშეკრულების შეწყვეტის საფუძვლები"
+        matsne_url: https://matsne.gov.ge/ka/document/view/1155567#article_47
+        validation_keyword: "ორსულ"
+  - id: G34
+    domain: labor
+    question: "სასამართლომ ჩემი გათავისუფლება ბათილად ცნო. იძულებითი განაცდურის ანაზღაურება მეკუთვნის და რომელი მუხლით?"
+    answer_must: ["48-ე\\s+მუხლის\\s+მე-9|48\\.9|48\\(9\\)"]
+    answer_must_not: ["48-ე\\s+მუხლის\\s+მე-4\\s+პუნქტ[^.]*განაცდურ|48\\.4[^.]*განაცდურ|48\\(4\\)[^.]*განაცდურ"]
+    must_ground_in:
+      - code: labour_code
+        code_name: "საქართველოს შრომის კოდექსი"
+        article: '48'
+        article_number: "მუხლი 48"
+        article_title: "შრომითი ხელშეკრულების შეწყვეტის წესი"
+        matsne_url: https://matsne.gov.ge/ka/document/view/1155567#article_48
+        validation_keyword: "იძულებითი განაცდურის"

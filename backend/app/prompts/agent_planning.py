@@ -102,9 +102,14 @@ FAITHFULNESS_CHECKER = PromptTemplate(
         "deadlines, article contents) that needs a source\n"
         "• unsupported — a SPECIFIC claim (amount, deadline, condition, article content, "
         "court outcome) that the context does NOT back\n\n"
+        "CITED PROVISIONS (when present) give the exact text of each paragraph or "
+        "sub-point the response cites, and the sentence it is cited for. If that text "
+        "does not say what the sentence claims — even when another paragraph of the same "
+        "article does — the statement is unsupported: put the provision's id in "
+        '"provision" and say in "reason" what the provision actually says.\n\n'
         "Return ONLY valid JSON:\n"
         '{"supported_count": N, "general_count": N, '
-        '"unsupported": [{"statement": "...", "reason": "..."}]}\n\n'
+        '"unsupported": [{"statement": "...", "reason": "...", "provision": "P1 or empty"}]}\n\n'
         "Be strict about numbers, deadlines and article contents; do not flag stylistic "
         "or advisory sentences."
     ),

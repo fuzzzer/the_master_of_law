@@ -326,7 +326,7 @@ class TestFaithfulnessPass:
             "app.services.agent_pipeline_service.record_step",
             side_effect=lambda step, **kw: recorded.append((step, kw)),
         ):
-            out = await svc._faithfulness_pass("ჯარიმა არის 5000 ლარი", [_law_chunk()])
+            out, _ = await svc._faithfulness_pass("ჯარიმა არის 5000 ლარი", [_law_chunk()])
         assert out == "გასწორებული პასუხი"
         steps = [s for s, _ in recorded]
         assert "faithfulness_check" in steps
@@ -341,7 +341,7 @@ class TestFaithfulnessPass:
         gemini.generate = AsyncMock()
         svc = AgentPipelineService(gemini=gemini, citation_svc=MagicMock())
         with patch("app.services.agent_pipeline_service.record_step"):
-            out = await svc._faithfulness_pass("პასუხი", [_law_chunk()])
+            out, _ = await svc._faithfulness_pass("პასუხი", [_law_chunk()])
         assert out == "პასუხი"
         gemini.generate.assert_not_awaited()
 
@@ -351,5 +351,5 @@ class TestFaithfulnessPass:
         gemini.generate_json = AsyncMock(side_effect=RuntimeError("429"))
         svc = AgentPipelineService(gemini=gemini, citation_svc=MagicMock())
         with patch("app.services.agent_pipeline_service.record_step"):
-            out = await svc._faithfulness_pass("პასუხი", [_law_chunk()])
+            out, _ = await svc._faithfulness_pass("პასუხი", [_law_chunk()])
         assert out == "პასუხი"

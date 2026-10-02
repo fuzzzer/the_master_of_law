@@ -71,7 +71,8 @@ def load_golden(path: Path) -> list[dict]:
         elif line.startswith("    ") and current is not None and ":" in line:
             key, val = line.strip().split(":", 1)
             if key != "must_ground_in":
-                current[key] = json.loads(val.strip()) if val.strip().startswith('"') else val.strip()
+                v = val.strip()
+                current[key] = json.loads(v) if v.startswith(('"', "[")) else v
     return questions
 
 
@@ -210,6 +211,15 @@ def check_c6_deadline(response: str) -> tuple[bool, dict]:
     }
 
 
+def check_c9_answer_content(q: dict, response: str) -> tuple[bool, dict]:
+    """What the answer must and must not SAY (QA 2026-10-01: the 7- vs
+    30-day deadline, the missed 48(7) rule, wrong paragraphs). Questions
+    without expectations pass."""
+    missing = [rx for rx in q.get("answer_must", []) if not re.search(rx, response)]
+    forbidden = [rx for rx in q.get("answer_must_not", []) if re.search(rx, response)]
+    return (not missing and not forbidden), {"missing": missing, "forbidden": forbidden}
+
+
 def check_c7_anchoring(steps: dict) -> tuple[bool, dict]:
     a = steps.get("anchoring_check") or {}
     rate = a.get("unanchored_rate", 0.0)
@@ -245,7 +255,7 @@ def main() -> None:
     ap.add_argument("--ids", default="", help="comma-separated subset, e.g. G1,G2")
     ap.add_argument("--sleep", type=int, default=25, help="seconds between questions")
     ap.add_argument("--tag", default="run")
-    ap.add_argument("--checks", default="C1,C2,C3,C4,C5,C6,C7,C8",
+    ap.add_argument("--checks", default="C1,C2,C3,C4,C5,C6,C7,C8,C9",
                     help="which checks gate the exit code")
     args = ap.parse_args()
 
@@ -293,6 +303,7 @@ def main() -> None:
             "C6": check_c6_deadline(response),
             "C7": check_c7_anchoring(steps),
             "C8": check_c8_threshold_domain(q, steps),
+            "C9": check_c9_answer_content(q, response),
         }
         row = {
             "id": q["id"],
@@ -325,10 +336,10 @@ def main() -> None:
 
     lines = [f"# Golden grounding run — {stamp} ({args.tag})", "",
              f"Gate: {'+'.join(sorted(gate_checks))} — **{passed}/{len(results)} passed**", "",
-             "| id | domain | " + " | ".join(f"C{i}" for i in range(1, 9)) + " | trace |",
-             "|----|--------|" + "----|" * 8 + "-------|"]
+             "| id | domain | " + " | ".join(f"C{i}" for i in range(1, 10)) + " | trace |",
+             "|----|--------|" + "----|" * 9 + "-------|"]
     for r in results:
-        marks = " | ".join("✅" if r["checks"][f"C{i}"]["pass"] else "❌" for i in range(1, 9))
+        marks = " | ".join("✅" if r["checks"][f"C{i}"]["pass"] else "❌" for i in range(1, 10))
         lines.append(f"| {r['id']} | {r['domain']} | {marks} | `{r['trace_id']}` |")
     (out_dir / "report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 

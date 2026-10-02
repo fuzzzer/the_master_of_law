@@ -10,7 +10,7 @@ After Gemini generates a response, this service:
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import Callable, Any
 
 from app.integrations.chroma_client import ChromaClient, get_chroma_client
 from app.utils.logger import get_logger
@@ -24,26 +24,52 @@ logger = get_logger(__name__)
 #   "მუხლი 48.8", "48-ე მუხლის მე-8 ნაწილი", "48-ე მუხლის პირველი ნაწილი".
 # Group "num_after" captures the digits when the keyword precedes the number;
 # group "num_before" captures them when the number precedes the keyword.
-# Paragraph groups: "para_dot" (48.8), "para_me" (მე-8 ნაწილი),
-# "para_ord" (8-ე ნაწილი), "para_word" (პირველი/მეორე/მესამე ნაწილი).
+# Paragraph groups: "para_dot" (48.8), "para_paren" (48(8)), "para_me"
+# (მე-8 ნაწილი/პუნქტი), "para_ord" (8-ე, 1-ლი), "para_word" (პირველი…).
+# Sub-point groups: "sub_dot" (47.5.გ), "sub_paren" (47(5)(გ)), "sub_word"
+# („გ“ ქვეპუნქტი). The codes say "ნაწილი" (Civil, Criminal) or "პუნქტი"
+# (Labour) for a paragraph — reading only one of them lost the paragraph and
+# let a wrong one pass as verified.
 _ORDINAL_SUFFIX = r"(?:-[ა-ჰ]+)?"  # e.g. "-ე", "-ის"
 _SUPERSCRIPT = r"[¹²³⁴⁵⁶⁷⁸⁹⁰]*"
 _PARAGRAPH_WORDS = {
     "პირველ": "1", "მეორე": "2", "მესამე": "3", "მეოთხე": "4", "მეხუთე": "5",
     "მეექვსე": "6", "მეშვიდე": "7", "მერვე": "8", "მეცხრე": "9", "მეათე": "10",
 }
+_QUOTE = r"[„\"“”'«»]?"
+_COMPACT_PROVISION = (
+    r"(?:\.(?P<{p}dot>\d{{1,2}})(?!\d)(?:\.(?P<{s}dot>[ა-ჰ])(?![ა-ჰ]))?"
+    r"|\((?P<{p}paren>\d{{1,2}})\)(?:\((?P<{s}paren>[ა-ჰ])\))?)?"
+)
 _PARAGRAPH_SUFFIX = (
-    r"(?:\s+(?:მე-(?P<para_me>\d{1,2})|(?P<para_ord>\d{1,2})-ე"
-    r"|(?P<para_word>" + "|".join(_PARAGRAPH_WORDS) + r")[ა-ჰ]*)\s+ნაწილ[ა-ჰ]*)?"
+    r"(?:\s+(?:მე-(?P<para_me>\d{1,2})|(?P<para_ord>\d{1,2})-(?:ე|ლი)"
+    r"|(?P<para_word>" + "|".join(_PARAGRAPH_WORDS) + r")[ა-ჰ]*)\s+(?:ნაწილ|პუნქტ)[ა-ჰ]*"
+    r"(?:\s+" + _QUOTE + r"(?P<sub_word>[ა-ჰ])" + _QUOTE + r"\s+ქვეპუნქტ[ა-ჰ]*)?)?"
 )
 ARTICLE_PATTERN = re.compile(
     r"მუხლი\s+(?P<num_after>\d+" + _SUPERSCRIPT + r")"
-    + r"(?:\.(?P<para_dot>\d{1,2})(?!\d))?" + _ORDINAL_SUFFIX
+    + _COMPACT_PROVISION.format(p="para_", s="sub_") + _ORDINAL_SUFFIX
     + r"|(?P<num_before>\d+" + _SUPERSCRIPT + r")"
-    + r"(?:\.(?P<para_dot2>\d{1,2})(?!\d))?" + _ORDINAL_SUFFIX
+    + _COMPACT_PROVISION.format(p="para2_", s="sub2_") + _ORDINAL_SUFFIX
     + r"\s+მუხლ(?:ის|ი)" + _PARAGRAPH_SUFFIX,
     re.UNICODE,
 )
+_SENTENCE_END = re.compile(r"(?<=[.!?;])\s+|\n+")
+
+
+def _claim_around(text: str, start: int, end: int) -> str:
+    """The sentence a citation sits in — what the cited provision must back.
+
+    A citation in brackets right after its sentence ("… აკრძალულია (მუხლი
+    47).") belongs to that sentence, so the search runs from the citation's
+    END backwards and forwards to the nearest sentence boundary.
+    """
+    begin = 0
+    for m in _SENTENCE_END.finditer(text, 0, start):
+        begin = m.end()
+    tail = _SENTENCE_END.search(text, end)
+    return text[begin:tail.start() if tail else len(text)].strip()
+
 
 # Code names as they appear in the corpus (full "საქართველოს" prefix form).
 # The model may output shorter forms — verify_citations handles both via normalization.
@@ -199,18 +225,23 @@ class CitationService:
         # (e.g. Civil 177 and Criminal 177) mapped to their correct codes.
         for match in ARTICLE_PATTERN.finditer(text):
             article_num = match.group("num_after") or match.group("num_before")
+            g = match.groupdict()
             paragraph = (
-                match.group("para_dot")
-                or match.group("para_dot2")
-                or match.group("para_me")
-                or match.group("para_ord")
-                or _PARAGRAPH_WORDS.get(match.group("para_word") or "", "")
+                g["para_dot"] or g["para_paren"] or g["para2_dot"] or g["para2_paren"]
+                or g["para_me"] or g["para_ord"]
+                or _PARAGRAPH_WORDS.get(g["para_word"] or "", "")
                 or ""
+            )
+            sub_point = (
+                g["sub_dot"] or g["sub_paren"] or g["sub2_dot"] or g["sub2_paren"]
+                or g["sub_word"] or ""
             )
             code_name = self._find_code_name_preceding(text, match.start())
             citations.append({
                 "article_number": f"მუხლი {article_num}",
                 "paragraph": paragraph,
+                "sub_point": sub_point,
+                "claim": _claim_around(text, match.start(), match.end()),
                 "code_name": code_name or "Unknown",
                 "raw_text": f"{code_name}, მუხლი {article_num}" if code_name else f"მუხლი {article_num}",
             })
@@ -219,7 +250,7 @@ class CitationService:
         seen = set()
         unique = []
         for c in citations:
-            key = (c["code_name"], c["article_number"], c["paragraph"])
+            key = (c["code_name"], c["article_number"], c["paragraph"], c["sub_point"])
             if key not in seen:
                 seen.add(key)
                 unique.append(c)
@@ -468,6 +499,55 @@ class CitationService:
 
 
 _citation_service = None
+
+ProvisionKey = tuple[str, str, str, str]  # (code_name, article_number, paragraph, sub_point)
+
+
+def provision_key(citation: dict[str, Any]) -> ProvisionKey:
+    return (
+        citation.get("code_name", ""),
+        citation.get("article_number", ""),
+        citation.get("paragraph", ""),
+        citation.get("sub_point", ""),
+    )
+
+
+def apply_provision_check(
+    citations: list[dict[str, Any]],
+    paragraphs_of: Callable[[str, str], list[dict] | None],
+    rejected: set[ProvisionKey] | frozenset = frozenset(),
+) -> list[dict[str, Any]]:
+    """Withdraw `verified` from a citation whose paragraph or sub-point the
+    article does not have, or whose provision the faithfulness pass found
+    not to back its sentence; attach the provision's text to the rest.
+
+    Articles without structured paragraphs are left as they are — there is
+    nothing to check a paragraph against.
+    """
+    from app.services.article_store_service import provision_text
+
+    checked = []
+    for c in citations:
+        c = dict(c)
+        paragraph, sub_point = c.get("paragraph", ""), c.get("sub_point", "")
+        paragraphs = paragraphs_of(c.get("code_name", ""), c.get("article_number", "")) if paragraph else None
+        if paragraphs:
+            text = provision_text(paragraphs, paragraph, sub_point)
+            if text is None:
+                c["verified"] = False
+                c["unverified_reason"] = (
+                    "sub_point_not_found"
+                    if sub_point and provision_text(paragraphs, paragraph) is not None
+                    else "paragraph_not_found"
+                )
+            else:
+                c["provision_text"] = text
+                if provision_key(c) in rejected:
+                    c["verified"] = False
+                    c["unverified_reason"] = "provision_does_not_support_claim"
+        checked.append(c)
+    return checked
+
 
 def get_citation_service():
     global _citation_service

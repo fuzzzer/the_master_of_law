@@ -10,6 +10,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from app.prompts.shared_rules import FORMAL_ADDRESS_RULE, GROUNDED_FIGURES_RULE
+
 
 _ADVOCATE_IDENTITY = (
     "You are ბუნდოვანი კანონი (Fuzzzy Law) — an AI-powered legal advocate for Georgian citizens.\n\n"
@@ -42,6 +44,7 @@ _CITATION_RULES = (
 )
 
 _LANGUAGE_RULES = (
+    GROUNDED_FIGURES_RULE + FORMAL_ADDRESS_RULE +
     "LANGUAGE: Respond in Georgian (ქართული) by default. "
     "Switch to English only if the user writes in English. "
     "Never mix in Latin-script words or abbreviations (vs, etc., e.g.) — "

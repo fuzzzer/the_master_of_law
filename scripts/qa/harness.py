@@ -3,6 +3,9 @@ import asyncio, json, os, sys, time, uuid
 from pathlib import Path
 import httpx, websockets
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "backend"))
+from app.utils.script_purity import foreign_script_words  # noqa: E402 — the app's own check
+
 BASE = os.environ.get("QA_BASE", "https://law-api.fuzzzycore.com")
 WS = BASE.replace("https://","wss://").replace("http://","ws://")
 KEY = [l.split("=", 1)[1].strip() for l in (Path(__file__).resolve().parents[2] / "backend/.env").read_text().splitlines()
@@ -80,7 +83,12 @@ def summarize(rec):
         print(f"[{t['seconds']}s, max gap {t['max_gap']}s, events={types}]")
         if err: print("ERROR:", err)
         cits = done.get("citations") or []
-        print("citations:", [ (c.get("code_name"), c.get("article_number"), c.get("paragraph"), c.get("verified")) for c in cits][:15])
+        print("citations:", [ (c.get("code_name"), c.get("article_number"), c.get("paragraph"), c.get("sub_point"), c.get("verified"), c.get("unverified_reason")) for c in cits][:15])
+        if done and not (done.get("full_response") or "").strip():
+            print("REJECT: empty answer delivered as done")
+        foreign = foreign_script_words(t["response"])
+        if foreign:
+            print("REJECT: foreign-script letters in a Georgian answer:", foreign)
         print(t["response"][:6000])
 
 
