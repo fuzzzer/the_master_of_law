@@ -28,6 +28,7 @@ class ProviderErrorKind(str, Enum):
     PROVIDER_UNAVAILABLE = "provider_unavailable"  # overload — retrying helps
     INVALID_KEY = "invalid_key"              # the caller's own key — only they can fix it
     EMPTY_ANSWER = "empty_answer"            # the model wrote nothing — retrying or another model helps
+    MODEL_UNAVAILABLE = "model_unavailable"  # this key can never call this model — only another model helps
     UNKNOWN = "unknown"                      # a real bug — surface as 500
 
 
@@ -87,6 +88,12 @@ _UNAVAILABLE_KA = (
     "AI სერვისი დროებით გადატვირთულია. გთხოვთ, სცადოთ რამდენიმე წამში."
 )
 _UNKNOWN_KA = "დაფიქსირდა შეცდომა. გთხოვთ, სცადოთ თავიდან."
+# A free limit of ZERO (Pro models on a free key) or a model retired for new
+# users: no wait and no retry will make it work, so say so.
+_MODEL_UNAVAILABLE_KA = (
+    "ეს მოდელი თქვენი Google-ის გასაღებით მიუწვდომელია. აირჩიეთ სხვა მოდელი "
+    "პარამეტრებში."
+)
 _EMPTY_ANSWER_KA = (
     "მოდელმა პასუხი ვერ დაწერა. გთხოვთ, სცადოთ თავიდან ან აირჩიოთ სხვა მოდელი."
 )
@@ -128,6 +135,8 @@ _INVALID_KEY_MARKERS = (
     "has not been used in project",
 )
 
+_LIMIT_RE = re.compile(r"limit:\s*(\d+)")
+_RETIRED_MODEL_MARKERS = ("no longer available", "is not found for API version")
 _QUOTA_ID_RE = re.compile(r"quotaId['\"]?\s*[:=]\s*['\"]([\w.-]+)")
 _QUOTA_VALUE_RE = re.compile(r"quotaValue['\"]?\s*[:=]\s*['\"]?(\d+)")
 _RETRY_AFTER_RE = re.compile(r"retryDelay['\"]?\s*[:=]\s*['\"]?(\d+)")
@@ -184,6 +193,16 @@ def classify(exc: BaseException) -> ProviderError:
             status_code=401,
             error_code="byok_key_invalid",
             message_ka=_INVALID_KEY_KA,
+        )
+
+    limits = _LIMIT_RE.findall(text)
+    zero_free_limit = bool(limits) and all(v == "0" for v in limits)
+    if zero_free_limit or ("NOT_FOUND" in text and any(m in text for m in _RETIRED_MODEL_MARKERS)):
+        return ProviderError(
+            kind=ProviderErrorKind.MODEL_UNAVAILABLE,
+            status_code=400,
+            error_code="ai_model_unavailable",
+            message_ka=_MODEL_UNAVAILABLE_KA,
         )
 
     if any(m in text for m in _QUOTA_MARKERS):

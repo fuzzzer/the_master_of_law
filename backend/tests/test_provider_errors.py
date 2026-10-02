@@ -153,13 +153,14 @@ class TestEmptyAnswer:
         assert "პასუხი" in p.message_ka
 
 
-# Real, 2026-10-02, a free key calling a model whose free quota is 0. Google
-# lists every bucket the call broke; the day ones decide what the user is told.
+# Google's real body shape (captured 2026-10-02), with the limit set to 20 —
+# the gemini-3.7-flash free daily limit QA hit — so it models a SPENT daily
+# bucket. Google lists every bucket the call broke; the day ones decide.
 DAILY_429 = (
     "ClientError: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded "
     "your current quota, please check your plan and billing details. \\n* Quota exceeded for "
-    "metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, "
-    "model: gemini-2.5-pro\\nPlease retry in 14h54m20.958164783s.', 'status': "
+    "metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, "
+    "model: gemini-3.7-flash\\nPlease retry in 14h54m20.958164783s.', 'status': "
     "'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.QuotaFailure', "
     "'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_input_token_count', "
     "'quotaId': 'GenerateContentInputTokensPerModelPerDay-FreeTier', 'quotaDimensions': {'location': "
@@ -216,3 +217,41 @@ class TestDailyVersusPerMinute:
         msg = classify(RuntimeError(text)).message_ka
         latin_names = msg.replace("AI", "").replace("Google", "")
         assert not any(ch.isascii() and ch.isalpha() for ch in latin_names), msg
+
+
+# Real, 2026-10-02: a free key calling a Pro model (free limit 0), and a
+# retired model. Neither is a spent limit — waiting never helps.
+ZERO_LIMIT_429 = (
+    "ClientError: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded "
+    "your current quota, please check your plan and billing details. \\n* Quota exceeded for "
+    "metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, "
+    "limit: 0, model: gemini-2.5-pro\\n* Quota exceeded for metric: "
+    "generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: "
+    "gemini-2.5-pro\\nPlease retry in 14h54m20.958164783s.', 'status': 'RESOURCE_EXHAUSTED', "
+    "'details': [{'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': "
+    "[{'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier'}]}, {'@type': "
+    "'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '53660s'}]}}"
+)
+RETIRED_404 = (
+    "ClientError: 404 NOT_FOUND. {'error': {'code': 404, 'message': 'This model "
+    "models/gemini-2.5-flash is no longer available to new users. Please update your code to "
+    "use models/gemini-3.8-flash for the latest features and improvements.', 'status': 'NOT_FOUND'}}"
+)
+
+
+class TestModelThisKeyCannotUse:
+    """QA, 2026-10-01: the model list offers Pro models (free limit 0) and
+    gemini-2.5-flash (retired for new users). Picking one must say the model
+    is not available on this key — not "your daily limit is used up"."""
+
+    @pytest.mark.parametrize("text", [ZERO_LIMIT_429, RETIRED_404])
+    def test_says_the_model_is_unavailable_and_to_pick_another(self, text):
+        p = classify(RuntimeError(text))
+        assert p.kind is ProviderErrorKind.MODEL_UNAVAILABLE
+        assert p.error_code == "ai_model_unavailable"
+        assert "მიუწვდომელია" in p.message_ka and "სხვა მოდელი" in p.message_ka
+        assert "ლიმიტი" not in p.message_ka
+        assert p.retry_after_s is None
+
+    def test_a_spent_limit_is_still_a_spent_limit(self):
+        assert classify(RuntimeError(DAILY_429)).kind is ProviderErrorKind.QUOTA_EXHAUSTED
