@@ -14,6 +14,7 @@ from typing import Any
 from app.config.settings import settings
 from app.integrations.chroma_client import ChromaClient, get_chroma_client
 from app.integrations.vertex_embedding_client import get_embedding_client
+from app.services.article_store_service import get_article_store_service
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -36,6 +37,11 @@ class LawBrowserService:
     def list_codes(self) -> list[dict[str, Any]]:
         """List all available legal codes."""
         index = self._load_code_index()
+        # The index lists chunk ids only; the code's own page comes from the
+        # article store, which is built from the same parsed corpus.
+        source_urls = {
+            c["code_name"]: c["source_url"] for c in get_article_store_service().list_codes()
+        }
         codes = []
         for code_id, data in index.items():
             if isinstance(data, dict):
@@ -55,7 +61,7 @@ class LawBrowserService:
                     "code_id": code_id,
                     "name": code_id,
                     "article_count": len(unique_articles),
-                    "source_url": "",
+                    "source_url": source_urls.get(code_id, ""),
                 })
             else:
                 codes.append({"code_id": code_id, "name": code_id})
