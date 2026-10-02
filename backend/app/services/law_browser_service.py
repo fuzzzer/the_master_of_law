@@ -20,6 +20,9 @@ from app.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
+_CHUNKS_PER_ARTICLE_FETCHED = 5
+
+
 class LawBrowserService:
     """Browse and search Georgian law corpus."""
 
@@ -164,12 +167,27 @@ class LawBrowserService:
         if domain:
             where = {"code_name": domain}
 
-        return self.chroma.vector_search(
+        # One row per ARTICLE: the collection holds one row per chunk, and a
+        # long article's chunks otherwise fill the page. Over-fetch, then keep
+        # each article's best-matching chunk.
+        chunks = self.chroma.vector_search(
             query_embedding=embedding,
-            top_k=top_k,
+            top_k=top_k * _CHUNKS_PER_ARTICLE_FETCHED,
             collections=["georgian_laws"],
             where=where,
         )
+        seen: set[tuple[str, str]] = set()
+        articles = []
+        for chunk in chunks:
+            meta = chunk.get("metadata") or {}
+            key = (meta.get("code_name", ""), meta.get("article_number") or chunk.get("chunk_id", ""))
+            if key in seen:
+                continue
+            seen.add(key)
+            articles.append(chunk)
+            if len(articles) == top_k:
+                break
+        return articles
 
     def _load_code_index(self) -> dict:
         if self._code_index is not None:
