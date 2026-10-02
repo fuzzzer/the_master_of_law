@@ -334,17 +334,15 @@ async def generate_document(
                 },
             )
 
-    try:
-        svc = get_document_generator_service()
-        result = await svc.generate_document(
-            db=db,
-            case_file_id=cf_uuid,
-            document_type=body.document_type or "ოფიციალური დოკუმენტი / სარჩელი / საჩივარი",
-            notes_for_drafting=body.notes_for_drafting,
-        )
-    except Exception as e:
-        logger.error("document_generation_failed", error=str(e))
-        return JSONResponse(status_code=500, content={"error": str(e)})
+    # No catch-all here: the error handler turns a provider failure into the
+    # caller's Georgian message, and a real bug into a logged 500.
+    svc = get_document_generator_service()
+    result = await svc.generate_document(
+        db=db,
+        case_file_id=cf_uuid,
+        document_type=body.document_type or "ოფიციალური დოკუმენტი / სარჩელი / საჩივარი",
+        notes_for_drafting=body.notes_for_drafting,
+    )
 
     # Deduct credits
     if not is_admin:
