@@ -6,7 +6,7 @@
 # Android only; iOS is filled by scripts/ios_app_icons.py. See
 # flutter_launcher_icons.yaml for why, and for how to run all of this.
 #
-# Source artwork: ~/FuzzyCore_HQ/company/brand/logo/law/v1/staging/night/
+# Source artwork: /Volumes/Fuzzzity 2/fuzzzy_company/company/brand/logo/law/v1/staging/night
 flutter_launcher_icons:
   android: "ic_launcher"
   image_path: "assets/launcher_icons/staging/AppIcon-1024.png"

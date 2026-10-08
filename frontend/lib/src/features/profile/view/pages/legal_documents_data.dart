@@ -25,7 +25,7 @@ typedef LegalDocument = ({
 });
 
 /// The data controller is the company's registered legal entity, spelled
-/// exactly as on its registration (`~/FuzzyCore_HQ/company/LAUNCH_GATES.md`).
+/// exactly as on its registration (`/Volumes/Fuzzzity 2/fuzzzy_company/company/LAUNCH_GATES.md`).
 /// The contact is a Cloudflare-routed address the owner actually reads.
 const String legalOperatorName = 'Fuzzy Core LLC';
 const String legalOperatorContact = 'support@fuzzzycore.com';

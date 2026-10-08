@@ -413,7 +413,7 @@ Pending (red at base or not runnable here; never a must-pass check):
 - `cd frontend && fvm flutter analyze` (fatal infos): 2 `use_build_context_synchronously` infos in `consultation_page.dart`.
 - `cd frontend && fvm dart format --output=none --set-exit-if-changed lib test`: 56 files would change.
 - `backend/.venv/bin/ruff check backend/app backend/tests` (full config): 458 findings.
-- law drift, `python3 ~/programming/fuzzzy_organisation/fuzzzy_handbook/tools/check_law_drift.py --only fuzzzy_law --repo fuzzzy_law=.`: green against handbook v1.2.0 (branch `agent/build-flow-cards`); a must-pass check once that line is the handbook's master.
+- law drift, `python3 /Volumes/Fuzzzity 2/fuzzzy_company/engineering/handbook/tools/check_law_drift.py --only fuzzzy_law --repo fuzzzy_law=.`: green against handbook v1.2.0 (branch `agent/build-flow-cards`); a must-pass check once that line is the handbook's master.
 - `cd frontend && fvm flutter build web --release --target lib/main_production.dart` (CI runs it): not run in this conversion.
 - `tests/e2e/` (Playwright) and `eval/`: need a served build or the corpus and a model key.
 

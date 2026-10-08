@@ -4,7 +4,7 @@ Fixed newline-in-cell parsing for amended law values.
 Must re-embed and re-ingest the corrected data.
 
 ```bash
-cd /Users/fuzzzer/programming/fuzzzy_organisation/fuzzzy_law/law_corpus
+cd /Volumes/Fuzzzity 2/fuzzzy_company/projects/fuzzzy_organisation/fuzzzy_law/law_corpus
 source .venv/bin/activate
 
 # Delete stale embedding cache so it re-embeds with corrected values

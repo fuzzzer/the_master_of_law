@@ -18,7 +18,7 @@
 # 108dp adaptive canvas at the designed scale, so the package's default 16% inset
 # would shrink the mark away from the approved artwork.
 #
-# Source artwork: ~/FuzzyCore_HQ/company/brand/logo/law/v1/prod/night/
+# Source artwork: /Volumes/Fuzzzity 2/fuzzzy_company/company/brand/logo/law/v1/prod/night
 # The copies under assets/launcher_icons/ are build inputs only — they are NOT
 # registered in the pubspec `flutter: assets:` list and never ship in the bundle.
 #
