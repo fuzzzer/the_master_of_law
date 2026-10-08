@@ -1,7 +1,5 @@
 {
   "permissions": {
-    "allow": [
-      "Bash(wc -l /Users/fuzzzer/programming/projects/frontend/.ai/*.md)"
-    ]
+    "allow": []
   }
 }
