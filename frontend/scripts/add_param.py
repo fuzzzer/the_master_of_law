@@ -29,8 +29,8 @@ python3 add_param.py \
 
 example:
 python3 add_param.py \
-  --file /Users/fuzzzer/programming/nexus/super_app_workspace/ui_kit/lib/src/themes/theme_extensions/ui_style/ui_form_styles.dart \
-  --class UiFormStyles \
+  --file "/Volumes/Fuzzzity 2/fuzzzy_company/projects/fuzzzy_organisation/fuzzy_design/lib/src/themes/theme_extensions/fuzzzy_form_styles.dart" \
+  --class FuzzzyFormStyles \
   --name newStyleParameter \
   --type double \
   --default-value 0.0
