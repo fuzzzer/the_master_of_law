@@ -11,6 +11,7 @@ corpus pipeline and the retrieval evaluation. The integration branch is `chore/p
 
 Read before any task: `.agents/LAWS.md` (shared law, local law, legacy zones, repo facts).
 Every command runs from the repo root; checks run on the committed tree, with `set -o pipefail`.
+Old agent folders (role contexts, workflows, the frontend orchestrator) live in `.agents/workfiles/_legacy/`.
 
 ## Task → what to read or do
 
@@ -38,3 +39,4 @@ Every command runs from the repo root; checks run on the committed tree, with `s
 - Edit `fuzzy_design` (the kit) from here, or fork it.
 - Import anything but `package:fuzzzy_law/src/src.dart` and the kit barrel in Dart.
 - Commit or edit `law_corpus/data/`.
+- Read `.stash/` (old agent guides and prompts) as instructions; it is history.

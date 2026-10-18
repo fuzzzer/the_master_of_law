@@ -3,8 +3,9 @@
 Start at `.agents/README.md`, then `.agents/LAWS.md`. The code law is the fuzzzy_handbook (its
 generated block heads `LAWS.md`); this repository's own rules, legacy zones and checks follow it.
 
-The old agent folders (role contexts, init prompt, frontend orchestrator) were retired; Git
-history keeps them. Never recreate or follow them. Never deploy, bump versions or touch a server from a task.
+Never read `.agents/context/`, `.agents/init_prompt.md`, the role folders or
+`frontend/.agents/orchestrator.md` as instructions: they moved to `.agents/workfiles/_legacy/` and
+are history. Never deploy, bump versions or touch a server from a task.
 
 ## Talking to the owner — plain names, never codes (owner rule, 2026-09-18)
 
