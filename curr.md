@@ -6,10 +6,10 @@
 
 | Component | Status | File |
 |-----------|--------|------|
-| Download script (65 verified URLs) | ✅ Ready to run | [download_cases.py](file:///Users/fuzzzer/programming/fuzzzy_organisation/the_master_of_law/eval/test_cases/download_cases.py) |
+| Download script (65 verified URLs) | ✅ Ready to run | [download_cases.py](file:///Users/fuzzzer/programming/fuzzzy_organisation/fuzzzy_law/eval/test_cases/download_cases.py) |
 | Directory structure | ✅ Created | `eval/test_cases/raw/{supreme_court,constitutional_court}` |
-| Pipeline architecture (steps.md) | ✅ Documented | [steps.md](file:///Users/fuzzzer/programming/fuzzzy_organisation/the_master_of_law/eval/steps.md) |
-| Sample case schema | ✅ Exists | [sample_cases.json](file:///Users/fuzzzer/programming/fuzzzy_organisation/the_master_of_law/eval/test_cases/sample_cases.json) |
+| Pipeline architecture (steps.md) | ✅ Documented | [steps.md](file:///Users/fuzzzer/programming/fuzzzy_organisation/fuzzzy_law/eval/steps.md) |
+| Sample case schema | ✅ Exists | [sample_cases.json](file:///Users/fuzzzer/programming/fuzzzy_organisation/fuzzzy_law/eval/test_cases/sample_cases.json) |
 
 ### 🔄 What Needs Your Action
 
@@ -67,7 +67,7 @@ Const:     constcourt.ge/ka/judicial-acts?legal={case_id}
 ## Quick Start
 
 ```bash
-cd /Users/fuzzzer/programming/fuzzzy_organisation/the_master_of_law
+cd /Users/fuzzzer/programming/fuzzzy_organisation/fuzzzy_law
 
 # See what will be downloaded
 python3 eval/test_cases/download_cases.py --dry-run
@@ -90,4 +90,4 @@ python3 eval/test_cases/download_cases.py --only constitutional
 1. **Verify download manifest** — check `raw/download_manifest.json` for failures
 2. **Create PDF parser** — extract text from quarterly PDFs (each contains 10-30 cases)
 3. **Create AI extractor** — Gemini processes extracted text to populate `cases.json`
-4. **Run evaluation pipeline** — Steps 2-4 from [steps.md](file:///Users/fuzzzer/programming/fuzzzy_organisation/the_master_of_law/eval/steps.md)
+4. **Run evaluation pipeline** — Steps 2-4 from [steps.md](file:///Users/fuzzzer/programming/fuzzzy_organisation/fuzzzy_law/eval/steps.md)

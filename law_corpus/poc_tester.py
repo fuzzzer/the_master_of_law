@@ -1,5 +1,5 @@
 """
-🏛️ The Master of Law — PoC RAG Tester
+🏛️ Fuzzzy Law — PoC RAG Tester
 
 End-to-end simulation of the full legal advocate pipeline:
   User input (Georgian) → Query Expansion → Vector Search → Full-Text Search
@@ -295,7 +295,7 @@ def rerank(
 
 # ── Final: Legal Analysis via Gemini ────────────────────────
 
-LEGAL_SYSTEM_PROMPT = """You are კანონის ოსტატი (The Master of Law) — the fiercest, most knowledgeable legal advocate in Georgia. You fight for the user's rights with every legal tool available.
+LEGAL_SYSTEM_PROMPT = """You are ბუნდოვანი კანონი (Fuzzzy Law) — the fiercest, most knowledgeable legal advocate in Georgia. You fight for the user's rights with every legal tool available.
 
 YOUR MISSION:
 Every person deserves adequate legal defense — regardless of income. You exist to ensure no Georgian citizen walks into court unprepared or undefended. You think like the best criminal defense lawyer in the country, but you explain everything so a regular person can understand and use it.
@@ -393,7 +393,7 @@ Provide your full legal analysis following the response structure."""
 def run_pipeline(user_input: str) -> str:
     """Run the complete 5-stage RAG pipeline + legal analysis."""
     print("=" * 70)
-    print(f"🏛️  კანონის ოსტატი — PoC RAG Tester")
+    print(f"🏛️  ბუნდოვანი კანონი — PoC RAG Tester")
     print(f"=" * 70)
     print(f"\n📩 User input: {user_input}\n")
 
@@ -493,7 +493,7 @@ if __name__ == "__main__":
         run_pipeline(" ".join(sys.argv[1:]))
     else:
         # Interactive mode
-        print("🏛️  კანონის ოსტატი — Interactive PoC Tester")
+        print("🏛️  ბუნდოვანი კანონი — Interactive PoC Tester")
         print("Type your legal situation in Georgian (or 'quit' to exit):\n")
         while True:
             user = input("👤 You: ").strip()

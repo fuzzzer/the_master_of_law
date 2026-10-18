@@ -10,28 +10,28 @@
 
 ---
 
-I need you to perform a thorough quality assessment of our AI legal assistant ("კანონის ოსტატი — The Master of Law"). We ran 30 real Georgian law cases through our RAG pipeline, and now I need you to compare the AI's responses against the actual court outcomes.
+I need you to perform a thorough quality assessment of our AI legal assistant ("ბუნდოვანი კანონი — Fuzzzy Law"). We ran 30 real Georgian law cases through our RAG pipeline, and now I need you to compare the AI's responses against the actual court outcomes.
 
 ## 📁 FILES TO READ
 
 1. **Full comparison data:**
    ```
-   /Users/fuzzzer/programming/fuzzzy_organisation/the_master_of_law/eval/comparison/full_comparison.json
+   /Users/fuzzzer/programming/fuzzzy_organisation/fuzzzy_law/eval/comparison/full_comparison.json
    ```
 
 2. **Individual case comparisons (for deep analysis):**
    ```
-   /Users/fuzzzer/programming/fuzzzy_organisation/the_master_of_law/eval/comparison/case_XXX_comparison.json
+   /Users/fuzzzer/programming/fuzzzy_organisation/fuzzzy_law/eval/comparison/case_XXX_comparison.json
    ```
 
 3. **Expected outcomes (ground truth):**
    ```
-   /Users/fuzzzer/programming/fuzzzy_organisation/the_master_of_law/eval/results/case_XXX/expected_outcome.json
+   /Users/fuzzzer/programming/fuzzzy_organisation/fuzzzy_law/eval/results/case_XXX/expected_outcome.json
    ```
 
 4. **AI responses (what the system generated):**
    ```
-   /Users/fuzzzer/programming/fuzzzy_organisation/the_master_of_law/eval/results/case_XXX/ai_response.json
+   /Users/fuzzzer/programming/fuzzzy_organisation/fuzzzy_law/eval/results/case_XXX/ai_response.json
    ```
 
 ## 📊 SCORING CRITERIA (Score each case 1-5 on each criterion)
@@ -172,8 +172,8 @@ After scoring all cases, produce a summary:
 ## 📁 SAVE OUTPUT TO
 
 ```
-/Users/fuzzzer/programming/fuzzzy_organisation/the_master_of_law/eval/assessment/quality_report.json
-/Users/fuzzzer/programming/fuzzzy_organisation/the_master_of_law/eval/assessment/quality_report.md
+/Users/fuzzzer/programming/fuzzzy_organisation/fuzzzy_law/eval/assessment/quality_report.json
+/Users/fuzzzer/programming/fuzzzy_organisation/fuzzzy_law/eval/assessment/quality_report.md
 ```
 
 Read ALL 30 case comparisons, score each one carefully, then produce both the per-case scores and the aggregate report.

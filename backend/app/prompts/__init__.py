@@ -39,7 +39,7 @@ class PromptTemplate:
     template: str
     description: str = ""
     variables: tuple[str, ...] = ()
-    temperature: float = 0.1
+    temperature: float = 1
     max_output_tokens: int = 8192
     response_format: str = "text"
 

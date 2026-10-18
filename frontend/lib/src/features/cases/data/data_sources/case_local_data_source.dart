@@ -1,5 +1,5 @@
+import 'package:fuzzzy_law/src/src.dart';
 import 'package:hive/hive.dart';
-import 'package:themasteroflaw/src/src.dart';
 
 /// Local Hive data source for case CRUD operations.
 class CaseLocalDataSource {

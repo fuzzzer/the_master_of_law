@@ -19,7 +19,7 @@ class UserCredits(Base):
     __tablename__ = "user_credits"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, unique=True, index=True)
     tier = Column(String(10), nullable=False, default="FREE")
     credit_balance = Column(Integer, nullable=False, default=0)
     daily_credits_used = Column(Integer, nullable=False, default=0)

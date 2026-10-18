@@ -14,6 +14,7 @@ async-friendly wrapper around the synchronous ``chromadb`` Python SDK.
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import Any
 
@@ -65,7 +66,10 @@ class ChromaClient:
         resolved = Path(self._persist_dir).resolve()
         logger.info("chroma_connecting", path=str(resolved))
 
-        self._client = chromadb.PersistentClient(path=str(resolved))
+        self._client = chromadb.PersistentClient(
+            path=str(resolved),
+            settings=chromadb.config.Settings(anonymized_telemetry=False)
+        )
         self._collections = {}
 
         # Load all available collections
@@ -194,6 +198,20 @@ class ChromaClient:
         all_hits.sort(key=lambda x: x["distance"])
         return all_hits[:top_k]
 
+    async def vector_search_async(
+        self,
+        query_embedding: list[float],
+        top_k: int = 50,
+        collections: list[str] | None = None,
+        where: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Async wrapper for :meth:`vector_search` — offloads the blocking
+        ChromaDB query to a worker thread so it does not stall the event loop.
+        """
+        return await asyncio.to_thread(
+            self.vector_search, query_embedding, top_k, collections, where
+        )
+
     def get_by_ids(
         self,
         ids: list[str],
@@ -239,6 +257,54 @@ class ChromaClient:
                     })
                     remaining_ids.discard(chunk_id)
 
+        return items
+
+    async def get_by_ids_async(
+        self,
+        ids: list[str],
+        collections: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Async wrapper for :meth:`get_by_ids` — offloads the blocking
+        ChromaDB fetch to a worker thread so it does not stall the event loop.
+        """
+        return await asyncio.to_thread(self.get_by_ids, ids, collections)
+
+    def search_by_metadata(
+        self,
+        where: dict[str, Any],
+        collections: list[str] | None = None,
+        limit: int = 10,
+    ) -> list[dict[str, Any]]:
+        """Fetch chunks matching a metadata filter (no embedding needed).
+
+        Useful for exact article lookup, e.g.:
+            where={"article_number": "მუხლი 77", "code_name": "საქართველოს სისხლის სამართლის საპროცესო კოდექსი"}
+        """
+        target = collections or list(self._collections.keys())
+        items: list[dict[str, Any]] = []
+
+        for col_name in target:
+            if col_name not in self._collections:
+                continue
+            col = self._collections[col_name]
+            try:
+                results = col.get(
+                    where=where,
+                    limit=limit,
+                    include=["documents", "metadatas"],
+                )
+            except Exception as e:
+                logger.warning("chroma_metadata_search_error", collection=col_name, error=str(e))
+                continue
+            if results["ids"]:
+                for i, chunk_id in enumerate(results["ids"]):
+                    meta = results["metadatas"][i] if results["metadatas"] else {}
+                    meta["_collection"] = col_name
+                    items.append({
+                        "chunk_id": chunk_id,
+                        "content": results["documents"][i] if results["documents"] else "",
+                        "metadata": meta,
+                    })
         return items
 
     def count(self, collection_name: str | None = None) -> int:

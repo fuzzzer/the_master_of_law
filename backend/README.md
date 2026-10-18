@@ -1,6 +1,6 @@
-# 🏛️ The Master of Law — Backend API
+# 🏛️ Fuzzzy Law — Backend API
 
-**კანონის ოსტატი** — AI-powered legal advocate backend for Georgian citizens.
+**ბუნდოვანი კანონი** — AI-powered legal advocate backend for Georgian citizens.
 
 ## Overview
 

@@ -1,20 +1,24 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:fuzzzy_law/src/src.dart';
+import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 import 'package:logger/web.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:themasteroflaw/src/src.dart';
-import 'package:ui_kit/ui_kit.dart';
 
 void openDevPanel() {
   Navigator.of(navigatorKey.currentContext!).push(
     PageRouteBuilder(
-      pageBuilder: (context, animation, secondaryAnimation) => const DevPanelScreen(),
+      pageBuilder: (context, animation, secondaryAnimation) =>
+          const DevPanelScreen(),
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
         const begin = Offset(0, 1);
         const end = Offset.zero;
         const curve = Curves.easeInOut;
 
-        final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+        final tween = Tween(
+          begin: begin,
+          end: end,
+        ).chain(CurveTween(curve: curve));
         final offsetAnimation = animation.drive(tween);
 
         return SlideTransition(
@@ -34,11 +38,9 @@ class DevPanelScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final uiColors = theme.extension<UiColors>()!;
+    final colors = context.fuzzzyColors;
 
     return Scaffold(
-      backgroundColor: uiColors.backgroundPrimaryColor,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(
@@ -55,38 +57,44 @@ class DevPanelScreen extends StatelessWidget {
                         builder: (BuildContext context) => const LogsScreen(),
                       ),
                     ),
-                    leadingIcon: const Icon(
+                    leadingIcon: Icon(
                       Icons.text_fields,
-                      color: Colors.white,
+                      color: colors.ink,
                       size: 46,
                     ),
                     title: 'Logs',
                     subtitle: 'Read Saved Logs',
                   ),
                   ValueListenableBuilder(
-                    valueListenable: AppLogger.savingAllLogsWithOutputIntercepting,
+                    valueListenable:
+                        AppLogger.savingAllLogsWithOutputIntercepting,
                     builder: (context, bool savingAllLogs, _) {
                       return DevPanelTile(
                         leadingIcon: Icon(
                           savingAllLogs ? Icons.all_out : Icons.wifi,
-                          color: Colors.white,
+                          color: colors.ink,
                           size: 46,
                         ),
-                        title: AppLogger.savingAllLogsWithOutputIntercepting.value
+                        title:
+                            AppLogger.savingAllLogsWithOutputIntercepting.value
                             ? 'Saving All Logger Logs'
                             : 'Saving Only Request Logs',
                         trailingIcon: ElevatedButton(
                           onPressed: () async {
-                            if (AppLogger.savingAllLogsWithOutputIntercepting.value) {
+                            if (AppLogger
+                                .savingAllLogsWithOutputIntercepting
+                                .value) {
                               logger.initLogSaving(
                                 forceInitLogger: true,
-                                loggerLevel: AppLogger.loggerLevelThreshold.value,
+                                loggerLevel:
+                                    AppLogger.loggerLevelThreshold.value,
                               );
                             } else {
                               logger.initLogSaving(
                                 savingAllLogs: true,
                                 forceInitLogger: true,
-                                loggerLevel: AppLogger.loggerLevelThreshold.value,
+                                loggerLevel:
+                                    AppLogger.loggerLevelThreshold.value,
                               );
                             }
                           },
@@ -100,17 +108,21 @@ class DevPanelScreen extends StatelessWidget {
                   ValueListenableBuilder(
                     valueListenable: AppLogger.loggerLevelThreshold,
                     builder: (context, Level logLevel, _) {
-                      if (AppLogger.loggerLevelThreshold.value.index == Level.error.index) {
+                      if (AppLogger.loggerLevelThreshold.value.index ==
+                          Level.error.index) {
                         return DevPanelTile(
-                          leadingIcon: const Icon(
+                          leadingIcon: Icon(
                             Icons.error_outline,
-                            color: Colors.white,
+                            color: colors.ink,
                             size: 46,
                           ),
                           title: 'Logger Level: Error',
                           trailingIcon: ElevatedButton(
                             onPressed: () async {
-                              logger.initLogSaving(forceInitLogger: true, loggerLevel: Level.debug);
+                              logger.initLogSaving(
+                                forceInitLogger: true,
+                                loggerLevel: Level.debug,
+                              );
                             },
                             child: const Text(
                               'Toggle',
@@ -119,17 +131,22 @@ class DevPanelScreen extends StatelessWidget {
                         );
                       } else {
                         return DevPanelTile(
-                          leadingIcon: const Icon(
+                          leadingIcon: Icon(
                             Icons.all_inbox,
-                            color: Colors.white,
+                            color: colors.ink,
                             size: 46,
                           ),
-                          title: AppLogger.loggerLevelThreshold.value.index == Level.debug.index
+                          title:
+                              AppLogger.loggerLevelThreshold.value.index ==
+                                  Level.debug.index
                               ? 'Logger Level: All'
                               : 'Unknown Log Saving Policy',
                           trailingIcon: ElevatedButton(
                             onPressed: () async {
-                              logger.initLogSaving(forceInitLogger: true, loggerLevel: Level.error);
+                              logger.initLogSaving(
+                                forceInitLogger: true,
+                                loggerLevel: Level.error,
+                              );
                             },
                             child: const Text(
                               'Toggle',
@@ -141,9 +158,9 @@ class DevPanelScreen extends StatelessWidget {
                   ),
 
                   DevPanelTile(
-                    leadingIcon: const Icon(
+                    leadingIcon: Icon(
                       Icons.delete,
-                      color: Colors.white,
+                      color: colors.ink,
                       size: 46,
                     ),
                     title: 'Clear Logs',
@@ -152,7 +169,10 @@ class DevPanelScreen extends StatelessWidget {
                           ? null
                           : () async {
                               LogStorageService(
-                                appStoragePath: sl.get<AppSupportDirectory>().directory.path,
+                                appStoragePath: sl
+                                    .get<AppSupportDirectory>()
+                                    .directory
+                                    .path,
                               ).clearLogs();
                             },
                       child: const Text(
@@ -163,12 +183,13 @@ class DevPanelScreen extends StatelessWidget {
                   DevPanelTile(
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (BuildContext context) => const WorkInProgressFeaturesDisplayScreen(),
+                        builder: (BuildContext context) =>
+                            const WorkInProgressFeaturesDisplayScreen(),
                       ),
                     ),
-                    leadingIcon: const Icon(
+                    leadingIcon: Icon(
                       Icons.construction,
-                      color: Colors.white,
+                      color: colors.ink,
                       size: 46,
                     ),
                     title: 'WIP Features',
@@ -178,13 +199,14 @@ class DevPanelScreen extends StatelessWidget {
                     future: PackageInfo.fromPlatform(),
                     builder: (context, snapshot) {
                       return DevPanelTile(
-                        leadingIcon: const Icon(
+                        leadingIcon: Icon(
                           Icons.info_outline,
-                          color: Colors.white,
+                          color: colors.ink,
                           size: 46,
                         ),
                         title: 'App Version',
-                        subtitle: '${snapshot.data?.version}+${snapshot.data?.buildNumber} ',
+                        subtitle:
+                            '${snapshot.data?.version}+${snapshot.data?.buildNumber} ',
                       );
                     },
                   ),
@@ -199,11 +221,19 @@ class DevPanelScreen extends StatelessWidget {
                     right: 16,
                     left: 16,
                   ),
-                  child: PrimaryButton(
+                  // M12: was the fork's `PrimaryButton`, which died with
+                  // `packages/ui_kit`. `FuzzzyButton` is the kit's own
+                  // equivalent and needs no app-side wrapper. It stays full
+                  // width here because its inner box sets `alignment`, so it
+                  // expands to the loose constraints this `Align`/`Padding`
+                  // hands it — same footprint as the fork's
+                  // `uiFormStyles.buttonWidth = double.maxFinite`.
+                  child: FuzzzyButton(
+                    label: 'Go Back',
                     onPressed: () {
                       Navigator.of(context).pop();
                     },
-                    label: 'Go Back',
+                    qaId: 'dev_panel_back',
                   ),
                 ),
               ),

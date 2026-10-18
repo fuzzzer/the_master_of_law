@@ -6,7 +6,7 @@
 
 ## Your Mission
 
-Build the complete FastAPI backend for **"The Master of Law" (კანონის ოსტატი)** — an AI-powered legal advocate for Georgian citizens. The backend serves a Flutter app and is the brain of the system: it handles conversations, RAG retrieval from a pre-built law corpus, defense strategy generation via Gemini, Firebase auth, and a credit-based access system.
+Build the complete FastAPI backend for **"Fuzzzy Law" (ბუნდოვანი კანონი)** — an AI-powered legal advocate for Georgian citizens. The backend serves a Flutter app and is the brain of the system: it handles conversations, RAG retrieval from a pre-built law corpus, defense strategy generation via Gemini, Firebase auth, and a credit-based access system.
 
 ---
 
@@ -99,12 +99,12 @@ query_vector = list(result.embeddings[0].values)
 
 ## Project Location & Structure
 
-**Working directory:** `/Users/fuzzzer/programming/fuzzzy_organisation/the_master_of_law/`
+**Working directory:** `/Users/fuzzzer/programming/fuzzzy_organisation/fuzzzy_law/`
 
 Create the backend in `backend/` at the project root (sibling to `law_corpus/` and `master_plan/`):
 
 ```
-the_master_of_law/
+fuzzzy_law/
 ├── master_plan/                        # Design docs (READ for detailed specs)
 │   ├── 02_backend_system_prompt.md     # ★ FULL 863-line backend spec — READ THIS
 │   └── ...
@@ -338,7 +338,7 @@ dependencies = [
 ## How to Start
 
 ```bash
-cd /Users/fuzzzer/programming/fuzzzy_organisation/the_master_of_law
+cd /Users/fuzzzer/programming/fuzzzy_organisation/fuzzzy_law
 
 # 1. Create the backend directory
 mkdir -p backend

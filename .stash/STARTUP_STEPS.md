@@ -1,4 +1,4 @@
-# The Master of Law — Startup Guide
+# Fuzzzy Law — Startup Guide
 
 ## Current Status (as of 2026-05-04)
 
@@ -31,7 +31,7 @@
 
 ### Step 1 — Start Docker containers:
 ```
-cd /Users/fuzzzer/programming/fuzzzy_organisation/the_master_of_law/backend && docker compose up -d
+cd /Users/fuzzzer/programming/fuzzzy_organisation/fuzzzy_law/backend && docker compose up -d
 ```
 
 ### Step 2 — Verify all 3 are healthy:

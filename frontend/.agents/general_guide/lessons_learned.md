@@ -17,9 +17,9 @@
 **Rule:** Constructor injection for repos and cubits. Service locator only at data source boundary.
 
 ### AP-003: Never Import Feature Files Directly
-**Problem:** Importing `package:themasteroflaw/src/payments/models/payment_method_data.dart` creates tight coupling.
-**Resolution:** Always import through root barrel: `import 'package:themasteroflaw/src/src.dart';`
-**Rule:** One import. `import 'package:themasteroflaw/src/src.dart';` is the only project import you write.
+**Problem:** Importing `package:fuzzzy_law/src/payments/models/payment_method_data.dart` creates tight coupling.
+**Resolution:** Always import through root barrel: `import 'package:fuzzzy_law/src/src.dart';`
+**Rule:** One import. `import 'package:fuzzzy_law/src/src.dart';` is the only project import you write.
 
 ### AP-004: Never Skip Barrel Files
 **Problem:** Missing barrel exports cause "undefined" errors.

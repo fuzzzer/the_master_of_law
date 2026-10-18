@@ -17,6 +17,10 @@ echo "════════════════════════�
 python -m pipeline.main update --since "$SINCE"
 
 echo ""
+echo "▶ Rebuilding article store (exact-lookup grounding DB)…"
+python scripts/build_article_store.py
+
+echo ""
 echo "═══════════════════════════════════════════════"
 echo "  ✓ Incremental update complete!"
 echo "═══════════════════════════════════════════════"

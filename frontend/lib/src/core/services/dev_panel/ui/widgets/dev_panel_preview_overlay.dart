@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 
 class DevPanelPreviewOverlay extends StatefulWidget {
   final Size screenSize;
@@ -29,14 +30,17 @@ class _DevPanelPreviewOverlayState extends State<DevPanelPreviewOverlay> {
 
   @override
   void didUpdateWidget(DevPanelPreviewOverlay activeExamOverlay) {
-    final bottomNavigationHeight = widget.screenSize.aspectRatio > 1.2 ? 40 : 70;
+    final bottomNavigationHeight = widget.screenSize.aspectRatio > 1.2
+        ? 40
+        : 70;
 
     endingTop = bottomNavigationHeight + widget.screenPadding.bottom;
 
     screenWidth = widget.screenSize.width;
     screenHeight = widget.screenSize.height;
 
-    landscapeRightPadding = widget.screenPadding.left + widget.screenPadding.right;
+    landscapeRightPadding =
+        widget.screenPadding.left + widget.screenPadding.right;
 
     left = screenWidth - widgetSize - landscapeRightPadding;
     top = screenHeight / 2;
@@ -46,14 +50,17 @@ class _DevPanelPreviewOverlayState extends State<DevPanelPreviewOverlay> {
 
   @override
   void initState() {
-    final bottomNavigationHeight = widget.screenSize.aspectRatio > 1.2 ? 40 : 70;
+    final bottomNavigationHeight = widget.screenSize.aspectRatio > 1.2
+        ? 40
+        : 70;
 
     endingTop = bottomNavigationHeight + widget.screenPadding.bottom;
 
     screenWidth = widget.screenSize.width;
     screenHeight = widget.screenSize.height;
 
-    landscapeRightPadding = widget.screenPadding.left + widget.screenPadding.right;
+    landscapeRightPadding =
+        widget.screenPadding.left + widget.screenPadding.right;
 
     left = screenWidth - widgetSize - landscapeRightPadding;
     top = screenHeight / 2;
@@ -65,7 +72,10 @@ class _DevPanelPreviewOverlayState extends State<DevPanelPreviewOverlay> {
     final globalX = details.globalPosition.dx;
     final globalY = details.globalPosition.dy;
 
-    if (globalX > 0 && globalX < screenWidth && globalY > startingTop && globalY < screenHeight - endingTop) {
+    if (globalX > 0 &&
+        globalX < screenWidth &&
+        globalY > startingTop &&
+        globalY < screenHeight - endingTop) {
       final deltaX = details.delta.dx;
       final deltaY = details.delta.dy;
 
@@ -73,11 +83,13 @@ class _DevPanelPreviewOverlayState extends State<DevPanelPreviewOverlay> {
       final newTop = top + deltaY;
 
       setState(() {
-        if (newLeft > 0 && newLeft < screenWidth - widgetSize - landscapeRightPadding) {
+        if (newLeft > 0 &&
+            newLeft < screenWidth - widgetSize - landscapeRightPadding) {
           left = newLeft;
         }
 
-        if (newTop > startingTop && newTop < screenHeight - endingTop - widgetSize) {
+        if (newTop > startingTop &&
+            newTop < screenHeight - endingTop - widgetSize) {
           top = newTop;
         }
       });
@@ -94,31 +106,35 @@ class _DevPanelPreviewOverlayState extends State<DevPanelPreviewOverlay> {
       child: GestureDetector(
         onTap: () {},
         onPanUpdate: onPanUpdate,
-        child: Material(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(
-              widgetSize / 2,
-            ),
-            side: const BorderSide(
-              width: 2,
-              color: Colors.green,
-            ),
-          ),
-          elevation: 10,
-          child: Container(
-            decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.grey),
-            child: const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.assignment_outlined,
-                    size: 26,
-                  ),
-                ],
+        child: Builder(
+          builder: (context) {
+            final colors = context.fuzzzyColors;
+            return Material(
+              // Rung 3 of the ladder: this disc FLOATS over the whole app, so
+              // it is `raised` inside a `lineStrong` outline. The fork used
+              // `Colors.green` for the ring and `Colors.grey` for the fill —
+              // two Material hues chosen to be conspicuous during development,
+              // which is exactly what `raised` + `lineStrong` says in roles.
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(widgetSize / 2),
+                side: BorderSide(width: 2, color: colors.lineStrong),
               ),
-            ),
-          ),
+              // `elevation: 10` DELETED, not set to 0: Ink's elevation step is
+              // the BORDER, not a shadow (MAPPING §6), and `Material` already
+              // defaults to 0 — restating it trips `avoid_redundant_argument_
+              // values`. Contrast `PopupMenuButton` (M7 §8), which defaults to
+              // a shadow and therefore must have `elevation: 0` set explicitly.
+              color: colors.raised,
+              child: Center(
+                child: Icon(
+                  Icons.assignment_outlined,
+                  // Dimension: the handle's glyph inside a 90px disc.
+                  size: 26,
+                  color: colors.ink,
+                ),
+              ),
+            );
+          },
         ),
       ),
     );

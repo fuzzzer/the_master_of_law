@@ -2,10 +2,9 @@ import 'package:bloc/bloc.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:fuzzzy_law/src/src.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:logger/logger.dart';
-import 'package:themasteroflaw/src/src.dart';
-import 'package:ui_kit/ui_kit.dart';
 
 class Initializer {
   static Future<void> preAppInit() async {
@@ -20,7 +19,9 @@ class Initializer {
     await DependencyInjection.inject();
 
     await logger.initLogSaving(
-      loggerLevel: kReleaseMode && appEnvironment.isProduction ? Level.error : Level.debug,
+      loggerLevel: kReleaseMode && appEnvironment.isProduction
+          ? Level.error
+          : Level.debug,
     );
 
     await SystemChrome.setPreferredOrientations([
@@ -30,7 +31,7 @@ class Initializer {
 
     if (kReleaseMode) {
       ErrorWidget.builder = (FlutterErrorDetails details) {
-        return const PrimaryErrorPageView(
+        return const AppErrorPageView(
           message: 'Unexpected App Crash',
         );
       };
@@ -50,6 +51,8 @@ class Initializer {
       ..registerAdapter(StrategyDataAdapter())
       ..registerAdapter(TimelineEventDataAdapter())
       ..registerAdapter(RiskDataAdapter())
-      ..registerAdapter(ActionItemDataAdapter());
+      ..registerAdapter(ActionItemDataAdapter())
+      ..registerAdapter(LinkedArticleDataAdapter())
+      ..registerAdapter(ClarificationDataAdapter());
   }
 }

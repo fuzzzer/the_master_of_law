@@ -7,7 +7,7 @@
 
 ## 📌 Project Context
 
-You are implementing a feature called **"One-Touch Full Fillout"** for **კანონის ოსტატი (The Master of Law)** — an AI-powered legal defense app for Georgian citizens.
+You are implementing a feature called **"One-Touch Full Fillout"** for **ბუნდოვანი კანონი (Fuzzzy Law)** — an AI-powered legal defense app for Georgian citizens.
 
 ### What the app does:
 - Users create **cases** (legal defense projects)

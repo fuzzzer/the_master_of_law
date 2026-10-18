@@ -176,7 +176,7 @@ Consider our constraints: [TECH STACK, TIMELINE, SCALE].
 
 ### "Teach Me This Concept"
 ```
-Explain [CONCEPT] as it applies to THIS project (The Master of Law).
+Explain [CONCEPT] as it applies to THIS project (Fuzzzy Law).
 Use a concrete example from our codebase.
 Skip the theory — I want to understand the practical implication.
 What would break if we got this wrong?

@@ -31,13 +31,16 @@ class CaseDataAdapter extends TypeAdapter<CaseData> {
       risks: (fields[11] as List?)?.cast<RiskData>(),
       actionItems: (fields[12] as List?)?.cast<ActionItemData>(),
       linkedConversationIds: (fields[13] as List?)?.cast<String>(),
+      linkedArticles: (fields[14] as List?)?.cast<LinkedArticleData>(),
+      clarifications: (fields[15] as List?)?.cast<ClarificationData>(),
+      serverCaseFileId: fields[16] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, CaseData obj) {
     writer
-      ..writeByte(14)
+      ..writeByte(17)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -65,7 +68,13 @@ class CaseDataAdapter extends TypeAdapter<CaseData> {
       ..writeByte(12)
       ..write(obj.actionItems)
       ..writeByte(13)
-      ..write(obj.linkedConversationIds);
+      ..write(obj.linkedConversationIds)
+      ..writeByte(14)
+      ..write(obj.linkedArticles)
+      ..writeByte(15)
+      ..write(obj.clarifications)
+      ..writeByte(16)
+      ..write(obj.serverCaseFileId);
   }
 
   @override
@@ -439,6 +448,98 @@ class ActionItemDataAdapter extends TypeAdapter<ActionItemData> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is ActionItemDataAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class LinkedArticleDataAdapter extends TypeAdapter<LinkedArticleData> {
+  @override
+  final int typeId = 8;
+
+  @override
+  LinkedArticleData read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return LinkedArticleData(
+      articleId: fields[0] as String,
+      title: fields[1] as String,
+      codeName: fields[2] as String,
+      snippet: fields[3] as String,
+      savedAt: fields[4] as DateTime,
+      url: fields[5] as String?,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, LinkedArticleData obj) {
+    writer
+      ..writeByte(6)
+      ..writeByte(0)
+      ..write(obj.articleId)
+      ..writeByte(1)
+      ..write(obj.title)
+      ..writeByte(2)
+      ..write(obj.codeName)
+      ..writeByte(3)
+      ..write(obj.snippet)
+      ..writeByte(4)
+      ..write(obj.savedAt)
+      ..writeByte(5)
+      ..write(obj.url);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LinkedArticleDataAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class ClarificationDataAdapter extends TypeAdapter<ClarificationData> {
+  @override
+  final int typeId = 9;
+
+  @override
+  ClarificationData read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return ClarificationData(
+      id: fields[0] as String,
+      question: fields[1] as String,
+      isResolved: fields[2] as bool,
+      resolution: fields[3] as String?,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, ClarificationData obj) {
+    writer
+      ..writeByte(4)
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.question)
+      ..writeByte(2)
+      ..write(obj.isResolved)
+      ..writeByte(3)
+      ..write(obj.resolution);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ClarificationDataAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

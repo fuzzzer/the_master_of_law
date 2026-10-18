@@ -19,6 +19,6 @@ Currently we have 2 major script. More to be added hopefully:
 ./loc.sh "New String||ka||ახალი ტექსტი"
 ```
 
-`This will create a new, typed, and localized string themasteroflawLocalizations.newString that is immediately available within the app.`
+`This will create a new, typed, and localized string fuzzzyLawLocalizations.newString that is immediately available within the app.`
 
 To set up the scripts the scripts refer to [setup_guide](../scripts/setup_info.md)

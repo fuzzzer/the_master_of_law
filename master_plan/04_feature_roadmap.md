@@ -1,4 +1,4 @@
-# კანონის ოსტატი — Feature Roadmap & Product Vision
+# ბუნდოვანი კანონი — Feature Roadmap & Product Vision
 
 ## Core Vision
 
@@ -18,7 +18,7 @@ is the central organizing unit. Everything connects to a case.
 - ✅ Backend API complete (FastAPI, 27 endpoints, multi-collection RAG with feature flags)
 - ✅ Evaluation pipeline (50 Supreme Court cases, LLM-as-judge scoring)
 - ✅ Design system created and integrated with open-design
-- ✅ Flutter app skeleton renamed and configured (`master_of_law` / `ge.fuzzycore.masteroflaw`)
+- ✅ Flutter app skeleton renamed and configured (`fuzzzy_law` / `ge.fuzzycore.fuzzzylaw`)
 - ✅ UI Kit package ready for design token injection
 - ✅ Comprehensive DESIGN.md with full case-centric specification
 

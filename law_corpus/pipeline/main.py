@@ -8,6 +8,7 @@ Usage:
     python -m pipeline.main chunk --input-dir data/parsed
     python -m pipeline.main embed --input-dir data/chunks
     python -m pipeline.main index --backend chroma
+    python -m pipeline.main thresholds
     python -m pipeline.main stats
     python -m pipeline.main validate
 """
@@ -242,6 +243,30 @@ def index(
     console.print(f"[green]✓[/green] Indexed {count} chunks into {backend}")
 
 
+# ── THRESHOLDS ───────────────────────────────────────────────
+
+@app.command()
+def thresholds(
+    dry_run: bool = typer.Option(False, "--dry-run", help="Print instead of ingesting"),
+) -> None:
+    """Ingest legal thresholds (e.g., drug quantities) from the catalog."""
+    setup_logging(settings.log_level.value)
+    
+    import sys
+    from pathlib import Path
+    
+    # Ensure root directory is in sys.path so we can import ingest_thresholds
+    root_dir = str(Path(__file__).parent.parent.resolve())
+    if root_dir not in sys.path:
+        sys.path.insert(0, root_dir)
+        
+    from ingest_thresholds import ingest
+    
+    console.print("[bold]Ingesting thresholds from catalog...[/bold]")
+    ingest(dry_run=dry_run)
+    console.print("[green]✓[/green] Thresholds ingested")
+
+
 # ── RUN (full pipeline) ─────────────────────────────────────
 
 @app.command()
@@ -258,6 +283,7 @@ def run(
     chunk(input_dir=None)
     embed(input_dir=None)
     index(backend=settings.vector_store_backend.value)
+    thresholds(dry_run=False)
 
     console.print("[bold green]✓ Pipeline complete![/bold green]")
 

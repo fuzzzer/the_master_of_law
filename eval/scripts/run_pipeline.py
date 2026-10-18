@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-🏛️ Master of Law — Evaluation Pipeline Runner
+🏛️ Fuzzzy Law — Evaluation Pipeline Runner
 
 Feeds test cases (without expected outcomes) through the RAG pipeline sequentially,
 respecting rate limits with exponential backoff.
@@ -276,7 +276,7 @@ def run_all(
 
     total = len(cases)
     print(f"\n{'='*70}")
-    print(f"🏛️  Master of Law — Evaluation Pipeline")
+    print(f"🏛️  Fuzzzy Law — Evaluation Pipeline")
     print(f"{'='*70}")
     print(f"📊 Cases to process: {total}")
     print(f"📁 Results directory: {results_dir}")
@@ -351,7 +351,7 @@ def run_all(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run Master of Law evaluation pipeline"
+        description="Run Fuzzzy Law evaluation pipeline"
     )
     parser.add_argument(
         "--cases-file",

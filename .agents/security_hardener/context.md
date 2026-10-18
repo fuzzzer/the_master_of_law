@@ -76,5 +76,5 @@ HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
 2. **NEVER** hardcode API keys in source code
 3. **ALWAYS** use `chmod 600` on key files
 4. **ROTATE** credentials every 90 days
-5. SA key lives at `/etc/master-of-law/gcp-sa-key.json` on VPS (not in repo)
+5. SA key lives at `/etc/fuzzzy-law/gcp-sa-key.json` on VPS (not in repo)
 6. Passwords generated via `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`

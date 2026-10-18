@@ -1,0 +1,13 @@
+{
+  "name": "fuzzzy-law-e2e",
+  "version": "1.0.0",
+  "description": "E2E tests for Fuzzzy Law (Flutter web)",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0"
+  }
+}

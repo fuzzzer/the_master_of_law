@@ -1,5 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:themasteroflaw/src/src.dart';
+import 'package:fuzzzy_law/src/src.dart';
 
 part 'cases_state.dart';
 
@@ -39,5 +39,16 @@ class CasesCubit extends Cubit<CasesState> {
   Future<void> deleteCase(String id) async {
     await _repository.deleteCase(id);
     await loadCases();
+  }
+
+  Future<CaseData?> importCaseData(Map<String, dynamic> json) async {
+    final result = await _repository.importCaseData(json);
+    switch (result) {
+      case CaseSuccess<CaseData>(:final data):
+        await loadCases();
+        return data;
+      case CaseFailure<CaseData>():
+        return null;
+    }
   }
 }

@@ -30,7 +30,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace "ge.fuzzycore.themasteroflaw"
+    namespace "ge.fuzzycore.fuzzzylaw"
     compileSdkVersion flutter.compileSdkVersion
     ndkVersion flutter.ndkVersion
 
@@ -44,7 +44,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "ge.fuzzycore.themasteroflaw"
+        applicationId "ge.fuzzycore.fuzzzylaw"
         // You can update the following values to match your application needs.
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
         minSdkVersion flutter.minSdkVersion
@@ -71,17 +71,17 @@ android {
         production {
             dimension "default"
             applicationIdSuffix ""
-            manifestPlaceholders = [appName: "themasteroflaw"]
+            manifestPlaceholders = [appName: "Fuzzzy Law"]
         }
         staging {
             dimension "default"
             applicationIdSuffix ".stg"
-            manifestPlaceholders = [appName: "[STG] themasteroflaw"]
+            manifestPlaceholders = [appName: "[STG] Fuzzzy Law"]
         }
         development {
             dimension "default"
             applicationIdSuffix ".dev"
-            manifestPlaceholders = [appName: "[DEV] themasteroflaw"]
+            manifestPlaceholders = [appName: "[DEV] Fuzzzy Law"]
         }
     }
 

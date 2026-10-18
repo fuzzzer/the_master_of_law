@@ -1,6 +1,5 @@
-import 'package:themasteroflaw/src/src.dart';
+import 'package:fuzzzy_law/src/src.dart';
 
-/// Sealed result type for consultation operations.
 sealed class ConsultationResult<T> {
   const ConsultationResult();
 }
@@ -20,29 +19,36 @@ enum ConsultationFailureType {
   network,
   unauthorized,
   noCredits,
+  rateLimited,
   notFound,
+
+  /// The AI provider is out of budget or overloaded — distinct from
+  /// [serverError] because waiting actually helps and nothing is broken.
+  serviceUnavailable,
   serverError,
   unknown,
 }
 
-/// Repository for consultation data. Never throws.
 class ConsultationRepository {
   final ConsultationRemoteDataSource _remoteDataSource;
 
-  ConsultationRepository({required ConsultationRemoteDataSource remoteDataSource})
-      : _remoteDataSource = remoteDataSource;
+  ConsultationRepository({
+    required ConsultationRemoteDataSource remoteDataSource,
+  }) : _remoteDataSource = remoteDataSource;
 
-  Future<ConsultationResult<Map<String, dynamic>>> createConversation({String? caseId}) async {
+  Future<ConsultationResult<Map<String, dynamic>>> createConversation({
+    String? caseId,
+  }) async {
     try {
       final data = await _remoteDataSource.createConversation(caseId: caseId);
       return ConsultationSuccess(data);
     } on HttpClientException catch (e) {
+      return ConsultationFailure(type: _mapHttpError(e), message: e.toString());
+    } catch (e) {
       return ConsultationFailure(
-        type: _mapHttpError(e),
+        type: ConsultationFailureType.unknown,
         message: e.toString(),
       );
-    } catch (e) {
-      return ConsultationFailure(type: ConsultationFailureType.unknown, message: e.toString());
     }
   }
 
@@ -53,18 +59,26 @@ class ConsultationRepository {
     } on HttpClientException catch (e) {
       return ConsultationFailure(type: _mapHttpError(e), message: e.toString());
     } catch (e) {
-      return ConsultationFailure(type: ConsultationFailureType.unknown, message: e.toString());
+      return ConsultationFailure(
+        type: ConsultationFailureType.unknown,
+        message: e.toString(),
+      );
     }
   }
 
-  Future<ConsultationResult<Map<String, dynamic>>> getConversation(String id) async {
+  Future<ConsultationResult<Map<String, dynamic>>> getConversation(
+    String id,
+  ) async {
     try {
       final data = await _remoteDataSource.getConversation(id);
       return ConsultationSuccess(data);
     } on HttpClientException catch (e) {
       return ConsultationFailure(type: _mapHttpError(e), message: e.toString());
     } catch (e) {
-      return ConsultationFailure(type: ConsultationFailureType.unknown, message: e.toString());
+      return ConsultationFailure(
+        type: ConsultationFailureType.unknown,
+        message: e.toString(),
+      );
     }
   }
 
@@ -75,32 +89,142 @@ class ConsultationRepository {
     } on HttpClientException catch (e) {
       return ConsultationFailure(type: _mapHttpError(e), message: e.toString());
     } catch (e) {
-      return ConsultationFailure(type: ConsultationFailureType.unknown, message: e.toString());
+      return ConsultationFailure(
+        type: ConsultationFailureType.unknown,
+        message: e.toString(),
+      );
     }
   }
 
   Future<ConsultationResult<Map<String, dynamic>>> sendMessage({
     required String conversationId,
     required String message,
+    Map<String, dynamic>? ragConfig,
+    String mode = 'chat',
+    String? caseContext,
   }) async {
     try {
       final data = await _remoteDataSource.sendMessage(
         conversationId: conversationId,
         message: message,
+        ragConfig: ragConfig,
+        mode: mode,
+        caseContext: caseContext,
       );
       return ConsultationSuccess(data);
     } on HttpClientException catch (e) {
       return ConsultationFailure(type: _mapHttpError(e), message: e.toString());
     } catch (e) {
-      return ConsultationFailure(type: ConsultationFailureType.unknown, message: e.toString());
+      return ConsultationFailure(
+        type: ConsultationFailureType.unknown,
+        message: e.toString(),
+      );
+    }
+  }
+
+  Stream<Map<String, dynamic>> streamMessage({
+    required String conversationId,
+    required String message,
+    Map<String, dynamic>? ragConfig,
+    String mode = 'chat',
+    String? caseContext,
+    String? caseFileId,
+  }) {
+    return _remoteDataSource.streamMessage(
+      conversationId: conversationId,
+      message: message,
+      ragConfig: ragConfig,
+      mode: mode,
+      caseContext: caseContext,
+      caseFileId: caseFileId,
+    );
+  }
+
+  Future<ConsultationResult<Map<String, dynamic>>> buildCaseFile({
+    required String conversationId,
+  }) async {
+    try {
+      final data = await _remoteDataSource.buildCaseFile(
+        conversationId: conversationId,
+      );
+      return ConsultationSuccess(data);
+    } on HttpClientException catch (e) {
+      return ConsultationFailure(type: _mapHttpError(e), message: e.toString());
+    } catch (e) {
+      return ConsultationFailure(
+        type: ConsultationFailureType.unknown,
+        message: e.toString(),
+      );
+    }
+  }
+
+  Future<ConsultationResult<Map<String, dynamic>>> sendAgentMessage({
+    required String conversationId,
+    required String message,
+    required String caseFileId,
+    Map<String, dynamic>? ragConfig,
+  }) async {
+    try {
+      final data = await _remoteDataSource.sendAgentMessage(
+        conversationId: conversationId,
+        message: message,
+        caseFileId: caseFileId,
+        ragConfig: ragConfig,
+      );
+      return ConsultationSuccess(data);
+    } on HttpClientException catch (e) {
+      return ConsultationFailure(type: _mapHttpError(e), message: e.toString());
+    } catch (e) {
+      return ConsultationFailure(
+        type: ConsultationFailureType.unknown,
+        message: e.toString(),
+      );
+    }
+  }
+
+  Future<ConsultationResult<Map<String, dynamic>>> confirmToolAction({
+    required String conversationId,
+    required String confirmationId,
+    required bool confirmed,
+  }) async {
+    try {
+      final data = await _remoteDataSource.confirmToolAction(
+        conversationId: conversationId,
+        confirmationId: confirmationId,
+        confirmed: confirmed,
+      );
+      return ConsultationSuccess(data);
+    } on HttpClientException catch (e) {
+      return ConsultationFailure(type: _mapHttpError(e), message: e.toString());
+    } catch (e) {
+      return ConsultationFailure(
+        type: ConsultationFailureType.unknown,
+        message: e.toString(),
+      );
     }
   }
 
   ConsultationFailureType _mapHttpError(HttpClientException e) {
+    if (e is UnsuccessfulResponseException && e.statusCode == 402) {
+      return ConsultationFailureType.noCredits;
+    }
+    if (e is UnsuccessfulResponseException && e.statusCode == 429) {
+      return ConsultationFailureType.rateLimited;
+    }
+    // 503 is the backend saying its own upstream AI budget is spent or the
+    // provider is overloaded. Collapsing it into `serverError` would tell the
+    // user "something broke" when the honest answer is "come back shortly".
+    if (e is UnsuccessfulResponseException && e.statusCode == 503) {
+      return ConsultationFailureType.serviceUnavailable;
+    }
     return switch (e) {
       UnauthorizedException() => ConsultationFailureType.unauthorized,
+      TooManyRequestsException() => ConsultationFailureType.rateLimited,
       NotFoundException() => ConsultationFailureType.notFound,
       NoConnectionException() => ConsultationFailureType.network,
+      ConnectionTimeoutException() => ConsultationFailureType.network,
+      RecieveTimeoutException() => ConsultationFailureType.network,
+      SendTimeoutException() => ConsultationFailureType.network,
       _ => ConsultationFailureType.serverError,
     };
   }

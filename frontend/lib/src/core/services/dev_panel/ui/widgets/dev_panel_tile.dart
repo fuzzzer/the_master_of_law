@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:ui_kit/ui_kit.dart';
+import 'package:fuzzzy_ui_kit/fuzzzy_ui_kit.dart';
 
 class DevPanelTile extends StatelessWidget {
   const DevPanelTile({
@@ -19,15 +19,15 @@ class DevPanelTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final uiColors = theme.extension<UiColors>()!;
+    final colors = context.fuzzzyColors;
+    final type = context.fuzzzyTextStyles;
 
+    // Card surface, border, radius and elevation all come from the app's
+    // cardTheme, which is built from kit roles — nothing restated here.
     return Card(
-      elevation: 0,
-      color: uiColors.backgroundSecondaryColor,
-      child: InkWell(
+      child: GestureDetector(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        behavior: HitTestBehavior.opaque,
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 20,
@@ -40,17 +40,12 @@ class DevPanelTile extends StatelessWidget {
           ),
           title: Text(
             title,
-            style: TextStyle(
-              color: uiColors.backgroundPrimaryColor,
-              fontWeight: FontWeight.bold,
-            ),
+            style: type.titleS.copyWith(color: colors.ink),
           ),
           subtitle: subtitle != null
               ? Text(
                   subtitle!,
-                  style: TextStyle(
-                    color: uiColors.backgroundPrimaryColor,
-                  ),
+                  style: type.body.copyWith(color: colors.inkMute),
                 )
               : null,
           trailing: trailingIcon,

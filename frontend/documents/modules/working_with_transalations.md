@@ -34,11 +34,11 @@ Or simply [setup](../../scripts/setup_info.md) ./loc.sh script and use it from p
 ### Using Localizations
 
 ```dart
-import 'package:themasteroflaw/src/src_exports.dart';
+import 'package:fuzzzy_law/src/src_exports.dart';
 
 @override
 Widget build(BuildContext context) {
-  final localizations = context.themasteroflawLocalizations;
+  final localizations = context.fuzzzyLawLocalizations;
   return Text(localizations.helloWorld);
 }
 ```

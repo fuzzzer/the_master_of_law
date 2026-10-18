@@ -1,4 +1,4 @@
-# კანონის ოსტატი — The Master of Law
+# ბუნდოვანი კანონი — Fuzzzy Law
 # Full Product Spec (v1.0)
 
 > **This is the canonical spec. All implementation must follow this document.**

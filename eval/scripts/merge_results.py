@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-🏛️ Master of Law — Merge & Compare Results
+🏛️ Fuzzzy Law — Merge & Compare Results
 
 Merges all evaluation case results into a single comparison document.
 Produces structured comparison files for human/AI assessment.
@@ -160,7 +160,7 @@ def merge_all_results(
         sys.exit(1)
 
     print(f"\n{'='*70}")
-    print(f"🏛️  Master of Law — Merge & Compare")
+    print(f"🏛️  Fuzzzy Law — Merge & Compare")
     print(f"{'='*70}")
     print(f"📁 Found {len(case_dirs)} case directories")
 
@@ -267,7 +267,7 @@ def merge_all_results(
 def generate_markdown_report(data: dict) -> str:
     """Generate a markdown comparison report."""
     lines = [
-        "# 🏛️ Master of Law — Evaluation Report",
+        "# 🏛️ Fuzzzy Law — Evaluation Report",
         "",
         f"> Generated: {data['generated_at']}",
         f"> Total cases: {data['total_cases']}",
