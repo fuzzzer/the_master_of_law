@@ -44,6 +44,27 @@ def reset_byok_key(token: Token[str | None]) -> None:
     _byok_api_key.reset(token)
 
 
+# The caller's own Anthropic key, for requests served on a Claude model.
+# Separate from the Google key: embeddings and any Gemini tier still need that
+# one, so a Claude user sends both.
+_anthropic_api_key: ContextVar[str | None] = ContextVar("anthropic_api_key", default=None)
+
+
+def set_anthropic_key(key: str | None) -> Token[str | None]:
+    """Bind a caller-supplied Anthropic key to the current request context."""
+    return _anthropic_api_key.set(key)
+
+
+def get_anthropic_key() -> str | None:
+    """The caller's Anthropic key for this request, or None if they sent none."""
+    return _anthropic_api_key.get()
+
+
+def reset_anthropic_key(token: Token[str | None]) -> None:
+    """Restore the previous value — always paired with set_anthropic_key."""
+    _anthropic_api_key.reset(token)
+
+
 # ── Per-caller model choice ──────────────────────────────────
 # Which model serves a tier is a PERSONAL setting under bring-your-own-key,
 # not a deployment-wide one. Each caller pays with their own key, against

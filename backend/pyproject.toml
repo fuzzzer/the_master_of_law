@@ -12,6 +12,8 @@ dependencies = [
     "asyncpg>=0.30",
     "alembic>=1.14",
     "google-genai>=1.0",
+    # Optional Claude provider (CLAUDE_MODELS_ENABLED); exact pin per repo rule.
+    "anthropic==1.13.0",
     "firebase-admin>=6.5",
     "chromadb==0.6.3",
     # chromadb 0.6 calls posthog.capture(distinct_id, event, props); posthog 4+
