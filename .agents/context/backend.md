@@ -1,7 +1,7 @@
 # Backend Context — Fuzzzy Law
 
 > FastAPI backend with multi-source RAG pipeline + Gemini legal analysis.
-> **Last verified:** 2026-08-19
+> **Last verified:** 2026-10-24
 
 ---
 
@@ -108,14 +108,14 @@ decisions are BINDING and override all lower court interpretations").
 
 | Metric | Count |
 |--------|-------|
-| Router files | 15 |
-| Endpoints | 45 |
-| Services | 19 |
+| Router files | 16 |
+| Endpoints | 52 (`@router.` decorators, per `scripts/codebase_stats.sh`) |
+| Services | 22 |
 | Repositories | 8 |
 | Models | 9 |
 | Schemas | 9 |
-| Test files | 37 |
-| Test functions | 540 |
+| Test files | 55 |
+| Test functions | 678 |
 
 ---
 
@@ -214,11 +214,13 @@ question-and-silence.
 |--------|------|---------|-------------|
 | GET | `/api/v1/rag/collections` | 0 | List RAG sources + availability |
 
-### api_key_router (2)
+### api_key_router (4)
 | Method | Path | Credits | Description |
 |--------|------|---------|-------------|
 | GET | `/api/v1/api-keys/check` | 0 | Check API key validity |
 | POST | `/api/v1/api-keys` | 0 | Create API key (ADMIN) |
+| GET | `/api/v1/api-keys/validate` | 0 | Check the caller's Google key (lists models, no tokens) |
+| GET | `/api/v1/api-keys/validate-anthropic` | 0 | Check the caller's Anthropic key (404 while Claude is off) |
 
 ### contacts_router (1)
 | Method | Path | Credits | Description |
@@ -287,6 +289,41 @@ for local debugging only, never production. Models switch via `GEMINI_MODEL` /
 `GEMINI_CHAT_MODEL` env vars (cheap: `gemini-3-flash-preview`, `gemini-flash-lite-latest`).
 Comment the debug block in `.env` out to restore Vertex AI unchanged.
 
+### Claude models (optional, off by default)
+
+Gemini is the default and stays the only provider unless `CLAUDE_MODELS_ENABLED=true`.
+With it on, any tier whose model id starts with `claude-` is served by Anthropic through
+`integrations/claude_client.py`; everything else is unchanged.
+
+- **Selecting:** per caller with `X-Model-Strong` / `X-Model-Cheap` (or `model_strong` /
+  `model_cheap` on the WebSocket), as an admin default via `PUT /api/v1/models/default`, or
+  per deployment with `GEMINI_STRONG_MODEL` / `GEMINI_CHEAP_MODEL`. Offered ids:
+  `claude-opus-5-5`, `claude-sonnet-5-5`, `claude-haiku-5-5`, `claude-fable-5-1`
+  (appended to `GET /api/v1/models` only while the flag is on).
+- **Keys:** the caller's own key in `X-Anthropic-Key` (`?anthropic_api_key=` on the WebSocket;
+  the logger redacts both). `ANTHROPIC_API_KEY` is the operator's key and is used only when
+  `BYOK_REQUIRED=false`; under BYOK a missing caller key fails with `anthropic_key_required`
+  instead of billing the operator. `GET /api/v1/api-keys/validate-anthropic` checks a key for free.
+  The single choke point is `create_anthropic_client()`, the sibling of `create_genai_client()`.
+- **Still Gemini:** embeddings (Claude has none; the corpus vectors are Gemini's), so a BYOK
+  caller still sends the Google key too. Also the unused `generate_with_tools` /
+  `generate_stream_with_tools`, and `context_cache_service` (a Gemini CachedContent stub).
+- **What runs on Claude:** `generate`, `generate_json`, `generate_stream` and `create_chat`,
+  including the phase-2 tool loop: Gemini tool declarations are translated to Anthropic tools
+  and Claude replies come back as `GenerateContentResponse`, so `get_article` / `browse_code`
+  grounding works unchanged. Prompt caching is on (`cache_control` ephemeral); `fallbacks:
+  "default"` is sent for Opus / Sonnet / Fable so a policy decline is retried on a fallback model.
+- **Differences from Gemini:** no temperature / top_p (the current Claude models reject them);
+  thinking is always adaptive, so `thinking_budget=0` becomes `effort: low` and every call gets
+  at least 4,096 output tokens; JSON mode is a system-prompt instruction.
+- **Errors** (`utils/provider_errors.py`): bad key → 401 `anthropic_key_invalid`, no key → 401
+  `anthropic_key_required`, rate limit or low credit → 503 `ai_quota_exhausted`, overload / 5xx /
+  timeout → 503 `ai_unavailable`, prompt too long → 400 `ai_context_too_long`, refusal → 422
+  `ai_refused`.
+- **To turn it on:** set `CLAUDE_MODELS_ENABLED=true`; give callers a way to send
+  `X-Anthropic-Key` (the Flutter app does not yet) or set `ANTHROPIC_API_KEY` on a non-BYOK
+  deployment; pick a Claude model per tier. Tests: `tests/test_claude_provider.py` (mocked).
+
 ### Pipeline Transparency (tracing)
 Every AI request (rest_chat / ws_chat / case_agent) records a step-by-step trace
 to `pipeline_traces`: request → guardrail → plan → RAG stages (queries, hits,
@@ -327,6 +364,9 @@ key field). Session export for AI review: `GET /api/v1/traces/conversation/{id}/
 | DB | PostgreSQL 16 (8 models: user, user_credits, conversation, message, case_file, feedback, questionnaire, database) |
 | FULL_CODE_INJECTION | default `false` — whole-code prompt injection (mechanism C); enable per env |
 | FAITHFULNESS_CHECK | default `false` — Flash faithfulness pass per response; enable per env |
+| CLAUDE_MODELS_ENABLED | default `false` — offer and route `claude-*` tier models to Anthropic |
+| ANTHROPIC_API_KEY | default empty — operator's Anthropic key, used only when BYOK is off |
+| ANTHROPIC_KEY_HEADER | default `X-Anthropic-Key` — caller's Anthropic key header |
 
 ---
 
@@ -342,7 +382,7 @@ cd backend && docker compose up --build -d
 docker compose exec api alembic upgrade head
 
 # Tests
-.venv/bin/python -m pytest tests/ -v  # 647 tests (645 pass; 2 pre-existing infra failures)
+.venv/bin/python -m pytest tests/ -v  # see CLAUDE.md "Reading the test numbers" (test DB + Redis per REPO_FACTS)
 ```
 
 ---
@@ -357,6 +397,7 @@ docker compose exec api alembic upgrade head
 | Add DB table | `models/` → `alembic/env.py` → run migration |
 | Change auth | `middleware/firebase_auth_middleware.py` |
 | Change BYOK / caller key | `middleware/byok_middleware.py`, `config/request_context.py` |
+| Change the Claude provider | `integrations/claude_client.py`, `utils/provider_errors.py` |
 | Change credits | `config/constants.py` → `CreditAction` |
 | Change RAG | `config/constants.py` → `RAG_*` |
 | Gemini prompts | `app/prompts/` |
