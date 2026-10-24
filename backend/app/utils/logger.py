@@ -41,13 +41,16 @@ _SECRET_PATTERNS = (
     re.compile(r"(api[_-]?key=)[^&\s\"']+", re.IGNORECASE),
     # A Google AI Studio key anywhere at all, however it got there.
     re.compile(r"AIza[0-9A-Za-z_\-]{35}"),
+    # An Anthropic key (sk-ant-...), likewise.
+    re.compile(r"sk-ant-[0-9A-Za-z_\-]+"),
 )
 
 
 def redact_secrets(text: str) -> str:
     """Replace anything that looks like a caller credential."""
     text = _SECRET_PATTERNS[0].sub(r"\1<redacted>", text)
-    return _SECRET_PATTERNS[1].sub("AIza<redacted>", text)
+    text = _SECRET_PATTERNS[1].sub("AIza<redacted>", text)
+    return _SECRET_PATTERNS[2].sub("sk-ant-<redacted>", text)
 
 
 class _RedactingFilter(logging.Filter):
@@ -59,7 +62,7 @@ class _RedactingFilter(logging.Filter):
         except Exception:  # noqa: BLE001 - never let logging break a request
             return True
 
-        if "AIza" in message or "api_key=" in message.lower():
+        if "AIza" in message or "sk-ant-" in message or "api_key=" in message.lower():
             record.msg = redact_secrets(message)
             record.args = ()
         return True

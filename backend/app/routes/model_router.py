@@ -84,7 +84,13 @@ async def _available_models() -> list[str]:
     week a new model ships, and the whole point of this screen is trying new
     models without a deploy. A provider outage yields an empty list, and the
     UI still shows the current selection — degraded, not broken.
+
+    With CLAUDE_MODELS_ENABLED on, the fixed Claude list is appended. It is
+    appended only to a successful Gemini listing: an empty list is what tells
+    _validate_choice to skip its unknown-model check, and a Claude-only list
+    would wrongly reject every Gemini choice during a Gemini outage.
     """
+    from app.integrations.claude_client import offered_claude_models
     from app.integrations.vertex_ai_client import create_genai_client
 
     try:
@@ -101,7 +107,7 @@ async def _available_models() -> list[str]:
             if actions and _REQUIRED_METHOD not in actions:
                 continue
             names.append(name)
-        return sorted(set(names))
+        return sorted(set(names)) + offered_claude_models()
     except Exception as e:  # noqa: BLE001
         logger.warning("model_list_failed", error=str(e)[:200])
         return []
