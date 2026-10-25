@@ -270,6 +270,7 @@ class AgentPipelineService:
         verified_response = self._apply_uncertainty_policy(
             verified_response, plan, chunks, tool_results, full_code_injected
         )
+        verified_response = await self._cited_terms_guard(verified_response, user_message)
         verified_response = self._apply_deadline_guard(verified_response)
         verified_response = self._repair_matsne_links(
             verified_response, chunks, verified_citations
@@ -1408,6 +1409,92 @@ class AgentPipelineService:
             corrected_text=response_text,
         )
         return response_text
+
+    # A deadline or amount: "14 დღის", "ერთი თვის", "3 წლის", "500 ლარი", "5%".
+    _NUMBER_WORDS = {
+        "ერთ": "1", "ორ": "2", "სამ": "3", "ოთხ": "4", "ხუთ": "5", "ექვს": "6",
+        "შვიდ": "7", "რვა": "8", "ცხრა": "9", "ათ": "10", "თოთხმეტ": "14",
+        "თხუთმეტ": "15", "ოც": "20", "ოცდაათ": "30", "სამოც": "60", "ას": "100",
+    }
+    _TERM_RE = re.compile(
+        r"(?<!\w)(\d+(?:[.,]\d+)?|" + "|".join(sorted(_NUMBER_WORDS, key=len, reverse=True))
+        + r")(?:ი|ის|ით)?\s*-?\s*(დღ|კვირ|თვ|წელ|წლ|საათ|ლარ|პროცენტ|%)\w*"
+    )
+    _ASKS_FOR_TERM_RE = re.compile(
+        r"ვადა|როდემდე|რამდენ|რა\s+დროში|რა\s+თანხ|რა\s+ოდენობ|რამხელა"
+    )
+
+    @classmethod
+    def _terms_in(cls, text: str) -> set[tuple[str, str]]:
+        """Normalised (number, unit) pairs: "ერთი თვის" and "1 თვე" are equal."""
+        out = set()
+        for m in cls._TERM_RE.finditer(text):
+            number = cls._NUMBER_WORDS.get(m.group(1), m.group(1).replace(",", "."))
+            unit = "წ" if m.group(2) in ("წელ", "წლ") else ("%" if m.group(2) == "პროცენტ" else m.group(2))
+            out.add((number, unit))
+        return out
+
+    async def _cited_terms_guard(self, response_text: str, user_message: str) -> str:
+        """A deadline or amount in a cited article must reach the answer.
+
+        When the user asks "by when" or "how much", or the answer advises a
+        legal step, and the articles the answer itself cites contain day,
+        month, year or money terms that the answer never states, one Flash
+        pass adds the relevant ones from the article text (the 2026-10-24
+        evaluation found answers that left a deadline out although the cited
+        article held it). Terms are taken only from the cited articles.
+        """
+        if not response_text:
+            return response_text
+        if not (
+            self._ASKS_FOR_TERM_RE.search(user_message)
+            or self._ACTION_ADVICE_RE.search(response_text)
+        ):
+            return response_text
+        stated = self._terms_in(response_text)
+        from app.services.article_store_service import get_article_store_service
+        store = get_article_store_service()
+        cited_terms: set[tuple[str, str]] = set()
+        missing: list[str] = []
+        for cit in self.citation_svc.extract_citations(response_text)[:8]:
+            if cit.get("code_name", "Unknown") == "Unknown":
+                continue
+            art = store.get_article(cit["code_name"], cit["article_number"])
+            if not art:
+                continue
+            content = art["content_ka"]
+            for m in self._TERM_RE.finditer(content):
+                cited_terms |= self._terms_in(m.group(0))
+                missing.append(
+                    f"- {art['code_name']}, {art['article_number']}: „{m.group(0)}\" — "
+                    f"{self._sentence_around(content, m.start())[:300]}"
+                )
+        # Stating any term of the cited articles counts: the guard catches the
+        # answer that names the article and then leaves its number out.
+        if not missing or cited_terms & stated:
+            return response_text
+        missing = list(dict.fromkeys(missing))[:12]
+        prompt = (
+            "You are an editor for a Georgian legal AI. The answer below cites articles "
+            "that contain these deadlines or amounts, but the answer states none of them:\n"
+            + "\n".join(missing)
+            + "\n\nIf one of them answers the user's question or governs a step the answer "
+            "advises, state it explicitly, exactly as in the article, in the paragraph that "
+            "cites that article. Leave out terms that are not relevant to this user. Change "
+            "nothing else, respond in Georgian, return the full corrected answer only."
+            f"\n\n═══ USER QUESTION ═══\n{user_message}\n\n═══ ANSWER ═══\n{response_text}"
+        )
+        try:
+            repaired = await self.gemini.generate(
+                prompt=prompt, temperature=0.2, model_name=await cheap_model(),
+            )
+        except Exception as e:
+            logger.warning("cited_terms_guard_failed", error=str(e))
+            return response_text
+        if not repaired or not repaired.strip():
+            return response_text
+        record_step("cited_terms_added", terms=missing, corrected_text=repaired)
+        return repaired
 
     _ACTION_ADVICE_RE = re.compile(
         r"სასამართლო|საჩივ|სარჩელ|გაასაჩივრ|იჩივლ|მიმართ"

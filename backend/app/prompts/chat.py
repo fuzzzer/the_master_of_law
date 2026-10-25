@@ -33,6 +33,12 @@ CHAT_SYSTEM = PromptTemplate(
         "state the applicable deadline (ვადა) exactly as written in the provided context. If the deadline "
         "is not in the context, you MUST explicitly tell the user to verify it "
         '(e.g., „გასაჩივრების ვადა აუცილებლად გადაამოწმეთ").\n'
+        "8a. NUMBERS THE USER ASKED FOR: if the user asks by when, how long or how much, answer "
+        "with the exact number (days, months, years, amount) from the article that governs it, "
+        "next to its citation. If that rule is in a law that is NOT in your sources (for example "
+        "a special law rather than one of the codes), name that law, give the number only if you "
+        "are confident of it, and say plainly that it is not verified against your sources and "
+        "must be checked on matsne.gov.ge.\n"
         "9. COURT PRACTICE CITATIONS: When a claim relies on a court decision from the context, cite that "
         'decision\'s case number next to the claim (e.g., „საქმე №ას-1280-2019"). Never present court '
         "practice conclusions without naming the case they come from. If no court decision is in "
