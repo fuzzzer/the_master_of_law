@@ -46,6 +46,9 @@ logger = get_logger(__name__)
 
 MAX_VERIFY_ITERATIONS = 2
 MAX_TOOL_CALLS_PER_MESSAGE = 5
+# With a whole code in the prompt every lookup round resends it (~75k tokens
+# for the Labour Code), and the articles are already there to read.
+MAX_TOOL_CALLS_WITH_FULL_CODE = 2
 PLANNER_HISTORY_WINDOW = 6  # last N messages for planning
 FINAL_ANSWER_NUDGE = (
     "The lookup budget for this question is used up. Write the final answer to the "
@@ -396,16 +399,16 @@ class AgentPipelineService:
             logger.info("pipeline_phase_2_rag_done", chunks=len(chunks))
 
         # Stage A2: whole-code injection (grounding mechanism C, flag-gated).
-        # When the full code is in context, statute chunks are redundant —
-        # court practice and threshold chunks stay.
+        # Chunks of the injected code are redundant; every other code's
+        # chunks, court practice and thresholds stay — a question about
+        # property bought with salaries still needs the Civil Code.
         full_code_context = ""
         if settings.full_code_injection and plan.needs_rag:
             full_code_context = await self._build_full_code_context(user_message)
             if full_code_context:
                 chunks = [
                     c for c in chunks
-                    if (c.get("metadata") or {}).get("_collection") != "georgian_laws"
-                    or (c.get("metadata") or {}).get("chunk_type") == "threshold"
+                    if not self._chunk_in_injected_code(c, full_code_context)
                 ]
 
         # Stage B: Create native chat session with history + tools
@@ -446,7 +449,11 @@ class AgentPipelineService:
         tool_results: list[ToolResultInfo] = []
         response_text = ""
 
-        for iteration in range(MAX_TOOL_CALLS_PER_MESSAGE + 1):
+        max_tool_rounds = (
+            MAX_TOOL_CALLS_WITH_FULL_CODE if full_code_context
+            else MAX_TOOL_CALLS_PER_MESSAGE
+        )
+        for iteration in range(max_tool_rounds + 1):
             response = await chat.send_message(full_message)
 
             # Collect ALL function calls in this turn. Gemini emits parallel
@@ -645,6 +652,11 @@ class AgentPipelineService:
         Only unambiguous domain→code mappings are injected
         (FULL_CODE_INJECTION_DOMAIN_CODES) and only when every code fully fits
         the char budget — a truncated code would defeat the guarantee.
+
+        A question that also touches another domain gets no injection: "we
+        both worked and bought a flat with our salaries" is a family-property
+        question, and the whole Labour Code would only crowd it out (and cost
+        a full code's tokens on every lookup round).
         """
         from app.config.constants import FULL_CODE_INJECTION_DOMAIN_CODES
         from app.services.article_store_service import get_article_store_service
@@ -652,7 +664,7 @@ class AgentPipelineService:
 
         classification = KeywordClassifier().classify(user_message)
         codes = FULL_CODE_INJECTION_DOMAIN_CODES.get(classification.primary, [])
-        if not codes or classification.confidence <= 0.1:
+        if not codes or classification.confidence <= 0.1 or classification.secondary:
             return ""
 
         store = get_article_store_service()
@@ -691,6 +703,15 @@ class AgentPipelineService:
             codes=[i["code"] for i in injected],
         )
         return "\n\n".join(parts)
+
+    @staticmethod
+    def _chunk_in_injected_code(chunk: dict, full_code_context: str) -> bool:
+        """True for a statute chunk whose article is already in the injected code."""
+        meta = chunk.get("metadata") or {}
+        if meta.get("_collection") != "georgian_laws" or meta.get("chunk_type") == "threshold":
+            return False
+        url = meta.get("article_url", "")
+        return bool(url) and f"URL: {url}\n" in full_code_context
 
     async def _handle_get_article(self, args: dict) -> dict:
         """get_article tool — deterministic full-article lookup via the article store."""
