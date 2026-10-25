@@ -101,6 +101,12 @@ GEMINI_TEMPERATURE = 1
 GEMINI_MAX_OUTPUT_TOKENS = 8192
 GEMINI_TOP_P = 0.8
 
+# ── Time limits ──────────────────────────────────────────────
+# One model request once hung for 27 minutes: the SDK sets no limit of its
+# own, so a stalled connection held the turn (and the user) indefinitely.
+MODEL_REQUEST_TIMEOUT_S = 120   # one HTTP request to the model provider
+TURN_TIMEOUT_S = 300            # a whole chat turn: plan, lookups, answer, checks
+
 # ── Guardrails ───────────────────────────────────────────────
 
 GUARDRAIL_ENABLED: bool = True

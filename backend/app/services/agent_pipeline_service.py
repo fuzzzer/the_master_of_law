@@ -28,7 +28,7 @@ from typing import Any
 
 from google.genai import types
 
-from app.config.constants import GEMINI_TEMPERATURE
+from app.config.constants import GEMINI_TEMPERATURE, TURN_TIMEOUT_S
 from app.config.settings import settings
 from app.integrations.vertex_ai_client import VertexAIClient, get_vertex_ai_client
 from app.prompts.agent_planning import AGENT_PLANNER, CITATION_VERIFIER, FAITHFULNESS_CHECKER
@@ -37,6 +37,7 @@ from app.services.rag_retrieval_service import RAGRetrievalService, get_rag_serv
 from app.services.trace_service import record_step
 from app.tools.case_tools import ALWAYS_TOOLS, CASE_CREATION_TOOLS, FULL_CASE_TOOLS
 from app.utils.logger import get_logger
+from app.utils.provider_errors import TurnTimeoutError
 from app.services.model_config_service import cheap_model, strong_model
 
 logger = get_logger(__name__)
@@ -154,9 +155,45 @@ class AgentPipelineService:
             Redis client for tool confirmation tracking.
         is_case_chat : bool
             Whether this is a case intake conversation.
-        """
-        history = conversation_history or []
 
+        Raises TurnTimeoutError when the whole turn runs past TURN_TIMEOUT_S;
+        callers turn it into a Georgian message via provider_errors.classify.
+        """
+        try:
+            return await asyncio.wait_for(
+                self._run(
+                    user_message=user_message,
+                    history=conversation_history or [],
+                    system_prompt=system_prompt,
+                    rag_collections=rag_collections,
+                    case_file_id=case_file_id,
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    db=db,
+                    redis_client=redis_client,
+                    is_case_chat=is_case_chat,
+                ),
+                timeout=TURN_TIMEOUT_S,
+            )
+        except TimeoutError as exc:
+            logger.warning("pipeline_turn_timeout", limit_s=TURN_TIMEOUT_S)
+            record_step("turn_timeout", limit_s=TURN_TIMEOUT_S)
+            raise TurnTimeoutError(f"turn exceeded {TURN_TIMEOUT_S} s") from exc
+
+    async def _run(
+        self,
+        user_message: str,
+        history: list[dict[str, str]],
+        system_prompt: str,
+        rag_collections: list[str] | None,
+        case_file_id: str | None,
+        user_id: str | None,
+        conversation_id: str | None,
+        db: Any,
+        redis_client: Any,
+        is_case_chat: bool,
+    ) -> PipelineResult:
+        """The three phases plus the generation contract, without the time cap."""
         # ── Phase 1: Plan ────────────────────────────────────
         plan = await self._phase_1_plan(user_message, history)
         logger.info(
