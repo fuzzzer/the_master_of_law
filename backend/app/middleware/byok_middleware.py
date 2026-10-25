@@ -26,6 +26,7 @@ cannot set headers on a WebSocket handshake.
 
 from __future__ import annotations
 
+import re
 from urllib.parse import parse_qs
 
 from starlette.types import ASGIApp, Receive, Scope, Send
@@ -63,22 +64,47 @@ NO_KEY_PREFIXES = (
     "/redoc",
 )
 
-# Google AI Studio keys are "AIza" + 35 more characters. Checking the shape
-# costs nothing and converts the most common user error — pasting the wrong
-# string entirely — into an immediate, specific message instead of a failure
-# surfacing several layers down as an opaque provider error.
+# Two kinds of Google key work. AI Studio keys are "AIza" + 35 more
+# characters. Google Cloud keys for Vertex AI (express mode) have no fixed
+# public shape, so anything key-like that is not "AIza…" is accepted as one
+# and checked live by /api-keys/validate. Checking the shape costs nothing and
+# turns the most common mistakes — an old sk_ access key, a cut-off AIza key,
+# a pasted URL or whitespace — into an immediate, specific message.
 _GOOGLE_KEY_PREFIX = "AIza"
 _GOOGLE_KEY_LEN = 39
+_LEGACY_KEY_PREFIX = "sk_"
+_CLOUD_KEY_RE = re.compile(r"[A-Za-z0-9._\-]{30,200}")
+
+KEY_REQUIRED_KA = (
+    "AI-ს გამოსაყენებლად საჭიროა Google-ის გასაღები: Google AI Studio-ს გასაღები "
+    "(იწყება „AIza“-თი, aistudio.google.com/apikey) ან Google Cloud-ის Vertex AI "
+    "გასაღები. დაამატეთ იგი პარამეტრებში."
+)
+KEY_REQUIRED_EN = (
+    "A Google key is required: a Google AI Studio key (starts with AIza, "
+    "aistudio.google.com/apikey) or a Google Cloud Vertex AI key. Add it in settings."
+)
+KEY_MALFORMED_KA = (
+    "ეს Google-ის გასაღებს არ ჰგავს. ჩასვით Google AI Studio-ს გასაღები (იწყება "
+    "„AIza“-თი და 39 სიმბოლოა) ან Google Cloud-ის Vertex AI გასაღები — სრულად, "
+    "ჰარეების გარეშე. ძველი „sk_“ წვდომის კოდი აღარ მუშაობს."
+)
+KEY_MALFORMED_EN = (
+    "That is not a Google key. Paste a Google AI Studio key (starts with AIza, "
+    "39 characters) or a Google Cloud Vertex AI key, whole and without spaces. "
+    "Old sk_ access codes no longer work."
+)
 
 
 def looks_like_google_key(key: str) -> bool:
     """Shape check only — proves nothing about whether the key still works."""
-    return (
-        len(key) == _GOOGLE_KEY_LEN
-        and key.startswith(_GOOGLE_KEY_PREFIX)
-        and key.isascii()
-        and not any(c.isspace() for c in key)
-    )
+    if not key.isascii() or any(c.isspace() for c in key):
+        return False
+    if key.startswith(_GOOGLE_KEY_PREFIX):
+        return len(key) == _GOOGLE_KEY_LEN
+    if key.startswith(_LEGACY_KEY_PREFIX):
+        return False
+    return bool(_CLOUD_KEY_RE.fullmatch(key))
 
 
 # Headers carrying the caller's personal model choice. Sent on every request
@@ -166,13 +192,17 @@ async def _reject_http(send: Send, status: int, code: str, message_ka: str, mess
     await send({"type": "http.response.body", "body": body})
 
 
-async def _reject_ws(send: Send, reason: str) -> None:
+async def _reject_ws(send: Send, code: str, reason: str) -> None:
     # 1008 = policy violation. The handshake is accepted first so the client
     # receives a readable reason instead of a bare connection failure.
+    import json
+
     await send({"type": "websocket.accept"})
     await send({
         "type": "websocket.send",
-        "text": '{"type":"error","code":"byok_key_required","message":"%s"}' % reason,
+        "text": json.dumps(
+            {"type": "error", "code": code, "message": reason}, ensure_ascii=False,
+        ),
     })
     await send({"type": "websocket.close", "code": 1008})
 
@@ -212,23 +242,17 @@ class ByokMiddleware:
             if not _needs_key(path):
                 return await self.app(scope, receive, send)
             if scope["type"] == "websocket":
-                return await _reject_ws(send, "დაამატეთ Google AI Studio-ს გასაღები.")
+                return await _reject_ws(send, "byok_key_required", KEY_REQUIRED_KA)
             return await _reject_http(
-                send, 401, "byok_key_required",
-                "AI-ს გამოსაყენებლად საჭიროა Google AI Studio-ს გასაღები. "
-                "დაამატეთ იგი პარამეტრებში.",
-                "A Google AI Studio API key is required. Add it in settings.",
+                send, 401, "byok_key_required", KEY_REQUIRED_KA, KEY_REQUIRED_EN,
             )
 
         if not looks_like_google_key(key):
             # Most likely an old sk_ access key, or a pasted URL/whitespace.
             if scope["type"] == "websocket":
-                return await _reject_ws(send, "გასაღები არასწორია. გთხოვთ, შეამოწმოთ.")
+                return await _reject_ws(send, "byok_key_invalid", KEY_MALFORMED_KA)
             return await _reject_http(
-                send, 401, "byok_key_invalid",
-                "გასაღები არასწორია. დარწმუნდით, რომ ჩასვით Google AI Studio-ს "
-                "გასაღები (იწყება AIza-თი).",
-                "That does not look like a Google AI Studio key (they start with AIza).",
+                send, 401, "byok_key_invalid", KEY_MALFORMED_KA, KEY_MALFORMED_EN,
             )
 
         token = set_byok_key(key)

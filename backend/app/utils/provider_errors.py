@@ -73,8 +73,9 @@ _UNKNOWN_KA = "დაფიქსირდა შეცდომა. გთხ�
 # what they must do. Left unclassified this arrives as "an error occurred",
 # and the user has no way to learn that their key expired.
 _INVALID_KEY_KA = (
-    "თქვენი Google-ის გასაღები არ მუშაობს. გთხოვთ, შეამოწმოთ ან დაამატოთ ახალი "
-    "გასაღები პარამეტრებში."
+    "თქვენი Google-ის გასაღები არ მუშაობს. შეამოწმეთ, რომ ეს Google AI Studio-ს "
+    "(იწყება „AIza“-თი) ან Google Cloud-ის Vertex AI გასაღებია და სრულადაა ჩასმული, "
+    "ან დაამატეთ ახალი გასაღები პარამეტრებში."
 )
 
 _TIMEOUT_KA = (

@@ -143,9 +143,21 @@ def _http_options() -> HttpOptions:
     return HttpOptions(timeout=MODEL_REQUEST_TIMEOUT_S * 1000)
 
 
+AI_STUDIO_KEY_PREFIX = "AIza"
+
+
+def is_ai_studio_key(api_key: str) -> bool:
+    """AI Studio keys start "AIza"; any other accepted key is a Google Cloud one.
+
+    A Google Cloud key (Vertex AI express mode) is refused by the AI Studio
+    endpoint and works only on Vertex AI, so the key decides the route.
+    """
+    return api_key.startswith(AI_STUDIO_KEY_PREFIX)
+
+
 @lru_cache(maxsize=BYOK_CLIENT_CACHE_SIZE)
 def _client_for_key(api_key: str) -> genai.Client:
-    """One reusable client per distinct API key.
+    """One reusable client per distinct API key, on the route the key belongs to.
 
     Cached because ``genai.Client`` owns an HTTP connection pool: building one
     per request would open a fresh pool for every chat turn. Bounded because
@@ -153,7 +165,9 @@ def _client_for_key(api_key: str) -> genai.Client:
     user base; the LRU evicts the least recently seen key, and the next request
     from that user simply rebuilds it.
     """
-    return genai.Client(api_key=api_key, http_options=_http_options())
+    if is_ai_studio_key(api_key):
+        return genai.Client(api_key=api_key, http_options=_http_options())
+    return genai.Client(vertexai=True, api_key=api_key, http_options=_http_options())
 
 
 @lru_cache(maxsize=1)

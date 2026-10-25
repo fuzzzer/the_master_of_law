@@ -31,12 +31,13 @@ def test_create_genai_client_uses_vertex_by_default():
 
 
 def test_create_genai_client_uses_api_key_when_set():
-    with patch.object(vac.settings, "gemini_api_key", "test-key"), \
+    key = "AIza" + "T" * 35  # an AI Studio key goes to the Gemini Developer API
+    with patch.object(vac.settings, "gemini_api_key", key), \
          patch.object(vac.genai, "Client") as client_cls:
         vac.create_genai_client()
 
     kwargs = client_cls.call_args.kwargs
-    assert kwargs["api_key"] == "test-key"
+    assert kwargs["api_key"] == key
     assert "vertexai" not in kwargs
 
 
