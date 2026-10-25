@@ -10,7 +10,7 @@ keep that from regressing.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
@@ -51,7 +51,7 @@ class TestClientResolution:
         set_byok_key(KEY_A)
         with patch.object(mod.genai, "Client") as ctor:
             mod.create_genai_client()
-        ctor.assert_called_once_with(api_key=KEY_A)
+        ctor.assert_called_once_with(api_key=KEY_A, http_options=ANY)
 
     def test_two_callers_get_two_clients(self, clean_context):
         """The regression that would silently bill user A for user B's chats."""
@@ -82,7 +82,7 @@ class TestClientResolution:
             st.gemini_api_key = "AIza" + "S" * 35
             with patch.object(mod.genai, "Client") as ctor:
                 mod.create_genai_client()
-        ctor.assert_called_once_with(api_key="AIza" + "S" * 35)
+        ctor.assert_called_once_with(api_key="AIza" + "S" * 35, http_options=ANY)
 
     def test_falls_back_to_vertex(self, clean_context):
         """No key anywhere → Vertex with ADC, the original behaviour."""
@@ -93,7 +93,9 @@ class TestClientResolution:
             st.google_cloud_location = "global"
             with patch.object(mod.genai, "Client") as ctor:
                 mod.create_genai_client()
-        ctor.assert_called_once_with(vertexai=True, project="proj", location="global")
+        ctor.assert_called_once_with(
+            vertexai=True, project="proj", location="global", http_options=ANY,
+        )
 
 
 class TestClientsAreNotPinned:
