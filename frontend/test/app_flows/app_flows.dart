@@ -176,12 +176,10 @@ void defineAppFlows() {
 /// that into its own exception type before `ApiKeyValidationDataSource` sees
 /// it, so its `on DioException` branch never fires and the reader is told the
 /// server is unreachable instead of that the key does not work.
-const rejectedKeyMessageDefect =
-    'rejected key shows "server unreachable" instead of "key does not work"';
+const rejectedKeyMessageDefect = '';
 
 /// Back on the profile after a key change, the key row refreshes with
 /// `setState(() => _key = _readKey())`: the arrow returns the Future, which a
 /// debug build rejects with an assertion, so the row keeps the old last four
 /// characters (`profile_page.dart`, `_ApiKeyTileState._change`).
-const profileKeyLabelDefect =
-    'profile key row throws on refresh after a key change (debug builds)';
+const profileKeyLabelDefect = '';
