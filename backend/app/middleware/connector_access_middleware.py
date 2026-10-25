@@ -13,7 +13,6 @@ import json
 
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-from app.config.settings import settings
 from app.middleware.rate_limit_middleware import check_redis_rate_limit
 from app.services.connector_access_service import (
     DAY,
@@ -57,12 +56,7 @@ async def _reply(send: Send, status: int, body: dict, headers: list[tuple[bytes,
     await send({"type": "http.response.body", "body": payload})
 
 
-def _www_authenticate() -> list[tuple[bytes, bytes]]:
-    value = "Bearer"
-    if settings.connector_access_mode == "oauth":
-        base = settings.connector_public_base_url.rstrip("/")
-        value += f' resource_metadata="{base}/.well-known/oauth-protected-resource"'
-    return [(b"www-authenticate", value.encode())]
+WWW_AUTHENTICATE = [(b"www-authenticate", b"Bearer")]
 
 
 class ConnectorAccessMiddleware:
@@ -90,7 +84,7 @@ class ConnectorAccessMiddleware:
         except ConnectorAccessDenied as denied:
             logger.info("connector_access_denied", code=denied.code, path=path)
             return await _reply(
-                send, 401, {"error": denied.code, "message": denied.message}, _www_authenticate()
+                send, 401, {"error": denied.code, "message": denied.message}, WWW_AUTHENTICATE
             )
 
         allowed, retry_after = await rate_limiter(

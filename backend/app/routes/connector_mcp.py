@@ -211,8 +211,6 @@ def install_law_connector(app: FastAPI) -> MCPServer:
     """
     mcp = build_connector_mcp_server()
     app.include_router(connector_router.router)
-    if settings.connector_access_mode == "oauth":
-        app.include_router(connector_router.discovery_router)
     app.router.routes.extend(connector_mcp_app(mcp).routes)
     app.add_middleware(ConnectorAccessMiddleware)
     app.state.connector_mcp = mcp

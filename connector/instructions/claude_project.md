@@ -4,8 +4,8 @@
 
 1. Customize → Connectors → Add custom connector.
 2. Name: `Fuzzzy Law — Georgian law sources`; URL: `<public base URL>/mcp`.
-3. Open mode: nothing else. OAuth mode: Claude discovers the sign-in service from the connector;
-   Advanced settings take a client ID and secret only if the sign-in service needs fixed ones.
+3. Open mode: nothing else. (Claude's connector screen takes no static key, so key mode works only
+   through the Claude API below; account sign-in through OAuth is left for later.)
 4. Team and Enterprise: an Owner adds it for the organisation, then each member connects.
 5. In a chat, turn the connector on from the tools menu.
 
@@ -36,4 +36,4 @@ client.beta.messages.create(
 )
 ```
 
-Add `"authorization_token": "<key or token>"` to the server entry in a signed-in mode.
+Add `"authorization_token": "<key or token>"` to the server entry in key mode.

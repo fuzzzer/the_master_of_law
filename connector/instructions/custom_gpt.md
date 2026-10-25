@@ -42,8 +42,7 @@ Rules:
    `<public base URL>/api/v1/connector/openapi.json` (or paste `connector/openapi.json` after setting
    its `servers` URL to where the connector is deployed).
 2. Authentication: None in open mode; API Key → Bearer with a key from `CONNECTOR_API_KEYS_FILE` in
-   `api_key` mode; OAuth in `oauth` mode (client ID/secret, authorization URL, token URL from the
-   sign-in service).
+   `api_key` mode. (OAuth sign-in is not built yet.)
 3. Privacy policy URL: required before a GPT with actions can be shared publicly.
 4. Preview: ask "რა ვადაა სააპელაციო საჩივრის შესატანად?" and check that the answer quotes Civil
    Procedure Code art. 369 with its matsne link.

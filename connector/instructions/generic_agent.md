@@ -13,7 +13,7 @@ Give the agent the system prompt in `system_prompt.txt` and one of these:
   "<public base URL>/mcp", "require_approval": "never"}]` — safe to skip approval because every
   tool is read-only.
 
-Signed-in modes: send `Authorization: Bearer <key or token>`.
+Key mode: send `Authorization: Bearer <key>`.
 
 Minimum behaviour to check before trusting an agent setup (the scorecard's "outside AI + connector"
 run measures this, `eval/scorecard/run_external.sh`):

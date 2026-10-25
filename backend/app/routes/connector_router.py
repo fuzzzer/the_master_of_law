@@ -23,11 +23,9 @@ from app.schemas.connector_schema import (
     VerifyCitationRequest,
     VerifyCitationResult,
 )
-from app.services.connector_access_service import protected_resource_metadata
 from app.services.law_connector_service import get_law_connector_service
 
 router = APIRouter(prefix="/api/v1/connector", tags=["law connector"])
-discovery_router = APIRouter(tags=["law connector"])
 
 OPENAPI_TITLE = "Fuzzzy Law — Georgian law sources"
 OPENAPI_DESCRIPTION = (
@@ -123,9 +121,3 @@ def connector_openapi() -> dict:
 async def openapi_document() -> dict:
     return connector_openapi()
 
-
-@discovery_router.get("/.well-known/oauth-protected-resource", include_in_schema=False)
-@discovery_router.get("/.well-known/oauth-protected-resource/mcp", include_in_schema=False)
-async def oauth_protected_resource() -> dict:
-    """Tells MCP clients which sign-in service issues tokens for the connector."""
-    return protected_resource_metadata()

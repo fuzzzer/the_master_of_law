@@ -5,6 +5,11 @@
 #
 #   eval/scorecard/run_external.sh <results root> [--set tuning|heldback|all] [--limit N] [other run_answers flags]
 #
+# Small by default (owner's spending cap): 5 items per run unless --limit is given, the cheapest Claude
+# model (claude-haiku-5-5), at most USD 1.00 per run (FL_RUN_MAX_USD) and USD 8.00 across the night's
+# ledger (FL_MAX_USD). OpenAI runs only when FL_OPENAI_PRICE_IN / FL_OPENAI_PRICE_OUT are set, so no
+# call is ever made at an unknown price. Every call's tokens and dollars go into the ledger.
+#
 # Needs: the backend venv (backend/.venv) for the local connector, and the two SDKs in the python that
 # runs the scorecard:  <python> -m pip install -r eval/scorecard/targets/requirements-external.txt
 # Environment: PY (scorecard python, default backend/.venv/bin/python), CORPUS (folder holding chroma/
@@ -30,6 +35,10 @@ fi
 run() {  # assistant, keychain service, extra flag, results subfolder
   local assistant="$1" service="$2" flag="$3" sub="$4"
   shift 4
+  if [[ "$assistant" == chatgpt && ( -z "${FL_OPENAI_PRICE_IN:-}" || -z "${FL_OPENAI_PRICE_OUT:-}" ) ]]; then
+    echo "SKIP $assistant ($sub): set FL_OPENAI_PRICE_IN and FL_OPENAI_PRICE_OUT (USD per million tokens) first"
+    return 0
+  fi
   if ! security find-generic-password -a fuzzycore -s "$service" >/dev/null 2>&1; then
     echo "SKIP $assistant ($sub): no key '$service' in the keychain"
     return 0
@@ -40,6 +49,7 @@ run() {  # assistant, keychain service, extra flag, results subfolder
 }
 
 shift_args=("$@")
+[[ " $* " == *" --limit "* ]] || shift_args=(--limit 5 "${shift_args[@]+"${shift_args[@]}"}")
 for pair in "claude fuzzzy_law_anthropic" "chatgpt fuzzzy_law_openai"; do
   set -- $pair
   a="$1"; s="$2"; set -- "${shift_args[@]+"${shift_args[@]}"}"

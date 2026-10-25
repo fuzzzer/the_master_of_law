@@ -36,8 +36,8 @@ server and can be submitted as a plugin, which needs a public HTTPS endpoint and
 - Name: Fuzzzy Law — Georgian law sources
 - Description: Exact Georgian law texts with official matsne.gov.ge links and version dates, and
   real Supreme Court decisions. Read-only. Sources, not legal advice.
-- URL: `<public base URL>/mcp`; authentication: none (open mode) or OAuth.
+- URL: `<public base URL>/mcp`; authentication: none (open mode); OAuth sign-in is not built yet.
 
 ## Claude directory draft
 
-Same name and description; URL `<public base URL>/mcp`; authless or OAuth.
+Same name and description; URL `<public base URL>/mcp`; authless (OAuth sign-in not built yet).

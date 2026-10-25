@@ -51,12 +51,11 @@ Python SDK: `async with mcp.Client("http://localhost:8010/mcp") as c: await c.li
 | Variable | Default | Meaning |
 |---|---|---|
 | `CONNECTOR_ENABLED` | `false` | mount the connector in the main app; off = nothing changes |
-| `CONNECTOR_ACCESS_MODE` | `open` | `open` (per-IP limit), `api_key`, `oauth` (per-user quotas) |
-| `CONNECTOR_PUBLIC_BASE_URL` | `http://localhost:8000` | public origin; goes into the OpenAPI `servers` and OAuth metadata |
+| `CONNECTOR_ACCESS_MODE` | `open` | `open` (per-IP limit) or `api_key` (per-user quotas) |
+| `CONNECTOR_PUBLIC_BASE_URL` | `http://localhost:8000` | public origin; goes into the OpenAPI `servers` |
 | `CONNECTOR_RATE_LIMIT_PER_MINUTE` | `30` | per caller |
-| `CONNECTOR_DAILY_QUOTA` | `1000` | per signed-in user (a key entry may set its own) |
+| `CONNECTOR_DAILY_QUOTA` | `1000` | per key holder (a key entry may set its own) |
 | `CONNECTOR_API_KEYS_FILE` | `connector_api_keys.json` | `{"<sha256 of key>": {"user": "...", "daily_quota": N}}` — hashes only |
-| `CONNECTOR_OAUTH_ISSUER`, `CONNECTOR_OAUTH_AUDIENCE`, `CONNECTOR_OAUTH_JWKS_URL` | empty | the sign-in service whose tokens are accepted |
 | `CONNECTOR_ALLOWED_HOSTS` | empty | Host values `/mcp` accepts (DNS-rebinding protection) |
 
 Rate limits use the app's Redis sliding window (fails open outside production, closed in production).
@@ -69,17 +68,16 @@ Make an API key (the key is shown once; only its hash is stored):
 python3 -c "import secrets,hashlib,json;k='fzl_'+secrets.token_urlsafe(24);print(k);print(json.dumps({hashlib.sha256(k.encode()).hexdigest():{'user':'NAME','daily_quota':1000}}))"
 ```
 
-## Sign-in modes
+## Access modes
 
+- `open`: anyone, limited per IP address.
 - `api_key`: callers send `Authorization: Bearer <key>`. Works for a GPT Action (Authentication →
   API Key → Bearer) and the Claude API MCP connector (`authorization_token`). ChatGPT's and Claude's
-  connector screens do not take a static key; they use OAuth or no sign-in.
-- `oauth`: the connector is an OAuth resource server. It accepts RS256/ES256 JWTs from
-  `CONNECTOR_OAUTH_ISSUER` (keys from `CONNECTOR_OAUTH_JWKS_URL`), answers 401 with a
-  `WWW-Authenticate` pointing at `/.well-known/oauth-protected-resource`, and publishes that metadata
-  so ChatGPT and Claude find the sign-in service. The sign-in service itself (one that supports
-  dynamic client registration or client ID metadata documents, as both clients require) is not part
-  of this code and is an owner decision.
+  connector screens do not take a static key; they use no sign-in or OAuth.
+- Later (not built, owner's scope limit 2026-10-25): OAuth account sign-in, which a paid plan inside
+  ChatGPT's and Claude's connector screens would need. It needs a sign-in service that supports
+  dynamic client registration or client ID metadata documents, plus protected-resource metadata on
+  the connector.
 
 ## Tests
 

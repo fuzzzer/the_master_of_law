@@ -190,16 +190,17 @@ class Settings(BaseSettings):
         description="Mount the law connector: the MCP server at /mcp and the "
                     "REST mirror at /api/v1/connector.",
     )
-    connector_access_mode: Literal["open", "api_key", "oauth"] = Field(
+    connector_access_mode: Literal["open", "api_key"] = Field(
         default="open",
         description="open = anyone, rate limited per IP; api_key = Bearer key "
-                    "from connector_api_keys_file with per-user quotas; oauth = "
-                    "Bearer JWT from connector_oauth_issuer with per-user quotas.",
+                    "from connector_api_keys_file with per-user quotas. (Sign-in "
+                    "through OAuth, which ChatGPT and Claude connectors use for "
+                    "accounts, is left for later.)",
     )
     connector_public_base_url: str = Field(
         default="http://localhost:8000",
         description="Public origin the connector is reached at; written into "
-                    "the OpenAPI servers list and the OAuth resource metadata.",
+                    "the OpenAPI servers list.",
     )
     connector_rate_limit_per_minute: int = Field(
         default=30,
@@ -216,9 +217,6 @@ class Settings(BaseSettings):
         description='{"<sha256 of key>": {"user": "...", "daily_quota": 1000}}. '
                     "Only hashes are stored; the key itself is never on disk.",
     )
-    connector_oauth_issuer: str = Field(default="")
-    connector_oauth_audience: str = Field(default="")
-    connector_oauth_jwks_url: str = Field(default="")
     connector_allowed_hosts: str = Field(
         default="",
         description="Comma-separated Host values the MCP endpoint accepts "

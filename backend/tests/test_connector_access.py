@@ -1,16 +1,13 @@
 """
-Access-mode tests for the law connector: open with per-IP limits, API keys and
-OAuth sign-in with per-user quotas, and isolation from the app's own auth.
+Access-mode tests for the law connector: open with per-IP limits, API keys with
+per-user quotas, and isolation from the app's own auth.
 """
 
 from __future__ import annotations
 
 import json
-import time
 
-import jwt
 import pytest
-from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.testclient import TestClient
 
 from app.config.settings import settings
@@ -122,62 +119,18 @@ class TestApiKeyMode:
         )
         assert ok.status_code == 200
 
+    def test_oauth_mode_is_not_offered(self, monkeypatch):
+        """Account sign-in is left for later; only open and api_key are valid modes."""
+        import pydantic
+
+        from app.config.settings import Settings
+
+        with pytest.raises(pydantic.ValidationError):
+            Settings(connector_access_mode="oauth")
+
     def test_only_hashes_are_stored(self, access):
         _, keys_file = access
         assert "good-key" not in keys_file.read_text()
-
-
-class TestOAuthMode:
-    @pytest.fixture
-    def signer(self, monkeypatch, access):
-        private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-        service, _ = access
-        monkeypatch.setattr(service, "_signing_key", lambda token: private_key.public_key())
-        monkeypatch.setattr(settings, "connector_access_mode", "oauth")
-        monkeypatch.setattr(settings, "connector_oauth_issuer", "https://auth.example.ge/")
-        monkeypatch.setattr(settings, "connector_oauth_jwks_url", "https://auth.example.ge/jwks")
-        monkeypatch.setattr(settings, "connector_oauth_audience", "https://law-api.example.ge/mcp")
-        monkeypatch.setattr(settings, "connector_public_base_url", "https://law-api.example.ge")
-
-        def sign(**overrides):
-            claims = {
-                "iss": "https://auth.example.ge/", "aud": "https://law-api.example.ge/mcp",
-                "sub": "user-7", "exp": int(time.time()) + 600,
-            } | overrides
-            return jwt.encode(claims, private_key, algorithm="RS256")
-
-        return sign
-
-    def test_valid_token(self, client, signer, limiter):
-        response = client.get(CODES, headers={"Authorization": f"Bearer {signer()}"})
-        assert response.status_code == 200
-        assert "connector:day:user:user-7" in limiter.counts
-
-    def test_wrong_audience(self, client, signer):
-        token = signer(aud="https://someone-else.example/mcp")
-        assert client.get(CODES, headers={"Authorization": f"Bearer {token}"}).status_code == 401
-
-    def test_expired(self, client, signer):
-        token = signer(exp=int(time.time()) - 10)
-        assert client.get(CODES, headers={"Authorization": f"Bearer {token}"}).status_code == 401
-
-    def test_challenge_points_at_resource_metadata(self, client, signer):
-        challenge = client.get(CODES).headers["www-authenticate"]
-        expected = "https://law-api.example.ge/.well-known/oauth-protected-resource"
-        assert f'resource_metadata="{expected}"' in challenge
-
-    def test_not_configured_is_refused(self, client, signer, monkeypatch):
-        monkeypatch.setattr(settings, "connector_oauth_issuer", "")
-        response = client.get(CODES, headers={"Authorization": f"Bearer {signer()}"})
-        assert response.json()["error"] == "connector_oauth_not_configured"
-
-    def test_protected_resource_metadata(self, connector_service, signer, limiter):
-        from app.connector_main import create_connector_app
-
-        with TestClient(create_connector_app()) as c:
-            meta = c.get("/.well-known/oauth-protected-resource").json()
-        assert meta["resource"] == "https://law-api.example.ge/mcp"
-        assert meta["authorization_servers"] == ["https://auth.example.ge/"]
 
 
 class TestIsolationFromAppAuth:

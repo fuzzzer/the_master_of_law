@@ -15,9 +15,18 @@ With the connector the assistant gets connector/instructions/system_prompt.txt (
 pack); without it, a plain one-line instruction. The caller's key comes in as ``key`` (run_answers reads
 FL_KEY, set inline from the keychain); it is never printed, and error texts are scrubbed of it.
 
+Spending cap (owner limit 2026-10-25: under USD 10 for all model use, USD 8 working cap). Every model
+call is priced from the response's token usage and written to the ledger (FL_LEDGER) as a usage line
+{"ts","worker","item","purpose","in_tokens","out_tokens","usd"}. Before each call the ledger's total
+"usd" (all workers) plus this run's spend is checked against FL_MAX_USD (default 8.00) and this run's
+spend against FL_RUN_MAX_USD (default 1.00); at either cap the call is not made and the item is
+recorded as status 402 "cost cap reached". A model without a known price is refused: Claude prices
+are built in; for OpenAI set FL_OPENAI_PRICE_IN and FL_OPENAI_PRICE_OUT (USD per million tokens).
+
 Environment: FL_CONNECTOR_URL (default http://127.0.0.1:8010), FL_CONNECTOR_MODE, FL_CONNECTOR_TOKEN
-(only when the connector runs in a signed-in mode), FL_CLAUDE_MODEL (default claude-opus-5-5),
-FL_CLAUDE_EFFORT (default high), FL_OPENAI_MODEL (default gpt-6-astra), FL_MAX_TOOL_TURNS (default 10).
+(only when the connector runs in key mode), FL_CLAUDE_MODEL (default claude-haiku-5-5, the cheapest,
+because of the owner's cap), FL_CLAUDE_EFFORT (default medium), FL_OPENAI_MODEL (default gpt-6-luna),
+FL_MAX_TOOL_TURNS (default 6).
 """
 from __future__ import annotations
 
@@ -38,6 +47,34 @@ UA = "fuzzzy-law-scorecard/1.0 (external assistant target)"
 CLAUDE_FALLBACK_BETA = "server-side-fallback-2026-07-01"
 CLAUDE_MCP_BETA = "mcp-client-2025-11-20"
 MCP_SERVER_NAME = "fuzzzy-law"
+DEFAULT_LEDGER = "/Volumes/Fuzzzity 2/fuzzzy_company/work/fuzzzy-law-overnight-20261025/consultations_ledger.jsonl"
+USAGE_WORKER = "connector-scorecard-usage"
+# USD per million tokens (input, output), Anthropic list prices; Haiku 5.5 is dearer past 100K input.
+CLAUDE_PRICES = {
+    "claude-haiku-5-5": (0.10, 0.50),
+    "claude-sonnet-5-5": (2.00, 10.00),
+    "claude-opus-5-5": (4.00, 20.00),
+}
+HAIKU_LONG_PROMPT = (100_000, (0.50, 2.50))
+# Models that take the server-side refusal fallback ("default" form).
+CLAUDE_FALLBACK_MODELS = {"claude-opus-5-5", "claude-sonnet-5-5"}
+
+
+class CostCapReached(Exception):
+    """The spending cap would be passed by another model call."""
+
+
+def ledger_usd(ledger: Path) -> float:
+    """Total "usd" recorded in the ledger by every worker."""
+    if not ledger.exists():
+        return 0.0
+    total = 0.0
+    for line in ledger.read_text().splitlines():
+        try:
+            total += float(json.loads(line).get("usd") or 0)
+        except (json.JSONDecodeError, TypeError, ValueError):
+            pass
+    return total
 
 
 def tools_from_openapi(spec: dict) -> list[dict]:
@@ -94,19 +131,51 @@ class ExternalConnectorTarget:
         self.connector_url = (connector_url or os.environ.get("FL_CONNECTOR_URL") or "http://127.0.0.1:8010").rstrip("/")
         self.mode = os.environ.get("FL_CONNECTOR_MODE", "client")
         self.token = os.environ.get("FL_CONNECTOR_TOKEN", "")
-        self.max_turns = int(os.environ.get("FL_MAX_TOOL_TURNS", "10"))
+        self.max_turns = int(os.environ.get("FL_MAX_TOOL_TURNS", "6"))
         if assistant == "claude":
-            self.model = os.environ.get("FL_CLAUDE_MODEL", "claude-opus-5-5")
+            self.model = os.environ.get("FL_CLAUDE_MODEL", "claude-haiku-5-5")
+            self.price = CLAUDE_PRICES.get(self.model)
         else:
-            self.model = os.environ.get("FL_OPENAI_MODEL", "gpt-6-astra")
+            self.model = os.environ.get("FL_OPENAI_MODEL", "gpt-6-luna")
+            price_in, price_out = os.environ.get("FL_OPENAI_PRICE_IN"), os.environ.get("FL_OPENAI_PRICE_OUT")
+            self.price = (float(price_in), float(price_out)) if price_in and price_out else None
+        self.ledger = Path(os.environ.get("FL_LEDGER", DEFAULT_LEDGER))
+        self.max_usd = float(os.environ.get("FL_MAX_USD", "8.00"))
+        self.run_max_usd = float(os.environ.get("FL_RUN_MAX_USD", "1.00"))
+        self.run_spent = 0.0
         self._tools: list[dict] | None = None
         self.info = {"target": "external", "assistant": assistant, "model": self.model, "connector": connector,
                      "connector_url": self.connector_url if connector else None,
-                     "connector_mode": self.mode if connector else None, "wired": True}
+                     "connector_mode": self.mode if connector else None, "wired": True,
+                     "price_usd_per_mtok": self.price, "max_usd": self.max_usd, "run_max_usd": self.run_max_usd}
 
     @property
     def available(self) -> bool:
-        return bool(self.key) and self.assistant in ("claude", "chatgpt")
+        """A key, a known assistant and a known price (no unpriced spending)."""
+        return bool(self.key) and self.assistant in ("claude", "chatgpt") and self.price is not None
+
+    # ── spending cap ─────────────────────────────────────────
+
+    def check_budget(self) -> None:
+        total = ledger_usd(self.ledger)
+        if total >= self.max_usd or self.run_spent >= self.run_max_usd:
+            raise CostCapReached(
+                f"cost cap reached: ledger total ${total:.4f} (cap ${self.max_usd}), "
+                f"this run ${self.run_spent:.4f} (cap ${self.run_max_usd})")
+
+    def charge(self, item_id: str, in_tokens: int, out_tokens: int, usage: dict) -> None:
+        price_in, price_out = self.price
+        if self.model == "claude-haiku-5-5" and in_tokens > HAIKU_LONG_PROMPT[0]:
+            price_in, price_out = HAIKU_LONG_PROMPT[1]
+        usd = (in_tokens * price_in + out_tokens * price_out) / 1_000_000
+        self.run_spent += usd
+        usage["in_tokens"] += in_tokens
+        usage["out_tokens"] += out_tokens
+        usage["usd"] = round(usage["usd"] + usd, 6)
+        with self.ledger.open("a") as f:
+            f.write(json.dumps({"ts": time.strftime("%Y-%m-%dT%H:%M:%S"), "worker": USAGE_WORKER, "item": item_id,
+                                "purpose": f"usage {self.assistant} {self.model}", "in_tokens": in_tokens,
+                                "out_tokens": out_tokens, "usd": round(usd, 6)}) + "\n")
 
     def scrub(self, text: str) -> str:
         for secret in (self.key, self.token):
@@ -153,24 +222,29 @@ class ExternalConnectorTarget:
         import anthropic
 
         client = anthropic.Anthropic(api_key=self.key, max_retries=2)
-        betas = [CLAUDE_FALLBACK_BETA]
-        extra: dict = {}
+        betas = [CLAUDE_FALLBACK_BETA] if self.model in CLAUDE_FALLBACK_MODELS else []
+        extra: dict = {"fallbacks": "default"} if betas else {}
         if self.connector and self.mode == "remote_mcp":
             betas.append(CLAUDE_MCP_BETA)
             server = {"type": "url", "url": self.connector_url + "/mcp", "name": MCP_SERVER_NAME}
             if self.token:
                 server["authorization_token"] = self.token
-            extra = {"mcp_servers": [server], "tools": [{"type": "mcp_toolset", "mcp_server_name": MCP_SERVER_NAME}]}
+            extra |= {"mcp_servers": [server], "tools": [{"type": "mcp_toolset", "mcp_server_name": MCP_SERVER_NAME}]}
         elif self.connector:
-            extra = {"tools": [{"name": t["name"], "description": t["description"], "input_schema": t["schema"]}
-                               for t in self.tools()]}
+            extra |= {"tools": [{"name": t["name"], "description": t["description"], "input_schema": t["schema"]}
+                                for t in self.tools()]}
         messages: list = [{"role": "user", "content": message}]
         response = None
         for _ in range(self.max_turns):
+            self.check_budget()
             response = client.beta.messages.create(
-                model=self.model, max_tokens=16000, system=self.system_prompt(), messages=messages,
-                thinking={"type": "adaptive"}, output_config={"effort": os.environ.get("FL_CLAUDE_EFFORT", "high")},
-                betas=betas, fallbacks="default", **extra)
+                model=self.model, max_tokens=8000, system=self.system_prompt(), messages=messages,
+                thinking={"type": "adaptive"}, output_config={"effort": os.environ.get("FL_CLAUDE_EFFORT", "medium")},
+                **({"betas": betas} if betas else {}), **extra)
+            u = response.usage
+            prompt = u.input_tokens + (getattr(u, "cache_creation_input_tokens", 0) or 0) + (
+                getattr(u, "cache_read_input_tokens", 0) or 0)
+            self.charge(rec["item_id"], prompt, u.output_tokens, rec["usage"])
             if response.stop_reason == "refusal":
                 rec["refusal"] = True
                 break
@@ -211,7 +285,9 @@ class ExternalConnectorTarget:
         kwargs: dict = {"model": self.model, "instructions": self.system_prompt()}
         if tools:
             kwargs["tools"] = tools
+        self.check_budget()
         response = client.responses.create(input=message, **kwargs)
+        self.charge(rec["item_id"], response.usage.input_tokens, response.usage.output_tokens, rec["usage"])
         for _ in range(self.max_turns):
             rec["tool_calls"] += [o.name for o in response.output if o.type == "mcp_call"]
             calls = [o for o in response.output if o.type == "function_call"]
@@ -224,7 +300,9 @@ class ExternalConnectorTarget:
                 rec["citations"] += citations_from(call.name, out)
                 outputs.append({"type": "function_call_output", "call_id": call.call_id,
                                 "output": json.dumps(out, ensure_ascii=False)[:TOOL_RESULT_CHARS]})
+            self.check_budget()
             response = client.responses.create(previous_response_id=response.id, input=outputs, **kwargs)
+            self.charge(rec["item_id"], response.usage.input_tokens, response.usage.output_tokens, rec["usage"])
         rec["model_served"] = response.model
         return response.output_text
 
@@ -233,11 +311,15 @@ class ExternalConnectorTarget:
     def _answer_sync(self, item: dict) -> dict:
         rec = {"id": item["id"], "message": item["message"], "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
                "degraded": False, "degraded_events": []}
-        trace = {"tool_calls": [], "citations": []}
+        trace = {"item_id": item["id"], "tool_calls": [], "citations": [],
+                 "usage": {"in_tokens": 0, "out_tokens": 0, "usd": 0.0}}
         start = time.time()
         try:
             text = (self._claude if self.assistant == "claude" else self._openai)(item["message"], trace)
             rec.update({"status": 200, "error": None})
+        except CostCapReached as e:
+            rec.update({"status": 402, "error": str(e), "degraded": True, "degraded_events": ["cost cap reached"]})
+            text = ""
         except Exception as e:  # noqa: BLE001 — one bad item must not stop the run; recorded, not hidden
             status = getattr(e, "status_code", None) or 599
             rec.update({"status": status, "error": self.scrub(f"{type(e).__name__}: {e}")[:500]})
@@ -246,7 +328,8 @@ class ExternalConnectorTarget:
             text = ""
         rec["latency_s"] = round(time.time() - start, 2)
         rec["body"] = {"response": text, "citations": trace["citations"], "tool_calls": trace["tool_calls"],
-                       "refusal": trace.get("refusal", False), "model_served": trace.get("model_served")}
+                       "refusal": trace.get("refusal", False), "model_served": trace.get("model_served"),
+                       "usage": trace["usage"]}
         return rec
 
     async def answer(self, item: dict) -> dict:
