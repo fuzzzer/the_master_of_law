@@ -30,7 +30,7 @@ def load_items() -> dict:
     return {i["id"]: i for i in t + h}
 
 
-def collect(res: Path, store: str, items: dict) -> list[dict]:
+def collect(res: Path, store: str, items: dict, only: set | None = None) -> list[dict]:
     rows = []
     for sub in ("answers", "heldback"):
         for p in sorted((res / sub).glob("*.json")):
@@ -38,7 +38,7 @@ def collect(res: Path, store: str, items: dict) -> list[dict]:
                 continue
             rec = json.loads(p.read_text(encoding="utf-8"))
             it = items.get(rec.get("id"))
-            if not it:
+            if not it or (only is not None and it["id"] not in only):
                 continue
             jp = res / "judge" / f"{it['id']}.json"
             rows.append({"item": it, "rec": rec, "chk": run_checks(rec, it["expected"], store),
@@ -110,6 +110,8 @@ def evaluate(rows: list[dict]) -> dict:
         sc = [AGREE.get(r["judge"].get("outcome_agreement"), 0.0) for r in cs]
         m[f"outcome_agreement_{s}_pct"] = pct(sum(sc), len(sc))
         m[f"outcome_agreement_{s}_n"] = len(sc)
+        m[f"outcome_counts_{s}"] = {k: sum(1 for r in cs if r["judge"].get("outcome_agreement") == k)
+                                     for k in ("agree", "partial", "disagree", "no_prediction")}
     pairs = []
     for r in judged:
         exp = r["item"]["expected"].get("expected_user_win")
@@ -157,8 +159,12 @@ def verdicts(m: dict) -> list[tuple[str, str, str, bool | None]]:
         return None if v is None else v >= t
     out.append(("Target", "Citations say what is claimed (≥95%)",
                 f"{m['citation_accuracy_pct']}% of {m['citations_judged']}", ge(m["citation_accuracy_pct"], 95)))
+    oc = m["outcome_counts_heldback"]
+    n_h = m["outcome_agreement_heldback_n"]
+    few = " — too few cases to measure the 70% target reliably" if n_h < 20 else ""
     out.append(("Target", "Outcome agreement, held-back court cases (≥70%)",
-                f"{m['outcome_agreement_heldback_pct']}% of {m['outcome_agreement_heldback_n']}",
+                f"{m['outcome_agreement_heldback_pct']}% of {n_h} (agree {oc['agree']}, partly {oc['partial']}, "
+                f"wrong {oc['disagree']}, no prediction {oc['no_prediction']}){few}",
                 ge(m["outcome_agreement_heldback_pct"], 70)))
     b = m["win_bias_points"]
     out.append(("Target", "Win-prediction bias (within ±10 points)",
@@ -187,20 +193,25 @@ def main():
     ap.add_argument("--results", required=True)
     ap.add_argument("--store", required=True)
     ap.add_argument("--compare")
+    ap.add_argument("--set", choices=["all", "lean"], default="all", help="lean: only the items in items/lean_set.json")
     ap.add_argument("--title", default="Fuzzzy Law answer scorecard")
     args = ap.parse_args()
     items = load_items()
     res = Path(args.results)
-    rows = collect(res, args.store, items)
+    only = None
+    if args.set == "lean":
+        lean = json.loads((HERE / "items" / "lean_set.json").read_text(encoding="utf-8"))
+        only = set(lean["tuning"]) | set(lean["heldback"])
+    rows = collect(res, args.store, items, only)
     m = evaluate(rows)
     v = verdicts(m)
     before = None
     if args.compare:
-        before = evaluate(collect(Path(args.compare), args.store, items))
+        before = evaluate(collect(Path(args.compare), args.store, items, only))
         vb = {t: (val, p) for _, t, val, p in verdicts(before)}
     meta = json.loads((res / "run_meta.json").read_text()) if (res / "run_meta.json").exists() else {}
     info = (meta.get("runs") or [{}])[-1].get("target_info", {})
-    lines = [f"# {args.title}", "", f"Results: `{res}`", f"Target: {json.dumps(info, ensure_ascii=False)}", "",
+    lines = [f"# {args.title}", "", f"Results: `{res}` (item set: {args.set})", f"Target: {json.dumps(info, ensure_ascii=False)}", "",
              f"Answers: {m['n_answers']} ({m['n_clean']} complete, {len(m['incomplete'])} cut short by usage limits), "
              f"AI-judged: {m['n_judged']}. "
              + ("Valid score." if m["valid"] else "**Not a valid score: more than 10% of answers incomplete or no answers.**"),

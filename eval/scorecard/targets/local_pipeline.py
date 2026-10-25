@@ -90,8 +90,51 @@ class LocalPipelineTarget:
             return genai.Client(vertexai=True, api_key=api_key, http_options=opts) if vertex else \
                 genai.Client(api_key=api_key, http_options=opts)
 
+        usage = self.usage = {"calls": 0, "in_tokens": 0, "out_tokens": 0, "models": set()}
+
+        def _count(resp, model):
+            um = getattr(resp, "usage_metadata", None)
+            if um is None:
+                return
+            usage["in_tokens"] += int(getattr(um, "prompt_token_count", 0) or 0)
+            usage["out_tokens"] += int(getattr(um, "candidates_token_count", 0) or 0) + \
+                int(getattr(um, "thoughts_token_count", 0) or 0)
+
+        def _metered(api_key: str):
+            client = _client(api_key)
+            if getattr(client, "_scorecard_metered", False):
+                return client
+            aio = client.aio.models
+            orig_gen, orig_stream = aio.generate_content, aio.generate_content_stream
+
+            async def gen(*a, **kw):
+                resp = await orig_gen(*a, **kw)
+                usage["calls"] += 1
+                usage["models"].add(str(kw.get("model", "")))
+                _count(resp, kw.get("model"))
+                return resp
+
+            async def stream(*a, **kw):
+                inner = await orig_stream(*a, **kw)
+                usage["calls"] += 1
+                usage["models"].add(str(kw.get("model", "")))
+
+                async def it():
+                    last = None
+                    async for chunk in inner:
+                        if getattr(chunk, "usage_metadata", None) is not None:
+                            last = chunk
+                        yield chunk
+                    if last is not None:
+                        _count(last, kw.get("model"))
+                return it()
+
+            aio.generate_content, aio.generate_content_stream = gen, stream
+            client._scorecard_metered = True
+            return client
+
         if hasattr(vac, "_client_for_key"):
-            vac._client_for_key = _client
+            vac._client_for_key = _metered
         self.vector_stage = "real"
         chroma_has_vectors = (self.corpus / "chroma" / "chroma.sqlite3").exists() and \
             not (self.corpus / "VECTORS_ARE_PLACEHOLDERS").exists()
@@ -170,6 +213,7 @@ class LocalPipelineTarget:
         rec = {"id": item["id"], "message": msg, "ts": time.strftime("%Y-%m-%dT%H:%M:%S")}
         start_trace(entry_point="rest_chat", user_message=msg)
         self._log.clear()
+        self.usage.update({"calls": 0, "in_tokens": 0, "out_tokens": 0, "models": set()})
         t0 = time.time()
         try:
             decision = await get_guardrail_service().classify(msg, user_tier="FREE", in_conversation=False)
@@ -202,6 +246,8 @@ class LocalPipelineTarget:
                     ev.append(f"trace:{st.get('name')}")
             rec["trace_step_names"] = [s.get("name") for s in tr.steps]
         rec["degraded"], rec["degraded_events"] = bool(ev), ev
+        rec["usage"] = {"model_calls": self.usage["calls"], "in_tokens": self.usage["in_tokens"],
+                        "out_tokens": self.usage["out_tokens"], "models": sorted(m for m in self.usage["models"] if m)}
         return rec
 
 

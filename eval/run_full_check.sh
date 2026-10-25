@@ -2,8 +2,8 @@
 # One command for the full Fuzzzy Law check: answers -> automatic checks + AI judge -> pass/fail sheet
 # against eval/TARGETS.md, plus optional live-server probes and app-flow tests.
 #
-#   eval/run_full_check.sh --out DIR [--target local|live|external] [--worktree PATH] [--set tuning|heldback|all]
-#                          [--judge gemini|claude|none] [--compare EARLIER_DIR] [--gap 45] [--cap N]
+#   eval/run_full_check.sh --out DIR [--target local|live|external] [--worktree PATH] [--set tuning|heldback|all|lean]
+#                          [--judge agent|gemini|claude|none] [--compare EARLIER_DIR] [--gap 45] [--cap N] [--usd-cap USD]
 #                          [--worker NAME] [--ids a,b] [--probes] [--app-flows] [--skip-answers]
 #
 # Keys are read from the macOS keychain inline, by service name, and never printed:
@@ -15,13 +15,13 @@ set -uo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SC="$HERE/scorecard"
-TARGET=local; WORKTREE="$(cd "$HERE/.." && pwd)"; SET=all; JUDGE=gemini; COMPARE=""; GAP=45; CAP=10000
-WORKER=scorecard; IDS=""; OUT=""; PROBES=0; APPFLOWS=0; SKIP_ANSWERS=0
+TARGET=local; WORKTREE="$(cd "$HERE/.." && pwd)"; SET=all; JUDGE=agent; COMPARE=""; GAP=45; CAP=10000
+USDCAP=8; WORKER=scorecard; IDS=""; OUT=""; PROBES=0; APPFLOWS=0; SKIP_ANSWERS=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --out) OUT="$2"; shift 2;; --target) TARGET="$2"; shift 2;; --worktree) WORKTREE="$2"; shift 2;;
     --set) SET="$2"; shift 2;; --judge) JUDGE="$2"; shift 2;; --compare) COMPARE="$2"; shift 2;;
-    --gap) GAP="$2"; shift 2;; --cap) CAP="$2"; shift 2;; --worker) WORKER="$2"; shift 2;; --ids) IDS="$2"; shift 2;;
+    --gap) GAP="$2"; shift 2;; --cap) CAP="$2"; shift 2;; --usd-cap) USDCAP="$2"; shift 2;; --worker) WORKER="$2"; shift 2;; --ids) IDS="$2"; shift 2;;
     --probes) PROBES=1; shift;; --app-flows) APPFLOWS=1; shift;; --skip-answers) SKIP_ANSWERS=1; shift;;
     *) echo "unknown flag $1"; exit 2;;
   esac
@@ -41,13 +41,13 @@ if [[ $SKIP_ANSWERS -eq 0 ]]; then
       if has_key gemini_api_key; then
         FL_KEY="$(security find-generic-password -a fuzzycore -s gemini_api_key -w)" FL_CORPUS_DIR="$CORPUS" \
           "$PY" -I -B "$SC/run_answers.py" --target local --worktree "$WORKTREE" --set "$SET" --out "$OUT" \
-          --gap "$GAP" --cap "$CAP" --worker "$WORKER" ${IDS_ARG[@]+"${IDS_ARG[@]}"} 2>&1 \
+          --gap "$GAP" --cap "$CAP" --usd-cap "$USDCAP" --worker "$WORKER" ${IDS_ARG[@]+"${IDS_ARG[@]}"} 2>&1 \
           | grep --line-buffered -v "model_config_read_failed\|chroma_collection_missing" | tee -a "$OUT/run.log"
       else echo "SKIP answers: key gemini_api_key absent"; fi;;
     live)
       if has_key law_aistudio_key; then
         FL_KEY="$(security find-generic-password -a fuzzycore -s law_aistudio_key -w)" \
-          "$PY" -I -B "$SC/run_answers.py" --target live --set "$SET" --out "$OUT" --gap "$GAP" --cap "$CAP" \
+          "$PY" -I -B "$SC/run_answers.py" --target live --set "$SET" --out "$OUT" --gap "$GAP" --cap "$CAP" --usd-cap "$USDCAP" \
           --worker "$WORKER" ${IDS_ARG[@]+"${IDS_ARG[@]}"} 2>&1 | tee -a "$OUT/run.log"
       else echo "SKIP live answers: key law_aistudio_key absent (the live server accepts only AI Studio keys)"; fi;;
     external)
@@ -66,11 +66,14 @@ case "$JUDGE" in
             FL_JUDGE_KEY="$(security find-generic-password -a fuzzycore -s fuzzzy_law_anthropic -w)" \
               "$PY" -I -B "$SC/judge.py" --results "$OUT" --store "$STORE" --judge claude ${IDS_ARG[@]+"${IDS_ARG[@]}"} | tee -a "$OUT/judge.log"
           else echo "SKIP judge: key fuzzzy_law_anthropic absent"; fi;;
+  agent) "$PY" -I -B "$SC/judge.py" --results "$OUT" --store "$STORE" --judge packets ${IDS_ARG[@]+"${IDS_ARG[@]}"}
+         echo "judge packets written to $OUT/judge/packets/: have a Claude agent judge them with rubric/JUDGE_RUBRIC.md (no API cost), one JSON per item into $OUT/judge/<id>.json, then rerun with --skip-answers --judge none";;
   none) echo "judge skipped (--judge none): judge-based targets will show 'not measured'";;
 esac
 
 CMP=(); [[ -n "$COMPARE" ]] && CMP=(--compare "$COMPARE")
-"$PY" -I -B "$SC/sheet.py" --results "$OUT" --store "$STORE" ${CMP[@]+"${CMP[@]}"}
+SHEETSET=all; [[ "$SET" == "lean" ]] && SHEETSET=lean
+"$PY" -I -B "$SC/sheet.py" --results "$OUT" --store "$STORE" --set "$SHEETSET" ${CMP[@]+"${CMP[@]}"}
 
 if [[ $PROBES -eq 1 ]]; then
   if has_key law_aistudio_key; then

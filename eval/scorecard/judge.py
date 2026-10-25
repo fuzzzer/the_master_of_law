@@ -27,6 +27,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from checks import run_checks  # noqa: E402
+from pricing import TOTAL_CAP_USD, ledger_usd, usd  # noqa: E402
 
 RUBRIC_VERSION = "scorecard-judge-v1"
 RUBRIC = (HERE / "rubric" / "JUDGE_RUBRIC.md").read_text(encoding="utf-8")
@@ -70,6 +71,8 @@ def answer_hash(rec: dict) -> str:
     return hashlib.sha256(text.encode()).hexdigest()[:16]
 
 
+LAST_USAGE: dict = {}
+
 PROMPT = """{rubric}
 
 Judge this packet. Reply with exactly one JSON object, no other text.
@@ -91,6 +94,9 @@ def call_gemini(key: str, model: str, prompt: str) -> str:
         try:
             with urllib.request.urlopen(req, timeout=300) as r:
                 d = json.loads(r.read())
+            um = d.get("usageMetadata") or {}
+            LAST_USAGE.update(in_tokens=um.get("promptTokenCount", 0),
+                              out_tokens=um.get("candidatesTokenCount", 0) + um.get("thoughtsTokenCount", 0))
             parts = d["candidates"][0]["content"].get("parts", [])
             return "".join(x.get("text", "") for x in parts if not x.get("thought"))
         except urllib.error.HTTPError as e:
@@ -127,9 +133,10 @@ def main():
     ap.add_argument("--store", required=True)
     ap.add_argument("--judge", choices=["gemini", "claude", "packets"], default="gemini")
     ap.add_argument("--model")
-    ap.add_argument("--gap", type=float, default=8)
+    ap.add_argument("--gap", type=float, default=45)
     ap.add_argument("--worker", default="scorecard-judge")
     ap.add_argument("--ids")
+    ap.add_argument("--usd-cap", type=float, default=TOTAL_CAP_USD, help="max USD for this worker family (answers + judge)")
     args = ap.parse_args()
     res = Path(args.results)
     jdir = res / "judge"
@@ -162,17 +169,24 @@ def main():
                 (jdir / "packets").mkdir(exist_ok=True)
                 (jdir / "packets" / f"{iid}.json").write_text(json.dumps(pk, ensure_ascii=False, indent=1))
                 continue
-            with ledger.open("a") as f:
-                f.write(json.dumps({"ts": time.strftime("%Y-%m-%dT%H:%M:%S"), "worker": args.worker,
-                                    "item": iid if sub == "answers" else "heldback-item",
-                                    "purpose": f"judge ({args.judge} {model}; not an app consultation)"}) + "\n")
+            if ledger_usd(ledger) >= TOTAL_CAP_USD or ledger_usd(ledger, args.worker.split("-")[0]) >= args.usd_cap:
+                print("spending cap reached; judge stopping", flush=True)
+                break
             prompt = PROMPT.format(rubric=RUBRIC, packet=json.dumps(pk, ensure_ascii=False))
             try:
                 raw = call_gemini(key, model, prompt) if args.judge == "gemini" else call_claude(key, model, prompt)
                 verdict = parse_json(raw)
             except Exception as e:
+                LAST_USAGE.clear()
                 print(f"{iid if sub == 'answers' else 'heldback-item'}: judge failed {type(e).__name__}", flush=True)
                 continue
+            cost = usd(model, LAST_USAGE.get("in_tokens", 0), LAST_USAGE.get("out_tokens", 0)) if LAST_USAGE else None
+            with ledger.open("a") as f:
+                f.write(json.dumps({"ts": time.strftime("%Y-%m-%dT%H:%M:%S"), "worker": args.worker,
+                                    "item": iid if sub == "answers" else "heldback-item",
+                                    "purpose": f"judge ({args.judge} {model}; not an app consultation)", "model": model,
+                                    "in_tokens": LAST_USAGE.get("in_tokens"), "out_tokens": LAST_USAGE.get("out_tokens"),
+                                    "usd": cost}) + "\n")
             verdict.update({"id": iid, "_answer_hash": h, "_rubric": RUBRIC_VERSION, "_judge": f"{args.judge}:{model}"})
             out.write_text(json.dumps(verdict, ensure_ascii=False, indent=1), encoding="utf-8")
             n += 1

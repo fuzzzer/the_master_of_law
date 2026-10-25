@@ -21,6 +21,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+from pricing import TOTAL_CAP_USD, ledger_usd, usd  # noqa: E402
 DEFAULT_LEDGER = "/Volumes/Fuzzzity 2/fuzzzy_company/work/fuzzzy-law-overnight-20261025/consultations_ledger.jsonl"
 
 
@@ -33,6 +34,10 @@ def load_items(which: str) -> list[dict]:
     held = json.loads((HERE / "items" / "heldback" / "HELDBACK_ITEMS.json").read_text(encoding="utf-8"))["items"]
     for i in held:
         i["_set"] = "heldback"
+    if which == "lean":
+        lean = json.loads((HERE / "items" / "lean_set.json").read_text(encoding="utf-8"))
+        keep = set(lean["tuning"]) | set(lean["heldback"])
+        return [i for i in tuning + held if i["id"] in keep]
     return held if which == "heldback" else tuning + held
 
 
@@ -72,12 +77,14 @@ async def main():
     ap.add_argument("--base-url", default="https://law-api.fuzzzycore.com")
     ap.add_argument("--assistant", default="claude")
     ap.add_argument("--no-connector", action="store_true")
-    ap.add_argument("--set", default="tuning", choices=["tuning", "heldback", "all"])
+    ap.add_argument("--set", default="tuning", choices=["tuning", "heldback", "all", "lean"])
     ap.add_argument("--ids")
     ap.add_argument("--out", required=True)
     ap.add_argument("--limit", type=int)
     ap.add_argument("--gap", type=float, default=45)
     ap.add_argument("--cap", type=int, default=10_000, help="max ledger lines for this worker, all runs together")
+    ap.add_argument("--usd-cap", type=float, default=TOTAL_CAP_USD,
+                    help="max recorded USD for workers named like --worker, all runs together")
     ap.add_argument("--worker", default="scorecard")
     ap.add_argument("--purpose", default="scorecard answer")
     ap.add_argument("--rerun-degraded", action="store_true")
@@ -115,15 +122,26 @@ async def main():
         if ledger_count(ledger, args.worker) >= args.cap:
             print("consultation cap reached; stopping", flush=True)
             break
-        with ledger.open("a") as f:
-            f.write(json.dumps({"ts": time.strftime("%Y-%m-%dT%H:%M:%S"), "worker": args.worker, "item": it["id"],
-                                "purpose": f"{args.purpose} ({args.target})"}) + "\n")
+        total, mine = ledger_usd(ledger), ledger_usd(ledger, args.worker)
+        if total >= TOTAL_CAP_USD or mine >= args.usd_cap:
+            print(f"spending cap reached (all workers {total:.2f} USD, this worker {mine:.2f} USD); stopping", flush=True)
+            break
         try:
             rec = await asyncio.wait_for(target.answer(it), timeout=args.item_timeout)
         except asyncio.TimeoutError:
             rec = {"id": it["id"], "message": it["message"], "status": 504, "error": f"harness timeout {args.item_timeout} s",
                    "latency_s": args.item_timeout, "degraded": True, "degraded_events": ["harness timeout"]}
         rec["kind"], rec["set"], rec["target_info"] = it["kind"], it["_set"], target.info
+        u = rec.get("usage") or {}
+        model = (u.get("models") or ["gemini-3.7-flash"])[0]
+        cost = usd(model, u.get("in_tokens", 0), u.get("out_tokens", 0)) if u else None
+        rec["usd"] = cost
+        with ledger.open("a") as f:
+            f.write(json.dumps({"ts": time.strftime("%Y-%m-%dT%H:%M:%S"), "worker": args.worker,
+                                "item": it["id"] if it["_set"] == "tuning" else "heldback-item",
+                                "purpose": f"{args.purpose} ({args.target})", "model": model,
+                                "in_tokens": u.get("in_tokens"), "out_tokens": u.get("out_tokens"), "usd": cost,
+                                "model_calls": u.get("model_calls")}) + "\n")
         if p.exists():
             (p.parent / "attempts").mkdir(exist_ok=True)
             (p.parent / "attempts" / f"{it['id']}.{int(time.time())}.json").write_text(p.read_text(), encoding="utf-8")
@@ -131,7 +149,7 @@ async def main():
         b = rec.get("body") or {}
         shown = it["id"] if it["_set"] == "tuning" else "heldback-item"
         print(f"{shown}: status={rec.get('status')} lat={rec.get('latency_s')} len={len(b.get('response', '') or '')} "
-              f"degraded={rec.get('degraded')} err={(rec.get('error') or '')[:160]}", flush=True)
+              f"usd={cost} degraded={rec.get('degraded')} err={(rec.get('error') or '')[:160]}", flush=True)
         done += 1
         fails = fails + 1 if rec.get("status") != 200 else 0
         if fails >= 3:
