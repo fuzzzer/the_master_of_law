@@ -104,7 +104,7 @@ class Settings(BaseSettings):
         description="Maximum concurrent scrape connections",
     )
     scrape_user_agent: str = Field(
-        default="LawCorpusBot/1.0 (research; contact@example.com)",
+        default="FuzzzyLawCorpusBot/1.1 (Fuzzy Core LLC, Fuzzzy Law legal-information app; +mailto:support@fuzzzycore.com)",
         description="User-Agent header sent with every request",
     )
 

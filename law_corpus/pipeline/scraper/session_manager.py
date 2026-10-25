@@ -5,7 +5,6 @@ and respectful User-Agent handling.
 
 from __future__ import annotations
 
-import random
 from typing import Any
 from urllib.parse import urlparse
 
@@ -24,12 +23,6 @@ from pipeline.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Rotating user-agent pool — all clearly identify as bots.
-_USER_AGENTS = [
-    settings.scrape_user_agent,
-    "LawCorpusBot/1.0 (legal-research; +https://github.com/fuzzzy)",
-    "GeorgianLawIndexer/1.0 (academic; research-bot)",
-]
 
 
 class SessionManager:
@@ -39,7 +32,7 @@ class SessionManager:
     Features:
     - Automatic retry with exponential back-off (2 → 4 → 8 → 16 s)
     - Per-host rate limiting via ``RateLimiter``
-    - Rotating User-Agent
+    - One honest User-Agent naming the operator and a contact address
     - Connection pooling
     - UTF-8 encoding for Georgian text
     """
@@ -72,9 +65,6 @@ class SessionManager:
             await self._client.aclose()
             self._client = None
 
-    def _pick_ua(self) -> str:
-        return random.choice(_USER_AGENTS)
-
     def _host(self, url: str) -> str:
         return urlparse(url).hostname or "unknown"
 
@@ -95,7 +85,7 @@ class SessionManager:
 
         host = self._host(url)
         merged_headers = {
-            "User-Agent": self._pick_ua(),
+            "User-Agent": settings.scrape_user_agent,
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "ka,en;q=0.5",
             "Accept-Encoding": "gzip, deflate, br",

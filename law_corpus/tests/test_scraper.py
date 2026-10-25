@@ -64,3 +64,63 @@ class TestSeedLaws:
     def test_unique_document_ids(self) -> None:
         ids = [l["document_id"] for l in SEED_LAWS]
         assert len(ids) == len(set(ids)), "Duplicate document IDs in seed data"
+
+
+MATSNE_HEADER_HTML = """
+<html><body>
+<div class="document-header-mini hidden-print">
+  <div style="min-width: 80px;" title="დოკუმენტის ნომერი">1106</div>
+</div>
+<select class="form-control" id="publication-switcher">
+  <option selected value="178">24/06/2026</option>
+  <option value="177">09/12/2025</option>
+</select>
+<div class="document" id="maindoc">
+  {notice}
+  <p class="muxlixml"><a class="oldStyleDocumentPart" name="part_1">მუხლი 1. სფერო</a></p>
+</div>
+</body></html>
+"""
+
+
+class TestVersionInfo:
+    """The consolidated version shown on the page is recorded for citations."""
+
+    def test_reads_selected_publication_and_number(self) -> None:
+        info = MatsneScraper.extract_version_info(MATSNE_HEADER_HTML.format(notice=""))
+        assert info["publication_id"] == "178"
+        assert info["version_date"] == "2026-06-24"
+        assert info["document_number"] == "1106"
+        assert info["lost_force_notice"] is None
+
+    def test_flags_an_act_that_lost_force(self) -> None:
+        notice = (
+            '<p><a class="DocumentLink" href="document:5827307^DOCUMENT:1;^x">'
+            "<i><b>(ძალადაკარგულია - 14.06.2023, №3144)</b></i></a></p>"
+        )
+        info = MatsneScraper.extract_version_info(MATSNE_HEADER_HTML.format(notice=notice))
+        assert info["lost_force_notice"].startswith("(ძალადაკარგულია")
+        assert info["replaced_by_matsne_id"] == "5827307"
+
+
+class TestPoliteness:
+    """robots.txt Crawl-delay can only slow the scraper down."""
+
+    def test_crawl_delay_raises_min_delay(self) -> None:
+        limiter = RateLimiter(min_delay=2.0)
+        limiter.honour_crawl_delay("matsne.gov.ge", 10.0)
+        assert limiter.min_delay == 10.0
+        assert limiter._current_delay["matsne.gov.ge"] == 10.0
+        limiter.report_success("matsne.gov.ge")
+        assert limiter._current_delay["matsne.gov.ge"] == 10.0
+
+    def test_crawl_delay_never_lowers_delay(self) -> None:
+        limiter = RateLimiter(min_delay=12.0)
+        limiter.honour_crawl_delay("matsne.gov.ge", 10.0)
+        assert limiter.min_delay == 12.0
+
+    def test_user_agent_identifies_operator(self) -> None:
+        from pipeline.config import settings
+
+        assert "Fuzzy Core" in settings.scrape_user_agent
+        assert "@" in settings.scrape_user_agent
