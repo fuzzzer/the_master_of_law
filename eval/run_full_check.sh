@@ -2,7 +2,7 @@
 # One command for the full Fuzzzy Law check: answers -> automatic checks + AI judge -> pass/fail sheet
 # against eval/TARGETS.md, plus optional live-server probes and app-flow tests.
 #
-#   eval/run_full_check.sh --out DIR [--target local|live|external] [--worktree PATH] [--set tuning|heldback|all|lean]
+#   eval/run_full_check.sh --out DIR [--target local|live|external] [--worktree PATH] [--set tuning|heldback|all|lean|lean-tuning]
 #                          [--judge agent|gemini|claude|none] [--compare EARLIER_DIR] [--gap 45] [--cap N] [--usd-cap USD]
 #                          [--worker NAME] [--ids a,b] [--probes] [--app-flows] [--skip-answers]
 #
@@ -72,7 +72,7 @@ case "$JUDGE" in
 esac
 
 CMP=(); [[ -n "$COMPARE" ]] && CMP=(--compare "$COMPARE")
-SHEETSET=all; [[ "$SET" == "lean" ]] && SHEETSET=lean
+SHEETSET=all; [[ "$SET" == lean* ]] && SHEETSET="$SET"
 "$PY" -I -B "$SC/sheet.py" --results "$OUT" --store "$STORE" --set "$SHEETSET" ${CMP[@]+"${CMP[@]}"}
 
 if [[ $PROBES -eq 1 ]]; then

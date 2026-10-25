@@ -34,8 +34,10 @@ def load_items(which: str) -> list[dict]:
     held = json.loads((HERE / "items" / "heldback" / "HELDBACK_ITEMS.json").read_text(encoding="utf-8"))["items"]
     for i in held:
         i["_set"] = "heldback"
-    if which == "lean":
+    if which in ("lean", "lean-tuning"):
         lean = json.loads((HERE / "items" / "lean_set.json").read_text(encoding="utf-8"))
+        if which == "lean-tuning":
+            return [i for i in tuning if i["id"] in set(lean["tuning"])]
         keep = set(lean["tuning"]) | set(lean["heldback"])
         return [i for i in tuning + held if i["id"] in keep]
     return held if which == "heldback" else tuning + held
@@ -77,7 +79,7 @@ async def main():
     ap.add_argument("--base-url", default="https://law-api.fuzzzycore.com")
     ap.add_argument("--assistant", default="claude")
     ap.add_argument("--no-connector", action="store_true")
-    ap.add_argument("--set", default="tuning", choices=["tuning", "heldback", "all", "lean"])
+    ap.add_argument("--set", default="tuning", choices=["tuning", "heldback", "all", "lean", "lean-tuning"])
     ap.add_argument("--ids")
     ap.add_argument("--out", required=True)
     ap.add_argument("--limit", type=int)

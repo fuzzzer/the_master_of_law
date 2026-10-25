@@ -71,6 +71,8 @@ def evaluate(rows: list[dict]) -> dict:
                 invented.append(f"{name(r)} {ref}")
     deadline = []
     for r in clean:
+        if r["chk"]["empty_or_broken"]:
+            continue  # counted once, as empty
         miss = r["chk"]["required_numbers_missing"]
         jd = (r["judge"] or {}).get("deadline")
         if miss or jd in ("wrong", "missing"):
@@ -193,7 +195,7 @@ def main():
     ap.add_argument("--results", required=True)
     ap.add_argument("--store", required=True)
     ap.add_argument("--compare")
-    ap.add_argument("--set", choices=["all", "lean"], default="all", help="lean: only the items in items/lean_set.json")
+    ap.add_argument("--set", choices=["all", "lean", "lean-tuning"], default="all", help="lean: only the items in items/lean_set.json")
     ap.add_argument("--title", default="Fuzzzy Law answer scorecard")
     args = ap.parse_args()
     items = load_items()
@@ -202,6 +204,8 @@ def main():
     if args.set == "lean":
         lean = json.loads((HERE / "items" / "lean_set.json").read_text(encoding="utf-8"))
         only = set(lean["tuning"]) | set(lean["heldback"])
+    elif args.set == "lean-tuning":
+        only = set(json.loads((HERE / "items" / "lean_set.json").read_text(encoding="utf-8"))["tuning"])
     rows = collect(res, args.store, items, only)
     m = evaluate(rows)
     v = verdicts(m)
