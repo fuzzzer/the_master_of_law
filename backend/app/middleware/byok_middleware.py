@@ -57,6 +57,8 @@ NO_KEY_PATHS = {
 NO_KEY_PREFIXES = (
     "/api/v1/health",
     "/api/v1/laws/",      # browsing the corpus is pure retrieval, no model call
+    "/api/v1/connector",  # law connector: sources only, no model call
+    "/mcp",
     "/api/v1/api-keys/",  # where the user goes to validate a key they just got
     "/api/v1/traces/",    # admin dashboard, guarded by its own admin key
     "/docs",

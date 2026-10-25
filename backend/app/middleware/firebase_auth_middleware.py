@@ -36,6 +36,8 @@ PUBLIC_PATHS = {
 # Path prefixes that don't require authentication
 PUBLIC_PREFIXES = (
     "/api/v1/laws/",
+    "/api/v1/connector",  # law connector: own access control (connector_access_middleware)
+    "/mcp",
     "/api/v1/health",
     "/docs",
     "/redoc",

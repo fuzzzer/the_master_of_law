@@ -49,6 +49,42 @@ def _normalize_code(code: str) -> str:
     return code.removeprefix(_GEO_PREFIX).strip().lower()
 
 
+# Version and source columns that newer store builds may carry. Passed through
+# when present so callers can show when a text was in force; older stores
+# simply lack them.
+OPTIONAL_ARTICLE_COLUMNS = (
+    "effective_date",
+    "version_date",
+    "in_force_since",
+    "source_url",
+    "matsne_url",
+)
+
+_FTS_TOKEN_CHARS = re.compile(r"[\w\u10D0-\u10FF]+")
+
+
+def _query_tokens(query: str) -> list[str]:
+    return _FTS_TOKEN_CHARS.findall(query)
+
+
+def _all_tokens_expression(query: str) -> str:
+    """Every token must match. Quoting keeps FTS5 syntax characters inert."""
+    return " ".join(f'"{t}"' for t in _query_tokens(query))
+
+
+def _any_token_expression(query: str) -> str:
+    """Any token or its stem may match: long words become prefix queries."""
+    terms: list[str] = []
+    for token in _query_tokens(query):
+        if token.isdigit():
+            terms.append(f'"{token}"')
+        elif len(token) >= 6:
+            terms.append(f'"{token[:-2]}"*')
+        elif len(token) >= 4:
+            terms.append(f'"{token[:-1]}"*')
+    return " OR ".join(terms)
+
+
 class ArticleStoreService:
     """Read-only lookups against the article store SQLite DB."""
 
@@ -159,22 +195,39 @@ class ArticleStoreService:
         )
         return result
 
-    def fts_search(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
-        """Full-text search over article titles and content (FTS5)."""
+    def fts_search(
+        self,
+        query: str,
+        limit: int = 10,
+        document_id: str | None = None,
+        match_any: bool = False,
+    ) -> list[dict[str, Any]]:
+        """Full-text search over article titles and content (FTS5).
+
+        By default every token must match. ``match_any`` matches any token
+        and also word-stem prefixes, because Georgian inflects nouns
+        ("ხელშეკრულება" / "ხელშეკრულების") and a literal match misses them.
+        ``document_id`` restricts the search to one code.
+        """
         if not self.is_available or not query.strip():
             return []
-        # Quote each token to keep FTS5 syntax characters inert
-        match_expr = " ".join(
-            '"' + t.replace('"', "") + '"' for t in query.split()
+        match_expr = _any_token_expression(query) if match_any else _all_tokens_expression(query)
+        if not match_expr:
+            return []
+        sql = (
+            "SELECT a.* FROM articles_fts f "
+            "JOIN articles a ON a.article_id = f.article_id "
+            "WHERE articles_fts MATCH ?"
         )
+        params: list[Any] = [match_expr]
+        if document_id:
+            sql += " AND a.document_id = ?"
+            params.append(document_id)
+        sql += " ORDER BY rank LIMIT ?"
+        params.append(limit)
         try:
             with self._connect() as conn:
-                rows = conn.execute(
-                    "SELECT a.* FROM articles_fts f "
-                    "JOIN articles a ON a.article_id = f.article_id "
-                    "WHERE articles_fts MATCH ? ORDER BY rank LIMIT ?",
-                    (match_expr, limit),
-                ).fetchall()
+                rows = conn.execute(sql, params).fetchall()
         except sqlite3.OperationalError as e:
             logger.warning("article_store_fts_failed", error=str(e), query=query[:80])
             return []
@@ -205,10 +258,7 @@ class ArticleStoreService:
         if not self.is_available:
             return []
         with self._connect() as conn:
-            rows = conn.execute(
-                "SELECT document_id, code_name, document_number, source_url, article_count "
-                "FROM codes ORDER BY document_id"
-            ).fetchall()
+            rows = conn.execute("SELECT * FROM codes ORDER BY document_id").fetchall()
         return [dict(r) for r in rows]
 
     def get_code_articles(
@@ -255,7 +305,9 @@ class ArticleStoreService:
 
     @staticmethod
     def _row_to_article(row: sqlite3.Row) -> dict[str, Any]:
-        return {
+        columns = row.keys()
+        optional = {c: row[c] for c in OPTIONAL_ARTICLE_COLUMNS if c in columns}
+        return optional | {
             "article_id": row["article_id"],
             "document_id": row["document_id"],
             "code_name": row["code_name"],

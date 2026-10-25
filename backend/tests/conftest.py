@@ -353,3 +353,142 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if item.nodeid in CORPUS_DEPENDENT_TESTS:
             item.add_marker(skip)
+
+
+# ── Law connector: a small real-text article store ───────────
+
+# Same schema as law_corpus/scripts/build_article_store.py (the backend never
+# imports the corpus project, so the DDL is restated here).
+_ARTICLE_STORE_DDL = """
+CREATE TABLE codes (document_id TEXT PRIMARY KEY, code_name TEXT NOT NULL, title_en TEXT,
+    document_number TEXT, source_url TEXT NOT NULL, article_count INTEGER NOT NULL);
+CREATE TABLE articles (article_id TEXT PRIMARY KEY, document_id TEXT NOT NULL,
+    code_name TEXT NOT NULL, article_number TEXT NOT NULL, article_norm TEXT NOT NULL,
+    article_title TEXT, book TEXT, part TEXT, chapter TEXT, content_ka TEXT NOT NULL,
+    paragraphs_json TEXT NOT NULL, cross_references_json TEXT NOT NULL,
+    article_url TEXT NOT NULL, is_repealed INTEGER NOT NULL DEFAULT 0, effective_date TEXT);
+CREATE VIRTUAL TABLE articles_fts USING fts5(article_id UNINDEXED, code_name,
+    article_number, article_title, content_ka);
+"""
+
+
+def build_connector_article_store(
+    path, *, with_version_fields: bool = False, without_links: bool = False
+):
+    """Write an article store from tests/fixtures/connector_article_store.json.
+
+    The fixture holds real articles copied from the store the live server
+    serves (Civil Procedure Code 368-370, Labour Code 47-48, Civil Code
+    137-139 and a repealed article). ``with_version_fields`` adds the version
+    columns a newer store build carries; ``without_links`` blanks every stored
+    link so the matsne link must be rebuilt from the document id.
+    """
+    import json
+    import sqlite3
+    from pathlib import Path
+
+    data = json.loads(
+        (Path(__file__).parent / "fixtures" / "connector_article_store.json").read_text("utf-8")
+    )
+    conn = sqlite3.connect(path)
+    conn.executescript(_ARTICLE_STORE_DDL)
+    if with_version_fields:
+        conn.execute("ALTER TABLE codes ADD COLUMN version_date TEXT")
+        conn.execute("ALTER TABLE articles ADD COLUMN in_force_since TEXT")
+    for code in data["codes"]:
+        if without_links:
+            code = code | {"source_url": "", "document_number": None}
+        columns = list(code)
+        if with_version_fields:
+            code = code | {"version_date": "2026-09-30"}
+            columns.append("version_date")
+        conn.execute(
+            f"INSERT INTO codes ({','.join(columns)}) VALUES ({','.join('?' * len(columns))})",
+            [code[c] for c in columns],
+        )
+    for art in data["articles"]:
+        if without_links:
+            art = art | {"article_url": ""}
+        if with_version_fields:
+            art = art | {"in_force_since": "2024-01-01"}
+        columns = list(art)
+        conn.execute(
+            f"INSERT INTO articles ({','.join(columns)}) VALUES ({','.join('?' * len(columns))})",
+            [art[c] for c in columns],
+        )
+        conn.execute(
+            "INSERT INTO articles_fts VALUES (?, ?, ?, ?, ?)",
+            (art["article_id"], art["code_name"], art["article_number"],
+             art["article_title"], art["content_ka"]),
+        )
+    conn.commit()
+    conn.close()
+    return path
+
+
+COURT_FIXTURE_CHUNKS = [
+    {
+        "id": "court_practice:AS-664-2023:chunk_0:aaaa0000",
+        "document": "საკასაციო სასამართლო განმარტავს, რომ ხანდაზმულობის ვადის დენა "
+                    "წყდება სარჩელის შეტანით (სამოქალაქო კოდექსის 138-ე მუხლი).",
+        "metadata": {"source": "court_practice", "case_id": "AS-664-2023", "court": "supreme_court",
+                     "category": "civil", "year": "2023", "chunk_index": 0},
+        "collection": "court_practice",
+    },
+    {
+        "id": "court_practice:AS-664-2023:chunk_1:bbbb1111",
+        "document": "საკასაციო საჩივარი არ დაკმაყოფილდეს.",
+        "metadata": {"source": "court_practice", "case_id": "AS-664-2023", "court": "supreme_court",
+                     "category": "civil", "year": "2023", "chunk_index": 1},
+        "collection": "court_practice",
+    },
+    {
+        "id": "grand_chamber:GC-12-2022:chunk_0:cccc2222",
+        "document": "დიდი პალატა: ხანდაზმულობის ვადის დენის შეწყვეტა ვრცელდება ...",
+        "metadata": {"source": "grand_chamber", "case_id": "GC-12-2022", "court": "grand_chamber",
+                     "year": "2022", "chunk_index": 0,
+                     "source_url": "https://www.supremecourt.ge/example-grand-chamber.pdf"},
+        "collection": "grand_chamber",
+    },
+]
+
+
+def build_court_chroma(path):
+    """A tiny Chroma store with court_practice and grand_chamber collections."""
+    import chromadb
+
+    from app.integrations.chroma_client import ChromaClient
+
+    client = chromadb.PersistentClient(
+        path=str(path), settings=chromadb.config.Settings(anonymized_telemetry=False)
+    )
+    for name in ("court_practice", "grand_chamber"):
+        chunks = [c for c in COURT_FIXTURE_CHUNKS if c["collection"] == name]
+        col = client.create_collection(name=name, embedding_function=None)
+        col.add(
+            ids=[c["id"] for c in chunks],
+            documents=[c["document"] for c in chunks],
+            metadatas=[c["metadata"] for c in chunks],
+            embeddings=[[0.1, 0.2, 0.3] for _ in chunks],
+        )
+    chroma = ChromaClient(persist_dir=path)
+    chroma.connect()
+    return chroma
+
+
+@pytest.fixture
+def connector_store(tmp_path):
+    from app.services.article_store_service import ArticleStoreService
+
+    return ArticleStoreService(db_path=build_connector_article_store(tmp_path / "store.db"))
+
+
+@pytest.fixture
+def connector_service(connector_store, monkeypatch):
+    """The connector service on the fixture store, with no court source."""
+    from app.services import law_connector_service as module
+
+    service = module.LawConnectorService(store=connector_store)
+    monkeypatch.setattr(service, "_court_client", lambda: None)
+    monkeypatch.setattr(module, "_connector_service", service)
+    return service
