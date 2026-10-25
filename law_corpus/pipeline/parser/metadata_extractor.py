@@ -69,7 +69,7 @@ class MetadataExtractor:
             title_ka=normalise_georgian(title_ka),
             title_en=seed.get("title_en"),
             document_type=doc_type,
-            document_number=self._extract_doc_number(soup),
+            document_number=seed.get("document_number") or self._extract_doc_number(soup),
             adoption_date=adoption_date,
             effective_date=effective_date or adoption_date,
             last_amendment_date=last_amendment,
@@ -78,6 +78,9 @@ class MetadataExtractor:
             source_url=seed.get("url", ""),
             language="ka",
             version="consolidated",
+            publication_id=seed.get("publication_id"),
+            version_date=seed.get("version_date"),
+            scraped_at=seed.get("scraped_at"),
             is_in_force=True,
         )
 

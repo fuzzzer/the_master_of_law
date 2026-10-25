@@ -281,3 +281,105 @@ class TestThresholdCodeNameCanonical:
         meta = build_threshold_metadata(entry)
         assert meta["code_name"] == "საქართველოს სისხლის სამართლის კოდექსი"
 
+
+
+def _parse_fixture(name: str, document_id: str, url: str):
+    raw = (Path(__file__).parent / "fixtures" / name).read_bytes()
+    result = ScrapeResult(
+        url=url, document_id=document_id, content=raw,
+        content_format=ContentFormat.HTML, encoding="utf-8",
+        scraped_at=datetime.now(timezone.utc), content_hash="test",
+    )
+    return HtmlLegalParser().parse(result, {"url": url, "title_ka": "x", "document_type": "code"})
+
+
+class TestMatsneClassLayout:
+    """Defects found in the live corpus (2026-10-24 compliance run)."""
+
+    @pytest.fixture
+    def articles(self) -> dict[str, object]:
+        doc = _parse_fixture("matsne_class_layout.html", "civil_procedure_code",
+                             "https://matsne.gov.ge/ka/document/view/29962")
+        return {a.article_id: a for a in doc.articles}
+
+    def test_body_in_msonormal_paragraph_is_kept(self, articles) -> None:
+        art = articles["civil_procedure_code.chapter_XLV.article_369"]
+        assert art.content_ka.startswith("1. სააპელაციო საჩივრის შეტანის ვადაა 14 დღე.")
+        assert [p.number for p in art.paragraphs] == ["1", "2"]
+
+    def test_inline_links_keep_their_spacing(self, articles) -> None:
+        art = articles["civil_procedure_code.chapter_XLV.article_369"]
+        assert "ჩაბარება ამ კოდექსის 70-ე–78-ე მუხლების ან 259¹ მუხლის შესაბამისად." in art.content_ka
+
+    def test_amendment_citations_are_not_article_text(self, articles) -> None:
+        art = articles["civil_procedure_code.chapter_XLV.article_369"]
+        assert "კანონი №741" not in art.content_ka
+        assert "№5669" not in articles["civil_procedure_code.chapter_XLV.article_368-1"].content_ka
+
+    def test_superscript_number_is_not_flattened(self, articles) -> None:
+        sup = articles["civil_procedure_code.chapter_XLV.article_3-1"]
+        plain = articles["civil_procedure_code.chapter_XLV.article_31"]
+        assert sup.article_number == "მუხლი 3¹"
+        assert plain.article_number == "მუხლი 31"
+        assert sup.content_ka == "ტექსტი."
+
+    def test_hierarchy_and_anchor(self, articles) -> None:
+        art = articles["civil_procedure_code.chapter_XLV.article_369"]
+        assert art.book == "მესამე. სასამართლო გადაწყვეტილებათა გასაჩივრება"
+        assert art.part == "მეოთხე."
+        assert art.chapter == "XLV. აპელაციის დასაშვებობა"
+        assert art.matsne_anchor == "part_476"
+
+    def test_mis_styled_body_class_is_body(self, articles) -> None:
+        assert articles["civil_procedure_code.chapter_XLV.article_31"].content_ka == "ა) პირველი;"
+
+    def test_repealed_placeholder(self, articles) -> None:
+        assert articles["civil_procedure_code.chapter_XLV.article_370"].is_repealed
+        assert not articles["civil_procedure_code.chapter_XLV.article_369"].is_repealed
+
+    def test_future_heading_wording_stays_with_current_article(self, articles) -> None:
+        art = articles["civil_procedure_code.chapter_XLV.article_371"]
+        assert art.in_force
+        assert art.content_ka.splitlines()[0].startswith("[მუხლი 371. ახალი სათაური (ამოქმედდეს")
+        assert "1. საერთო ტექსტი." in art.content_ka
+        assert "civil_procedure_code.chapter_XLV.article_371.pending" not in articles
+
+    def test_future_article_is_marked_not_in_force(self, articles) -> None:
+        art = articles["civil_procedure_code.chapter_XLV.article_372-1.pending"]
+        assert not art.in_force
+        assert art.article_number == "მუხლი 372¹"
+        assert art.content_ka == "1. ახალი წესი. (ამოქმედდეს 2027 წლის 1 იანვრიდან)"
+
+    def test_no_duplicate_ids(self, articles) -> None:
+        doc = _parse_fixture("matsne_class_layout.html", "civil_procedure_code",
+                             "https://matsne.gov.ge/ka/document/view/29962")
+        assert len(doc.articles) == len(articles)
+
+
+class TestMatsneTableLayout:
+    """The table layout used by newer acts (e.g. the 2023 personal data law)."""
+
+    def test_articles_chapters_and_notes(self) -> None:
+        doc = _parse_fixture("matsne_table_layout.html", "personal_data_law",
+                             "https://matsne.gov.ge/ka/document/view/5827307")
+        arts = {a.article_id: a for a in doc.articles}
+        assert list(arts) == ["personal_data_law.chapter_I.article_1", "personal_data_law.chapter_I.article_3"]
+        definitions = arts["personal_data_law.chapter_I.article_3"]
+        assert definitions.chapter == "I. ზოგადი დებულებები"
+        assert definitions.article_title == "ტერმინთა განმარტება"
+        assert definitions.content_ka == "ამ კანონის მიზნებისთვის:\nა) პერსონალური მონაცემი − ნებისმიერი ინფორმაცია;"
+        assert definitions.matsne_anchor == "DOCUMENT:1;CHAPTER:1;ARTICLE:3;"
+
+
+class TestParagraphs:
+    def test_sub_points_belong_to_their_paragraph(self) -> None:
+        paras = HtmlLegalParser._parse_paragraphs(
+            "1. შეიძლება გასაჩივრდეს:\nა) დადგენილება;\nბ¹) გადაწყვეტილება;\n2. სხვა."
+        )
+        assert [p.number for p in paras] == ["1", "2"]
+        assert [s.number for s in paras[0].sub_points] == ["ა", "ბ¹"]
+        assert paras[0].text == "შეიძლება გასაჩივრდეს:\nა) დადგენილება;\nბ¹) გადაწყვეტილება;"
+
+    def test_letters_without_numbered_parent_stay_top_level(self) -> None:
+        paras = HtmlLegalParser._parse_paragraphs("ა) პირველი;\nბ) მეორე.")
+        assert [p.number for p in paras] == ["ა", "ბ"]
