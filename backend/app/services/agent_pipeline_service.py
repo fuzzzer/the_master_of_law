@@ -28,7 +28,7 @@ from typing import Any
 
 from google.genai import types
 
-from app.config.constants import GEMINI_TEMPERATURE, TURN_TIMEOUT_S
+from app.config.constants import COULD_NOT_COMPLETE_KA, GEMINI_TEMPERATURE, TURN_TIMEOUT_S
 from app.config.settings import settings
 from app.integrations.vertex_ai_client import VertexAIClient, get_vertex_ai_client
 from app.prompts.agent_planning import AGENT_PLANNER, CITATION_VERIFIER, FAITHFULNESS_CHECKER
@@ -47,6 +47,11 @@ logger = get_logger(__name__)
 MAX_VERIFY_ITERATIONS = 2
 MAX_TOOL_CALLS_PER_MESSAGE = 5
 PLANNER_HISTORY_WINDOW = 6  # last N messages for planning
+FINAL_ANSWER_NUDGE = (
+    "The lookup budget for this question is used up. Write the final answer to the "
+    "user's question NOW, without calling any tools, using ONLY the law texts above. "
+    "Where a point could not be verified in them, say so plainly."
+)
 
 
 # ── Data classes ─────────────────────────────────────────────
@@ -226,6 +231,15 @@ class AgentPipelineService:
             redis_client=redis_client,
             is_case_chat=is_case_chat,
         )
+        if response_text == COULD_NOT_COMPLETE_KA:
+            # Nothing to verify or repair; guards would only bolt warnings
+            # onto an apology.
+            return PipelineResult(
+                response_text=response_text,
+                chunks=chunks,
+                plan=plan,
+                tool_results=tool_results,
+            )
 
         # ── Phase 3: Verify ──────────────────────────────────
         verified_response, verified_citations, iterations = await self._phase_3_verify(
@@ -527,7 +541,55 @@ class AgentPipelineService:
         if not response_text and response.text:
             response_text = response.text
 
+        if not response_text:
+            response_text = await self._force_final_answer(
+                user_message=user_message,
+                system_prompt=system_prompt,
+                sources="\n".join(message_parts[:-1]),
+                tool_results=tool_results,
+            )
+
         return response_text, chunks, tool_results, bool(full_code_context)
+
+    async def _force_final_answer(
+        self,
+        user_message: str,
+        system_prompt: str,
+        sources: str,
+        tool_results: list[ToolResultInfo],
+    ) -> str:
+        """The answer must never come back empty.
+
+        The tool loop can spend every lookup turn without writing a reply, or
+        the model can return no text at all (an exhausted output budget). One
+        tool-free call then answers from what was already gathered. If even
+        that yields no text, the user gets a clear "could not complete"
+        message instead of silence.
+        """
+        looked_up = "\n\n".join(
+            f"{t.result.get('code', '')}, {t.result.get('article', '')}\n"
+            f"   URL: {t.result.get('url', '')}\n"
+            f"   {str(t.result.get('content', ''))[:2000]}"
+            for t in tool_results
+            if t.result.get("found") and t.result.get("content")
+        )
+        parts = [sources] if sources else []
+        if looked_up:
+            parts.append(f"LAW ARTICLES LOOKED UP WITH TOOLS:\n{looked_up}\n")
+        parts.append(FINAL_ANSWER_NUDGE)
+        parts.append(user_message)
+        record_step("final_answer_forced", tool_calls=len(tool_results))
+        # A provider failure here propagates on purpose: its own Georgian
+        # message (quota, overload, bad key) says more than a generic one.
+        text = await self.gemini.generate(
+            prompt="\n".join(parts),
+            system_instruction=system_prompt or None,
+            model_name=await strong_model(),
+        )
+        if text and text.strip():
+            return text
+        record_step("answer_not_completed")
+        return COULD_NOT_COMPLETE_KA
 
     async def _execute_tool(
         self,

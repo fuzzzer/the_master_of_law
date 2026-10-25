@@ -144,6 +144,14 @@ DEADLINE_GUARD_KA = (
     "კანონში ან იურისტთან."
 )
 
+# Returned when no answer could be produced at all (the lookup loop ran out
+# and the forced final answer came back empty). Never an empty bubble.
+COULD_NOT_COMPLETE_KA = (
+    "ბოდიში, ამ კითხვაზე პასუხის მომზადება ბოლომდე ვერ მოვახერხე. "
+    "გთხოვთ, სცადოთ თავიდან ან კითხვა უფრო მოკლედ და კონკრეტულად "
+    "ჩამოაყალიბოთ. თუ საქმე სასწრაფოა ან ვადა იწურება, მიმართეთ ადვოკატს."
+)
+
 LEGAL_DISCLAIMER_KA = (
     "ეს არის AI-ის მიერ გენერირებული იურიდიული ინფორმაცია, "
     "არა ოფიციალური იურიდიული კონსულტაცია. "
