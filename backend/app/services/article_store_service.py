@@ -10,6 +10,7 @@ its matsne anchor, or proves the article does not exist in the corpus.
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -22,19 +23,26 @@ logger = get_logger(__name__)
 
 _GEO_PREFIX = "საქართველოს "
 
-# Superscript digits used in article numbers like "მუხლი 166¹" — stored in the
-# article store as plain concatenated digits ("1661", from the article_id).
+# Superscript digits in article numbers like "მუხლი 166¹". Stores since schema
+# version 2 keep them apart ("166-1"); older stores flattened them ("1661"),
+# which made 11¹ and 111 the same key.
 _SUPERSCRIPT_MAP = str.maketrans("¹²³⁴⁵⁶⁷⁸⁹⁰", "1234567890")
+_ARTICLE_NUMBER_RE = re.compile(r"(\d+)\s*([¹²³⁴⁵⁶⁷⁸⁹⁰]*)(?:-(\d+)(?![ა-ჰ]))?")
 
 
 def _normalize_article(article: str) -> str:
-    """'მუხლი 48', '48-ე', '48', '166¹' → bare stored form ('48', '1661')."""
+    """'მუხლი 48', '48-ე', '48', '166¹', '166-1' → stored form ('48', '166-1')."""
     a = article.replace("მუხლი", "").strip()
-    a = a.translate(_SUPERSCRIPT_MAP)
-    # strip ordinal/genitive suffixes like "-ე", "-ის"
-    if "-" in a:
-        a = a.split("-", 1)[0]
-    return a.strip()
+    m = _ARTICLE_NUMBER_RE.match(a)
+    if not m:
+        return a
+    sub = m.group(2).translate(_SUPERSCRIPT_MAP) or m.group(3)
+    return f"{m.group(1)}-{sub}" if sub else m.group(1)
+
+
+def _legacy_norm(norm: str) -> str:
+    """Key of the same article in a pre-version-2 store ('166-1' → '1661')."""
+    return norm.replace("-", "")
 
 
 def _normalize_code(code: str) -> str:
@@ -114,21 +122,23 @@ class ArticleStoreService:
         if not norm:
             return None
 
-        # Some numbers map to several rows (removed placeholders, flattened
-        # superscript articles) — prefer live rows with substantive content.
+        # Some numbers map to several rows (removed placeholders, future
+        # wordings) — prefer rows in force with substantive content.
+        in_force_first = "in_force DESC, " if self._has_column("in_force") else ""
         selection = (
-            "ORDER BY (article_title LIKE '%ამოღებულია%') ASC, "
+            f"ORDER BY {in_force_first}(article_title LIKE '%ამოღებულია%') ASC, "
             "LENGTH(article_id) ASC LIMIT 1"
         )
+        key = norm if self._has_column("in_force") else _legacy_norm(norm)
         with self._connect() as conn:
             if doc_id:
                 row = conn.execute(
                     f"SELECT * FROM articles WHERE document_id = ? AND article_norm = ? {selection}",
-                    (doc_id, norm),
+                    (doc_id, key),
                 ).fetchone()
             else:
                 row = conn.execute(
-                    f"SELECT * FROM articles WHERE article_norm = ? {selection}", (norm,)
+                    f"SELECT * FROM articles WHERE article_norm = ? {selection}", (key,)
                 ).fetchone()
 
         result = self._row_to_article(row) if row else None
@@ -181,6 +191,15 @@ class ArticleStoreService:
                 }
         return url in self._url_set
 
+    def _has_column(self, column: str) -> bool:
+        """True if the store's articles table has *column* (schema version 2+)."""
+        if not hasattr(self, "_article_columns"):
+            with self._connect() as conn:
+                self._article_columns = {
+                    r[1] for r in conn.execute("PRAGMA table_info(articles)")
+                }
+        return column in self._article_columns
+
     def list_codes(self) -> list[dict[str, Any]]:
         """All codes in the store with article counts."""
         if not self.is_available:
@@ -202,6 +221,8 @@ class ArticleStoreService:
         sql = (
             "SELECT * FROM articles WHERE document_id = ? AND is_repealed = 0"
         )
+        if self._has_column("in_force"):
+            sql += " AND in_force = 1"
         params: list[Any] = [doc_id]
         if chapter:
             sql += " AND chapter LIKE ?"
@@ -248,6 +269,10 @@ class ArticleStoreService:
             "cross_references": json.loads(row["cross_references_json"]),
             "article_url": row["article_url"],
             "is_repealed": bool(row["is_repealed"]),
+            # Schema version 2: official matsne link and version (None on older stores)
+            "official_url": row["official_url"] if "official_url" in row.keys() else None,
+            "version_date": row["version_date"] if "version_date" in row.keys() else None,
+            "in_force": bool(row["in_force"]) if "in_force" in row.keys() else True,
         }
 
 
