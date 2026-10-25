@@ -1,0 +1,128 @@
+{
+ "seed": "20261025",
+ "heldback_share": 0.3,
+ "method": "stratified by group; within a group, new ids sorted by sha256(seed:id); ids keep their set once assigned",
+ "counts": {
+  "tuning": 59,
+  "heldback": 25,
+  "total": 84
+ },
+ "by_group": {
+  "scenario-everyday": {
+   "tuning": 7,
+   "heldback": 3
+  },
+  "scenario-edge": {
+   "tuning": 13,
+   "heldback": 6
+  },
+  "targeted": {
+   "tuning": 11,
+   "heldback": 4
+  },
+  "court-civil": {
+   "tuning": 13,
+   "heldback": 5
+  },
+  "court-administrative": {
+   "tuning": 4,
+   "heldback": 2
+  },
+  "court-constitutional": {
+   "tuning": 1,
+   "heldback": 1
+  },
+  "court-criminal": {
+   "tuning": 10,
+   "heldback": 4
+  }
+ },
+ "tuning": [
+  "ADMI-bs-331",
+  "ADMI-bs-546",
+  "ADMI-bs-754",
+  "ADMI-bs-767",
+  "CIVI-as-1008-2024",
+  "CIVI-as-1042-2023",
+  "CIVI-as-1064-2022",
+  "CIVI-as-1192-2022",
+  "CIVI-as-121-2023",
+  "CIVI-as-1465-2022",
+  "CIVI-as-1548-2023",
+  "CIVI-as-200-2022",
+  "CIVI-as-437-2022",
+  "CIVI-as-481-2023",
+  "CIVI-as-501-2020",
+  "CIVI-as-932-2020",
+  "CIVI-as-989-2024",
+  "CONS-cc_2_3_1609",
+  "CRIM-1039ap-24",
+  "CRIM-1051ap-24",
+  "CRIM-1086ap-23",
+  "CRIM-1224ap-24",
+  "CRIM-1296ap-24",
+  "CRIM-1340ap-24",
+  "CRIM-152ap-24",
+  "CRIM-172ap-23",
+  "CRIM-201ap-24",
+  "CRIM-311ap-23",
+  "SC-ADM-1",
+  "SC-ADM-2",
+  "SC-CON-1",
+  "SC-CON-2",
+  "SC-DEBT-2",
+  "SC-EDGE-DL-1",
+  "SC-EDGE-DL-2",
+  "SC-EDGE-EVADE-1",
+  "SC-EDGE-OLD-2",
+  "SC-EDGE-OUT-1",
+  "SC-FAM-2",
+  "SC-INH-1",
+  "SC-INH-2",
+  "SC-LAB-1",
+  "SC-LAB-2",
+  "SC-LAB-3",
+  "SC-POL-1",
+  "SC-TEN-1",
+  "SC-TEN-2",
+  "SC-TRF-1",
+  "TG-CIVAPP-2",
+  "TG-PRAC-1",
+  "TG-PRAC-2",
+  "TG-PRAC-3",
+  "TG-PROS-1",
+  "TG-SUP-3",
+  "TG-UNL-1",
+  "TG-WIN-1",
+  "TG-WORK-1",
+  "TG-WORK-2",
+  "TG-WORK-3"
+ ],
+ "heldback": [
+  "ADMI-bs-654",
+  "ADMI-bs-948",
+  "CIVI-as-1112-2022",
+  "CIVI-as-1581-2022",
+  "CIVI-as-193-2023",
+  "CIVI-as-381-2024",
+  "CIVI-as-443-2020",
+  "CONS-cc_1_2_1934",
+  "CRIM-1214ap-24",
+  "CRIM-122ap-24",
+  "CRIM-1331ap-24",
+  "CRIM-18I-23",
+  "SC-DEBT-1",
+  "SC-EDGE-CERT-1",
+  "SC-EDGE-FRAUD-1",
+  "SC-EDGE-FRAUD-2",
+  "SC-EDGE-OLD-1",
+  "SC-EDGE-OUT-2",
+  "SC-FAM-1",
+  "SC-POL-2",
+  "SC-TRF-2",
+  "TG-CIVAPP-1",
+  "TG-PROS-2",
+  "TG-SUP-1",
+  "TG-SUP-2"
+ ]
+}
