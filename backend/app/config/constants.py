@@ -116,7 +116,9 @@ GUARDRAIL_CONFIDENCE_THRESHOLD: float = 0.7
 # disabled. The old value was 50, which is fine for the ANSWER and fatal on a
 # thinking model, where reasoning is drawn from the same allowance. Sized so
 # that re-enabling thinking here could not silently empty the response again.
-GUARDRAIL_MAX_OUTPUT_TOKENS: int = 256
+# 512 since the classifier also writes a short Georgian lawful alternative
+# for a refused request.
+GUARDRAIL_MAX_OUTPUT_TOKENS: int = 512
 
 # There is deliberately NO GUARDRAIL_MODEL here. One was declared and pinned
 # at "gemini-2.0-flash", imported by guardrail_service, and then never read —

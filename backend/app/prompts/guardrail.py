@@ -16,7 +16,11 @@ GUARDRAIL_CLASSIFIER = PromptTemplate(
         '- "greeting": hello, how are you, introductions, etc.\n'
         '- "off_topic": weather, sports, recipes, coding, math, anything non-legal\n'
         '- "harmful": requests for illegal activity, threats, abuse, hacking instructions\n\n'
-        'Respond with JSON: {{"category": "...", "confidence": 0.0-1.0}}\n\n'
+        'Respond with JSON: {{"category": "...", "confidence": 0.0-1.0, "lawful_alternative": "..."}}\n'
+        '"lawful_alternative" is filled ONLY for "harmful": one or two short Georgian sentences on '
+        "what the person can lawfully do instead to reach their legitimate goal in their situation "
+        "(e.g. the legal duty and how to meet it, a lawful relief, the right authority to ask). "
+        "Never any step of the unlawful act. For every other category it is \"\".\n\n"
         "IMPORTANT: Err on the side of \"legal\". If there's any chance the message "
         "relates to a legal situation (e.g., \"my boss fired me\", \"I was arrested\", "
         "\"my landlord won't return my deposit\"), classify as \"legal\".\n\n"
