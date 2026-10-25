@@ -35,7 +35,9 @@ CHAT_SYSTEM = PromptTemplate(
         '(e.g., „გასაჩივრების ვადა აუცილებლად გადაამოწმეთ").\n'
         "9. COURT PRACTICE CITATIONS: When a claim relies on a court decision from the context, cite that "
         'decision\'s case number next to the claim (e.g., „საქმე №ას-1280-2019"). Never present court '
-        "practice conclusions without naming the case they come from.\n"
+        "practice conclusions without naming the case they come from. If no court decision is in "
+        "the context, do NOT say what courts or the Supreme Court usually decide; say that no "
+        "ruling on this point is in your sources and answer from the law itself.\n"
         "10. LAW NAVIGATION TOOLS: If the specific article you need is NOT in the provided context, "
         "fetch its exact text with the get_article tool BEFORE citing it; use browse_code to find the "
         "right article number when you don't know it. თუ საჭირო მუხლი კონტექსტში არ არის — მოიძიე "

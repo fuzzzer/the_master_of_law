@@ -1297,25 +1297,60 @@ class AgentPipelineService:
             record_step("language_purity_fixups", replaced=applied)
         return fixed
 
+    # A sentence that claims what court practice says. Quoting the statutory
+    # cassation grounds ("uniform court practice", "departs from practice")
+    # is not a claim and is exempt.
     _PRACTICE_CLAIM_RE = re.compile(
-        r"სასამართლო პრაქტიკ|პრაქტიკის (?:თანახმად|მიხედვით)|პრაქტიკით დადგენილ"
-        r"|უზენაესმა|უზენაესი სასამართლოს განმარტ"
+        r"სასამართლო(?:ს)?\s+პრაქტიკ|პრაქტიკის\s+(?:თანახმად|მიხედვით)|პრაქტიკით\s+დადგენილ"
+        r"|დამკვიდრებულ\w*\s+(?:პრაქტიკ|განმარტებ|მიდგომ)"
+        r"|უზენაეს(?:ი|მა)\s+სასამართლო(?:ს|მ)?\s+(?:\w+\s+)?(?:განმარტ|პრაქტიკ|მიდგომ|პოზიცი)"
+        r"|საკასაციო\s+პალატ\w*\s+(?:\w+\s+)?(?:განმარტ|პრაქტიკ|მიდგომ)"
     )
+    _PRACTICE_ADMISSIBILITY_RE = re.compile(r"ერთგვაროვან|ჩამოყალიბ|გადახვევ|გადაუხვ")
+    # A full stop ends a sentence only before whitespace, so links
+    # (matsne.gov.ge) and article numbers (48.8) stay whole.
+    _SENTENCE_END_RE = re.compile(r"[.!?](?=\s|$)|\n")
+    _EMPTY_BULLET_RE = re.compile(r"(?m)^[ \t]*(?:[-*•]|\d+\.)[ \t*]*$\n?")
+
+    @classmethod
+    def _sentence_around(cls, text: str, pos: int) -> str:
+        start = max((m.end() for m in cls._SENTENCE_END_RE.finditer(text, 0, pos)), default=0)
+        end_match = cls._SENTENCE_END_RE.search(text, pos)
+        end = end_match.end() if end_match else len(text)
+        return text[start:end].strip()
+
+    @classmethod
+    def _unsourced_practice_sentences(cls, text: str, known_cases: list[str]) -> list[str]:
+        """Practice-claim sentences that name no case from the retrieved rulings."""
+        from app.services.citation_service import CASE_NUMBER_PATTERN
+
+        known = set(known_cases)
+        flagged: list[str] = []
+        for m in cls._PRACTICE_CLAIM_RE.finditer(text):
+            sentence = cls._sentence_around(text, m.start())
+            if cls._PRACTICE_ADMISSIBILITY_RE.search(sentence):
+                continue
+            if any(c in known for c in CASE_NUMBER_PATTERN.findall(sentence)):
+                continue
+            if sentence not in flagged:
+                flagged.append(sentence)
+        return flagged
 
     async def _practice_attribution_guard(
         self, response_text: str, chunks: list[dict]
     ) -> str:
-        """Court-practice claims must name their case or stop claiming practice.
+        """"Court practice says" must name a real case from the retrieved rulings.
 
-        When the response asserts "სასამართლო პრაქტიკის თანახმად…" without any
-        case number while court decisions ARE in context, one Flash pass either
-        attaches the supporting case №s from context (only if they truly
-        support the claim) or rephrases the claim without practice attribution.
+        Every sentence that claims court practice without naming one of the
+        cases actually in context gets one Flash pass: attach the supporting
+        case number (only if it truly supports the claim) or restate the
+        sentence as a general legal point without claiming practice. With no
+        rulings in context the second is the only option — in the 2026-10-24
+        evaluation the app "quoted" the Supreme Court against the Civil Code
+        with no ruling to cite. Whatever still claims practice afterwards is
+        removed, and the answer says that something was removed.
         """
-        if not response_text or not self._PRACTICE_CLAIM_RE.search(response_text):
-            return response_text
-        from app.services.citation_service import CASE_NUMBER_PATTERN
-        if CASE_NUMBER_PATTERN.search(response_text):
+        if not response_text:
             return response_text
         court_cases = sorted({
             (c.get("metadata") or {}).get("case_id", "")
@@ -1323,21 +1358,27 @@ class AgentPipelineService:
             if (c.get("metadata") or {}).get("_collection")
             in ("court_practice", "grand_chamber")
         } - {""})
-        if not court_cases:
+        flagged = self._unsourced_practice_sentences(response_text, court_cases)
+        if not flagged:
             return response_text
 
+        options = (
+            "If one of these court decisions, which are actually in its context, "
+            f"genuinely supports the sentence, attach its number: {', '.join(court_cases)} "
+            "(e.g. „(საქმე №ას-543-2020)\"). Otherwise restate it "
+            if court_cases else
+            "No court decision is available in its context, so restate it "
+        )
+        flagged_list = "\n".join(f"- {f}" for f in flagged)
         prompt = (
-            "You are an editor for a Georgian legal AI. The response below claims court "
-            "practice (e.g. „სასამართლო პრაქტიკის თანახმად…\") WITHOUT citing any case "
-            "number. The court decisions actually available in its context are: "
-            f"{', '.join(court_cases)}.\n"
-            "For every practice-based claim: if one of these cases genuinely supports it "
-            "(you saw its text in the response's reasoning), attach that case number "
-            "(e.g. „(საქმე №ას-543-2020)\"); otherwise rephrase the sentence so it does "
-            "NOT claim court practice (state it as a general legal principle or drop it). "
-            "NEVER invent a case number. Keep everything else unchanged, respond in "
-            "Georgian, return the full corrected response text only.\n\n"
-            f"═══ RESPONSE ═══\n{response_text}"
+            "You are an editor for a Georgian legal AI. The sentences listed below claim "
+            "what court practice says (e.g. „სასამართლო პრაქტიკის თანახმად…\") WITHOUT "
+            f"naming a court case. For each one: {options}"
+            "as a general legal point that does NOT claim court practice or the Supreme "
+            "Court's view, or drop it. A sentence that only says no ruling is available may "
+            "stay as such, worded without „პრაქტიკა\". NEVER invent a case number. Keep everything else "
+            "unchanged, respond in Georgian, return the full corrected response text only."
+            f"\n\n═══ SENTENCES ═══\n{flagged_list}\n\n═══ RESPONSE ═══\n{response_text}"
         )
         try:
             repaired = await self.gemini.generate(
@@ -1346,14 +1387,26 @@ class AgentPipelineService:
                 model_name=await cheap_model(),
             )
             if repaired and repaired.strip():
-                record_step(
-                    "practice_attribution_guard",
-                    available_cases=court_cases,
-                    corrected_text=repaired,
-                )
-                return repaired
+                response_text = repaired
         except Exception as e:
             logger.warning("practice_attribution_guard_failed", error=str(e))
+
+        removed = self._unsourced_practice_sentences(response_text, court_cases)
+        for sentence in removed:
+            response_text = response_text.replace(sentence, "")
+        if removed:
+            from app.config.constants import PRACTICE_CLAIM_REMOVED_KA
+            response_text = (
+                self._EMPTY_BULLET_RE.sub("", response_text).rstrip()
+                + PRACTICE_CLAIM_REMOVED_KA
+            )
+        record_step(
+            "practice_attribution_guard",
+            available_cases=court_cases,
+            flagged=flagged,
+            removed=removed,
+            corrected_text=response_text,
+        )
         return response_text
 
     _ACTION_ADVICE_RE = re.compile(

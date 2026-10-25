@@ -144,6 +144,13 @@ DEADLINE_GUARD_KA = (
     "კანონში ან იურისტთან."
 )
 
+# Appended when a sentence that claimed court practice without naming a case
+# had to be removed. Worded so it makes no practice claim itself.
+PRACTICE_CLAIM_REMOVED_KA = (
+    "\n\n⚠️ შენიშვნა: პასუხიდან ამოღებულია წინადადება, რომელიც სასამართლოს "
+    "გადაწყვეტილებებს ეყრდნობოდა კონკრეტული საქმის ნომრის მითითების გარეშე."
+)
+
 # Returned when no answer could be produced at all (the lookup loop ran out
 # and the forced final answer came back empty). Never an empty bubble.
 COULD_NOT_COMPLETE_KA = (
