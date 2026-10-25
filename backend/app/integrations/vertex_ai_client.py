@@ -23,6 +23,12 @@ from app.config.constants import (
 )
 from app.config.request_context import get_byok_key
 from app.config.settings import settings
+from app.integrations.claude_client import (
+    claude_create_chat,
+    claude_generate,
+    claude_generate_stream,
+    is_claude_model,
+)
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -222,7 +228,12 @@ class _RetryingChat:
 
 
 class VertexAIClient:
-    """Wrapper around google-genai SDK for Gemini (Vertex AI or Gemini API)."""
+    """Wrapper around google-genai SDK for Gemini (Vertex AI or Gemini API).
+
+    generate, generate_stream, generate_json and create_chat hand a Claude
+    model id to claude_client when CLAUDE_MODELS_ENABLED is on; every other
+    call, and every call while the flag is off, is Gemini exactly as before.
+    """
 
     def __init__(self) -> None:
         # No client is held here on purpose — see _get_client.
@@ -264,6 +275,17 @@ class VertexAIClient:
 
         thinking_budget: 0 disables reasoning tokens — see _apply_thinking.
         """
+        model = model_name or await self._default_model()
+        if is_claude_model(model):
+            return await claude_generate(
+                prompt=prompt,
+                model_name=model,
+                system_instruction=system_instruction,
+                max_output_tokens=max_output_tokens,
+                json_output=response_mime_type == "application/json",
+                thinking_budget=thinking_budget,
+            )
+
         client = self._get_client()
 
         config = GenerateContentConfig(
@@ -278,7 +300,6 @@ class VertexAIClient:
         if response_mime_type:
             config.response_mime_type = response_mime_type
 
-        model = model_name or await self._default_model()
         _apply_thinking(config, thinking_budget, model)
 
         async def call():
@@ -325,6 +346,17 @@ class VertexAIClient:
         model_name: str | None = None,
     ):
         """Generate text using Gemini in a stream."""
+        model = model_name or await self._default_model()
+        if is_claude_model(model):
+            async for text in claude_generate_stream(
+                prompt=prompt,
+                model_name=model,
+                system_instruction=system_instruction,
+                max_output_tokens=max_output_tokens,
+            ):
+                yield text
+            return
+
         client = self._get_client()
 
         config = GenerateContentConfig(
@@ -337,7 +369,7 @@ class VertexAIClient:
             config.system_instruction = system_instruction
 
         response_stream = await client.aio.models.generate_content_stream(
-            model=model_name or await self._default_model(),
+            model=model,
             contents=prompt,
             config=config,
         )
@@ -373,8 +405,21 @@ class VertexAIClient:
             response_mime_type: e.g. "application/json" for JSON output.
 
         Returns:
-            An AsyncChat object (``client.aio.chats.create(...)``).
+            An AsyncChat object (``client.aio.chats.create(...)``), or a
+            ClaudeChat with the same send_message contract for a Claude model.
         """
+        model = model_name or await self._default_model()
+        if is_claude_model(model):
+            return claude_create_chat(
+                model_name=model,
+                history=history,
+                system_instruction=system_instruction,
+                tools=tools,
+                max_output_tokens=max_output_tokens,
+                json_output=response_mime_type == "application/json",
+                thinking_budget=thinking_budget,
+            )
+
         client = self._get_client()
 
         config = GenerateContentConfig(
@@ -390,7 +435,6 @@ class VertexAIClient:
         if response_mime_type:
             config.response_mime_type = response_mime_type
 
-        model = model_name or await self._default_model()
         _apply_thinking(config, thinking_budget, model)
 
         chat = client.aio.chats.create(

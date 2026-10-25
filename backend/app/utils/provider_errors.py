@@ -20,6 +20,10 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 
+import anthropic
+
+from app.integrations.claude_client import ClaudeKeyMissingError, ClaudeRefusalError
+
 
 class ProviderErrorKind(str, Enum):
     """What went wrong upstream, from the caller's point of view."""
@@ -27,6 +31,8 @@ class ProviderErrorKind(str, Enum):
     QUOTA_EXHAUSTED = "quota_exhausted"      # billing/limit — waiting helps
     PROVIDER_UNAVAILABLE = "provider_unavailable"  # overload — retrying helps
     INVALID_KEY = "invalid_key"              # the caller's own key — only they can fix it
+    CONTEXT_TOO_LONG = "context_too_long"    # prompt over the model's window — shorten it
+    MODEL_REFUSED = "model_refused"          # the model declined — rephrase or switch model
     UNKNOWN = "unknown"                      # a real bug — surface as 500
 
 
@@ -57,12 +63,15 @@ _QUOTA_WAIT_KA = "სცადეთ {seconds} წამში,"
 _QUOTA_WAIT_UNKNOWN_KA = "სცადეთ მოგვიანებით,"
 
 
-def _quota_message(retry_after_s: int | None) -> str:
-    wait = (
+def _wait_phrase(retry_after_s: int | None) -> str:
+    return (
         _QUOTA_WAIT_KA.format(seconds=retry_after_s)
         if retry_after_s else _QUOTA_WAIT_UNKNOWN_KA
     )
-    return _QUOTA_KA.format(wait=wait)
+
+
+def _quota_message(retry_after_s: int | None) -> str:
+    return _QUOTA_KA.format(wait=_wait_phrase(retry_after_s))
 _UNAVAILABLE_KA = (
     "AI სერვისი დროებით გადატვირთულია. გთხოვთ, სცადოთ რამდენიმე წამში."
 )
@@ -105,6 +114,32 @@ _INVALID_KEY_MARKERS = (
     "has not been used in project",
 )
 
+# Claude is reached with the caller's own ANTHROPIC key, so its messages name
+# that key — telling a Claude user to fix their Google key sends them to the
+# wrong settings field.
+_ANTHROPIC_KEY_MISSING_KA = (
+    "Claude-ის მოდელისთვის საჭიროა Anthropic-ის გასაღები. დაამატეთ იგი "
+    "პარამეტრებში ან აირჩიეთ Gemini-ს მოდელი."
+)
+_ANTHROPIC_INVALID_KEY_KA = (
+    "თქვენი Anthropic-ის გასაღები არ მუშაობს. გთხოვთ, შეამოწმოთ ან დაამატოთ "
+    "ახალი გასაღები პარამეტრებში."
+)
+_ANTHROPIC_QUOTA_KA = (
+    "თქვენი Anthropic-ის გასაღების ლიმიტი ამოიწურა. {wait} აირჩიეთ სხვა "
+    "მოდელი ან შეცვალეთ გასაღები პარამეტრებში."
+)
+_CONTEXT_TOO_LONG_KA = (
+    "საუბარი მოდელისთვის ზედმეტად გრძელი გახდა. დაიწყეთ ახალი საუბარი ან "
+    "შეამოკლეთ შეკითხვა."
+)
+_REFUSED_KA = (
+    "მოდელმა ამ შეკითხვაზე პასუხი არ გასცა. ჩამოაყალიბეთ იგი სხვაგვარად ან "
+    "აირჩიეთ სხვა მოდელი."
+)
+_ANTHROPIC_BILLING_MARKER = "credit balance"
+_ANTHROPIC_TOO_LONG_MARKER = "prompt is too long"
+
 _RETRY_AFTER_RE = re.compile(r"retryDelay['\"]?\s*[:=]\s*['\"]?(\d+)")
 _RETRY_IN_RE = re.compile(r"retry in ([\d.]+)s", re.IGNORECASE)
 
@@ -121,6 +156,93 @@ def _retry_after(text: str) -> int | None:
     return None
 
 
+def _header_retry_after(exc: anthropic.APIStatusError) -> int | None:
+    try:
+        return max(1, int(float(exc.response.headers.get("retry-after", ""))))
+    except ValueError:
+        return None
+
+
+def _classify_claude(exc: BaseException) -> ProviderError | None:
+    """Typed mapping for Claude failures; None when exc is not from Claude.
+
+    Typed rather than string-matched: the Anthropic SDK has one stable
+    exception per status, and its messages would trip the Gemini markers
+    below (an overload message mentions neither 503 nor UNAVAILABLE).
+    """
+    if isinstance(exc, ClaudeKeyMissingError):
+        return ProviderError(
+            kind=ProviderErrorKind.INVALID_KEY,
+            status_code=401,
+            error_code="anthropic_key_required",
+            message_ka=_ANTHROPIC_KEY_MISSING_KA,
+        )
+    if isinstance(exc, ClaudeRefusalError):
+        return ProviderError(
+            kind=ProviderErrorKind.MODEL_REFUSED,
+            status_code=422,
+            error_code="ai_refused",
+            message_ka=_REFUSED_KA,
+        )
+    if isinstance(exc, (anthropic.AuthenticationError, anthropic.PermissionDeniedError)):
+        return ProviderError(
+            kind=ProviderErrorKind.INVALID_KEY,
+            status_code=401,
+            error_code="anthropic_key_invalid",
+            message_ka=_ANTHROPIC_INVALID_KEY_KA,
+        )
+    if isinstance(exc, anthropic.RateLimitError):
+        retry_after_s = _header_retry_after(exc)
+        return ProviderError(
+            kind=ProviderErrorKind.QUOTA_EXHAUSTED,
+            status_code=503,
+            error_code="ai_quota_exhausted",
+            message_ka=_ANTHROPIC_QUOTA_KA.format(wait=_wait_phrase(retry_after_s)),
+            retry_after_s=retry_after_s,
+        )
+    if isinstance(exc, anthropic.RequestTooLargeError) or (
+        isinstance(exc, anthropic.BadRequestError)
+        and _ANTHROPIC_TOO_LONG_MARKER in str(exc)
+    ):
+        return ProviderError(
+            kind=ProviderErrorKind.CONTEXT_TOO_LONG,
+            status_code=400,
+            error_code="ai_context_too_long",
+            message_ka=_CONTEXT_TOO_LONG_KA,
+        )
+    if isinstance(exc, anthropic.BadRequestError) and _ANTHROPIC_BILLING_MARKER in str(exc):
+        return ProviderError(
+            kind=ProviderErrorKind.QUOTA_EXHAUSTED,
+            status_code=503,
+            error_code="ai_quota_exhausted",
+            message_ka=_ANTHROPIC_QUOTA_KA.format(wait=_QUOTA_WAIT_UNKNOWN_KA),
+        )
+    # Overload (529), other 5xx, timeouts and dropped connections.
+    if isinstance(exc, anthropic.APIConnectionError):
+        return ProviderError(
+            kind=ProviderErrorKind.PROVIDER_UNAVAILABLE,
+            status_code=503,
+            error_code="ai_unavailable",
+            message_ka=_UNAVAILABLE_KA,
+        )
+    if isinstance(exc, anthropic.APIStatusError) and exc.status_code >= 500:
+        return ProviderError(
+            kind=ProviderErrorKind.PROVIDER_UNAVAILABLE,
+            status_code=503,
+            error_code="ai_unavailable",
+            message_ka=_UNAVAILABLE_KA,
+            retry_after_s=_header_retry_after(exc),
+        )
+    if isinstance(exc, anthropic.AnthropicError):
+        return ProviderError(
+            kind=ProviderErrorKind.UNKNOWN,
+            status_code=500,
+            error_code="internal_server_error",
+            message_ka=_UNKNOWN_KA,
+        )
+    return None
+
+
 def classify(exc: BaseException) -> ProviderError:
     """Map an exception onto a user-facing provider error.
 
@@ -128,6 +250,10 @@ def classify(exc: BaseException) -> ProviderError:
     fault — those must keep surfacing as 500s, because turning a genuine bug
     into a soothing "try again later" is how defects get shipped.
     """
+    claude_error = _classify_claude(exc)
+    if claude_error is not None:
+        return claude_error
+
     text = f"{type(exc).__name__}: {exc}"
 
     # Checked before quota: a disabled-API error carries PERMISSION_DENIED and

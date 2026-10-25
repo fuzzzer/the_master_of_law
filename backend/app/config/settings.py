@@ -71,6 +71,27 @@ class Settings(BaseSettings):
                     "Leave empty to keep Vertex AI with ADC.",
     )
 
+    # ── Anthropic Claude (optional second provider, default off) ──
+    # Off by default so a deployment that never sets these behaves exactly as
+    # before: no Claude model is listed, and a model id starting "claude-" is
+    # passed to Gemini untouched. Embeddings always stay on Gemini — Claude
+    # offers none, and the corpus vectors are Gemini's.
+    claude_models_enabled: bool = Field(
+        default=False,
+        description="Offer Claude models in GET /api/v1/models and route any "
+                    "tier whose model id starts with 'claude-' to Anthropic.",
+    )
+    anthropic_api_key: str = Field(
+        default="",
+        description="Operator's own Anthropic key. Used for Claude calls only "
+                    "when BYOK is off; under BYOK the caller's key must pay.",
+    )
+    anthropic_key_header: str = Field(
+        default="X-Anthropic-Key",
+        description="Header carrying the caller's own Anthropic key "
+                    "(WebSocket: ?anthropic_api_key=).",
+    )
+
     # ── Vector Store (ChromaDB) ──────────────────────────────
     chroma_persist_dir: Path = Field(
         default=Path("../law_corpus/data/chroma"),

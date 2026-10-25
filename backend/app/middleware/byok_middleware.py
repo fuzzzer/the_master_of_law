@@ -32,12 +32,15 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.config.request_context import (
     ModelChoice,
+    reset_anthropic_key,
     reset_byok_key,
     reset_model_choice,
+    set_anthropic_key,
     set_byok_key,
     set_model_choice,
 )
 from app.config.settings import settings
+from app.integrations.claude_client import looks_like_anthropic_key
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -150,6 +153,18 @@ def extract_caller_key(scope: Scope) -> str:
     return _header(scope, settings.byok_key_header)
 
 
+def extract_anthropic_key(scope: Scope) -> str:
+    """The caller's Anthropic key, from the header (HTTP) or query (WebSocket).
+
+    The query parameter is named ``anthropic_api_key`` so the logger's
+    ``api_key=`` redaction already scrubs it from access-log request lines.
+    """
+    header = _header(scope, settings.anthropic_key_header)
+    if scope["type"] == "websocket":
+        return header or _query_param(scope, "anthropic_api_key")
+    return header
+
+
 async def _reject_http(send: Send, status: int, code: str, message_ka: str, message_en: str) -> None:
     import json
 
@@ -168,13 +183,13 @@ async def _reject_http(send: Send, status: int, code: str, message_ka: str, mess
     await send({"type": "http.response.body", "body": body})
 
 
-async def _reject_ws(send: Send, reason: str) -> None:
+async def _reject_ws(send: Send, reason: str, code: str = "byok_key_required") -> None:
     # 1008 = policy violation. The handshake is accepted first so the client
     # receives a readable reason instead of a bare connection failure.
     await send({"type": "websocket.accept"})
     await send({
         "type": "websocket.send",
-        "text": '{"type":"error","code":"byok_key_required","message":"%s"}' % reason,
+        "text": '{"type":"error","code":"%s","message":"%s"}' % (code, reason),
     })
     await send({"type": "websocket.close", "code": 1008})
 
@@ -194,9 +209,39 @@ class ByokMiddleware:
         # that carries one should be served on it either way.
         model_token = set_model_choice(extract_model_choice(scope))
         try:
-            await self._dispatch(scope, receive, send)
+            await self._bind_anthropic_key(scope, receive, send)
         finally:
             reset_model_choice(model_token)
+
+    async def _bind_anthropic_key(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """Bind the caller's Anthropic key, independently of the Google one.
+
+        Ignored entirely while Claude is switched off, so the header changes
+        nothing for a deployment that never enables it. Never required here:
+        only a request that actually lands on a Claude model needs it, and
+        that call fails with its own "add an Anthropic key" message.
+        """
+        if not settings.claude_models_enabled:
+            return await self._dispatch(scope, receive, send)
+
+        key = extract_anthropic_key(scope)
+        if key and not looks_like_anthropic_key(key):
+            if scope["type"] == "websocket":
+                return await _reject_ws(
+                    send, "Anthropic-ის გასაღები არასწორია.", code="anthropic_key_invalid",
+                )
+            return await _reject_http(
+                send, 401, "anthropic_key_invalid",
+                "Anthropic-ის გასაღები არასწორია. დარწმუნდით, რომ ჩასვით "
+                "Anthropic-ის გასაღები (იწყება „sk-ant-“-ით).",
+                "That does not look like an Anthropic API key (they start with sk-ant-).",
+            )
+
+        token = set_anthropic_key(key or None)
+        try:
+            await self._dispatch(scope, receive, send)
+        finally:
+            reset_anthropic_key(token)
 
     async def _dispatch(self, scope: Scope, receive: Receive, send: Send) -> None:
         # When BYOK is off the same header carries a legacy access key, which

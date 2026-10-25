@@ -95,3 +95,43 @@ async def validate_caller_key():
         )
 
     return KeyValidationResponse(valid=True, models_available=count)
+
+
+@router.get("/validate-anthropic", response_model=KeyValidationResponse)
+async def validate_caller_anthropic_key():
+    """Check the caller's Anthropic key (X-Anthropic-Key) before they rely on it.
+
+    Same reasoning as the Google check: listing models costs no tokens. Only
+    the caller's own key is checked — never the operator's — and the route
+    does not exist while Claude is switched off.
+    """
+    import anthropic
+
+    from app.config.request_context import get_anthropic_key
+    from app.integrations.claude_client import count_available_models
+    from app.utils.provider_errors import classify
+
+    if not settings.claude_models_enabled:
+        raise HTTPException(status_code=404, detail="Not Found")
+    if not get_anthropic_key():
+        return JSONResponse(
+            status_code=401,
+            content={
+                "error": "anthropic_key_required",
+                "message": "Anthropic-ის გასაღები არ არის მითითებული.",
+                "message_en": "No Anthropic API key supplied.",
+            },
+        )
+
+    try:
+        count = await count_available_models()
+    except anthropic.APIError as e:
+        err = classify(e)
+        if not err.is_provider_fault:
+            raise
+        return JSONResponse(
+            status_code=err.status_code,
+            content={"error": err.error_code, "message": err.message_ka},
+        )
+
+    return KeyValidationResponse(valid=True, models_available=count)

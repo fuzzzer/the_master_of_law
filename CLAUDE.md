@@ -52,14 +52,15 @@ Flutter App (fuzzzy_law, ge.fuzzycore.fuzzzylaw)
   │ HTTPS / WebSocket + RAGCollectionConfig (feature flags)
   ▼
 FastAPI Backend (~10K lines, 90 files)
-  │ 16 routers → 50 operations across 42 paths
+  │ 16 routers → 51 operations across 43 paths
   │ 22 services, 8 repositories, 9 models, 9 schemas
   │ BYOK (caller's own Google key) → Auth → Credit Gate → Rate Limit → Errors
   │ 5-stage RAG: Expand → Vector (per-collection quotas) → FullText → Merge → Rerank
   │ Grounding: article store (SQLite+FTS5) + get_article/browse_code tools + retrieval repair
   │ Gemini 3.1 Pro legal analysis + source-specific prompt injection
+  │ Optional Claude models per tier (CLAUDE_MODELS_ENABLED, default off; embeddings stay Gemini)
   │ Pipeline transparency traces (per-request step log + admin dashboard)
-  │ 659 tests across 43 test files — all pass (see below)
+  │ 702 tests across 44 test files — all pass (see below)
   ▼
 Data: PostgreSQL + ChromaDB (3 collections, 20,513 docs live) + Redis
   │ georgian_laws: 15,338 (12 legal codes)
@@ -74,7 +75,8 @@ Route (thin, HTTP only) → Service (business logic) → Repository (DB) → Mod
 
 ### Tech Stack (non-negotiable)
 - **Backend**: Python 3.11 + FastAPI + SQLAlchemy 2.x async
-- **AI SDK**: `google-genai` (NOT `google-cloud-aiplatform` or `vertexai`)
+- **AI SDK**: `google-genai` (NOT `google-cloud-aiplatform` or `vertexai`); `anthropic` only
+  for the optional Claude provider (`backend/app/integrations/claude_client.py`)
 - **Vector DB**: ChromaDB (local, 20,513 docs as reported by `/api/v1/health/ready`)
 - **Database**: PostgreSQL 16 via asyncpg
 - **Cache**: Redis 7
@@ -134,8 +136,12 @@ three tests fail on whatever else owns `:5432`. Start one with
 
 | Where it runs | Result |
 |---|---|
-| With corpus + test DB | 659 passed, 0 skipped |
-| Without the corpus (CI) | 647 passed, 12 skipped |
+| With corpus + test DB | 702 passed, 0 skipped |
+| Without the corpus (CI) | 690 passed, 12 skipped |
+
+Both rows add the 43 Claude-provider tests of 2026-10-24 (`tests/test_claude_provider.py`, mocked,
+no corpus needed) to the earlier counts; they were measured in a worktree without the corpus or
+article store, where the suite gives 620 passed, 81 skipped, 1 deselected (base: 577 / 81 / 1).
 
 The 12 skips are corpus-dependent tests, named one by one in
 `tests/conftest.py`; a name that stops matching fails the run rather than
