@@ -2,7 +2,7 @@
 
 Usage (key inline, never printed):
   FL_JUDGE_KEY=... python -I judge.py --results <dir> --store <article_store.db> [--judge gemini|claude] [--model M]
-      [--gap 8] [--worker scorecard] [--ids a,b]
+      [--gap 8] [--worker scorecard-judge] [--ids a,b]
   python -I judge.py --results <dir> --store <db> --judge packets   # write packets only, for an agent judge
 
 Judges every answer in <dir>/answers and <dir>/heldback that has status 200; results go to <dir>/judge/<id>.json,
@@ -128,7 +128,7 @@ def main():
     ap.add_argument("--judge", choices=["gemini", "claude", "packets"], default="gemini")
     ap.add_argument("--model")
     ap.add_argument("--gap", type=float, default=8)
-    ap.add_argument("--worker", default="scorecard")
+    ap.add_argument("--worker", default="scorecard-judge")
     ap.add_argument("--ids")
     args = ap.parse_args()
     res = Path(args.results)

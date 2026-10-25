@@ -3,9 +3,9 @@
  "heldback_share": 0.3,
  "method": "stratified by group; within a group, new ids sorted by sha256(seed:id); ids keep their set once assigned",
  "counts": {
-  "tuning": 59,
-  "heldback": 25,
-  "total": 84
+  "tuning": 67,
+  "heldback": 29,
+  "total": 96
  },
  "by_group": {
   "scenario-everyday": {
@@ -21,11 +21,11 @@
    "heldback": 4
   },
   "court-civil": {
-   "tuning": 13,
-   "heldback": 5
+   "tuning": 16,
+   "heldback": 7
   },
   "court-administrative": {
-   "tuning": 4,
+   "tuning": 6,
    "heldback": 2
   },
   "court-constitutional": {
@@ -33,15 +33,17 @@
    "heldback": 1
   },
   "court-criminal": {
-   "tuning": 10,
-   "heldback": 4
+   "tuning": 13,
+   "heldback": 6
   }
  },
  "tuning": [
   "ADMI-bs-331",
   "ADMI-bs-546",
+  "ADMI-bs-715-k-23",
   "ADMI-bs-754",
   "ADMI-bs-767",
+  "ADMI-bs-782-k-23",
   "CIVI-as-1008-2024",
   "CIVI-as-1042-2023",
   "CIVI-as-1064-2022",
@@ -50,9 +52,12 @@
   "CIVI-as-1465-2022",
   "CIVI-as-1548-2023",
   "CIVI-as-200-2022",
+  "CIVI-as-236-2024",
   "CIVI-as-437-2022",
   "CIVI-as-481-2023",
   "CIVI-as-501-2020",
+  "CIVI-as-638-2023",
+  "CIVI-as-890-2018",
   "CIVI-as-932-2020",
   "CIVI-as-989-2024",
   "CONS-cc_2_3_1609",
@@ -64,8 +69,11 @@
   "CRIM-1340ap-24",
   "CRIM-152ap-24",
   "CRIM-172ap-23",
+  "CRIM-195ap-25",
   "CRIM-201ap-24",
   "CRIM-311ap-23",
+  "CRIM-476ap-25",
+  "CRIM-742ap-25",
   "SC-ADM-1",
   "SC-ADM-2",
   "SC-CON-1",
@@ -101,16 +109,20 @@
  "heldback": [
   "ADMI-bs-654",
   "ADMI-bs-948",
+  "CIVI-as-1035-2024",
   "CIVI-as-1112-2022",
   "CIVI-as-1581-2022",
   "CIVI-as-193-2023",
   "CIVI-as-381-2024",
   "CIVI-as-443-2020",
+  "CIVI-as-931-2024",
   "CONS-cc_1_2_1934",
   "CRIM-1214ap-24",
   "CRIM-122ap-24",
   "CRIM-1331ap-24",
   "CRIM-18I-23",
+  "CRIM-62ap-25",
+  "CRIM-678ap-25",
   "SC-DEBT-1",
   "SC-EDGE-CERT-1",
   "SC-EDGE-FRAUD-1",
