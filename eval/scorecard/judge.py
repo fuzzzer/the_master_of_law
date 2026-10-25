@@ -145,6 +145,8 @@ def main():
     n = 0
     for sub in ("answers", "heldback"):
         for p in sorted((res / sub).glob("*.json")):
+            if p.name == "details.json":
+                continue
             rec = json.loads(p.read_text(encoding="utf-8"))
             iid = rec["id"]
             if (wanted and iid not in wanted) or iid not in items or rec.get("status") != 200:
