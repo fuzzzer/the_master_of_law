@@ -14,6 +14,7 @@ import pytest
 
 from app.services.article_store_service import (
     ArticleStoreService,
+    _legacy_norm,
     _normalize_article,
     _normalize_code,
 )
@@ -35,7 +36,14 @@ class TestNormalization:
         assert _normalize_article("მუხლი 48") == "48"
         assert _normalize_article("48") == "48"
         assert _normalize_article("48-ე") == "48"
-        assert _normalize_article("166¹") == "1661"
+        assert _normalize_article("166¹") == "166-1"
+        assert _normalize_article("მუხლი 166¹-ე") == "166-1"
+        assert _normalize_article("166-1") == "166-1"
+        assert _normalize_article("11¹") != _normalize_article("111")
+
+    def test_legacy_store_key(self):
+        assert _legacy_norm("166-1") == "1661"
+        assert _legacy_norm("48") == "48"
 
     def test_code_prefix_stripped(self):
         assert _normalize_code("საქართველოს შრომის კოდექსი") == "შრომის კოდექსი"

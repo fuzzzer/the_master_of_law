@@ -18,6 +18,7 @@ from pipeline.models.legal_article import LegalArticle
 from pipeline.models.legal_chunk import LegalChunk
 from pipeline.models.legal_document import LegalDocument
 from pipeline.utils.deduplicator import content_hash_short
+from pipeline.utils.georgian_text import normalise_superscripts
 from pipeline.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -87,15 +88,10 @@ class LegalChunker:
                 token_count=token_count,
             )]
 
-        # Case 2: Split at paragraph boundaries
+        # Case 2: Split at numbered-paragraph boundaries of the full text,
+        # so text before the first number and sub-points are never dropped.
         chunks: list[LegalChunk] = []
-        if article.paragraphs:
-            segments = [
-                f"{p.number}. {p.text}" for p in article.paragraphs
-            ]
-        else:
-            # Fall back to splitting at numbered lines
-            segments = self._split_by_paragraphs(content)
+        segments = self._split_by_paragraphs(content)
 
         # Group segments into chunks that fit within the token limit
         current_segments: list[str] = []
@@ -184,9 +180,9 @@ class LegalChunker:
 
         Example: https://matsne.gov.ge/ka/document/view/31702 + მუხლი 45
               → https://matsne.gov.ge/ka/document/view/31702#article_45
+              (მუხლი 45¹ → #article_45-1)
         """
-        import re
-        num_match = re.search(r"(\d+(?:-\d+)?)", article_number)
+        num_match = re.search(r"(\d+(?:-\d+)?)", normalise_superscripts(article_number))
         if num_match:
             return f"{source_url.split('?')[0]}#article_{num_match.group(1)}"
         return source_url

@@ -64,7 +64,20 @@ class LegalArticle(BaseModel):
     effective_date: Optional[date] = Field(default=None)
     is_repealed: bool = Field(
         default=False,
-        description="True if this article has been repealed (გაუქმებული)",
+        description="True if this article has been repealed (ამოღებულია)",
+    )
+    in_force: bool = Field(
+        default=True,
+        description=(
+            "False for a bracketed future wording that matsne marks "
+            "'ამოქმედდეს …' (enters into force later)"
+        ),
+    )
+
+    # ── Official source ──────────────────────────────────────
+    matsne_anchor: Optional[str] = Field(
+        default=None,
+        description="In-page anchor of the article on matsne, e.g. 'part_476'",
     )
 
 

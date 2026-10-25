@@ -70,20 +70,37 @@ def normalise_superscripts(text: str) -> str:
     return _SUPERSCRIPT_RE.sub(_replace, text)
 
 
-def normalise_georgian(text: str) -> str:
+def normalise_georgian(text: str, keep_superscripts: bool = False) -> str:
     """
     Full normalisation pass for Georgian legal text.
 
     1. NFC Unicode normalisation
     2. Whitespace collapse
-    3. Superscript digit normalisation
+    3. Superscript digit normalisation (skipped with ``keep_superscripts``,
+       which keeps the official "259¹" form of statute text)
     4. Strip BOM
     """
     text = text.lstrip("\ufeff")  # strip BOM
     text = unicodedata.normalize("NFC", text)
     text = normalise_whitespace(text)
+    if keep_superscripts:
+        return attach_superscripts(text)
     text = normalise_superscripts(text)
     return text
+
+
+_DETACHED_SUPERSCRIPT_RE = re.compile(r"(\S)\s+([⁰¹²³⁴⁵⁶⁷⁸⁹]+)")
+_DIGIT_TO_SUPERSCRIPT = str.maketrans("0123456789", "⁰¹²³⁴⁵⁶⁷⁸⁹")
+
+
+def to_superscript(digits: str) -> str:
+    """``"12"`` → ``"¹²"`` (non-digits are left as they are)."""
+    return digits.translate(_DIGIT_TO_SUPERSCRIPT)
+
+
+def attach_superscripts(text: str) -> str:
+    """Join superscripts separated from their base by markup spacing: ``"44 ²."`` → ``"44²."``"""
+    return _DETACHED_SUPERSCRIPT_RE.sub(r"\1\2", text)
 
 
 # ── Legal numbering helpers ──────────────────────────────────

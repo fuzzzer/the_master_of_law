@@ -132,3 +132,28 @@ class TestChunkValidator:
         )
         warnings = validate_chunk(chunk)
         assert any("too short" in w for w in warnings)
+
+
+class TestSplitKeepsAllText:
+    """A split article must not lose its opening text or its sub-points."""
+
+    def test_preamble_and_sub_points_survive_split(self) -> None:
+        from pipeline.models.legal_article import ArticleParagraph
+
+        body = "ამ მუხლის მიზნებისთვის:\n" + "\n".join(
+            f"{i}. პუნქტი {i} " + "ტექსტი " * 40 + f"\nა) ქვეპუნქტი {i};" for i in range(1, 8)
+        )
+        article = _make_article("5", body)
+        article.paragraphs = [ArticleParagraph(number=str(i), text=f"პუნქტი {i}") for i in range(1, 8)]
+        chunks = LegalChunker(max_tokens=600, overlap=OverlapStrategy(ratio=0.0)).chunk_document(
+            _make_document([article])
+        )
+        assert len(chunks) > 1
+        joined = "\n".join(c.content_ka for c in chunks)
+        assert "ამ მუხლის მიზნებისთვის:" in joined
+        for i in range(1, 8):
+            assert f"ა) ქვეპუნქტი {i};" in joined
+
+    def test_superscript_article_link(self) -> None:
+        url = LegalChunker._build_article_url("https://matsne.gov.ge/ka/document/view/29962", "მუხლი 259¹")
+        assert url.endswith("#article_259-1")

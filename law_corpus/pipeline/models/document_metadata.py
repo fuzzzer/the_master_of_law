@@ -80,6 +80,12 @@ class DocumentMetadata(BaseModel):
         default="consolidated",
         description="'consolidated' or a specific historical version identifier",
     )
+    publication_id: Optional[str] = Field(
+        default=None, description="matsne consolidated publication number (?publication=N)"
+    )
+    version_date: Optional[date] = Field(
+        default=None, description="Date of the consolidated version, as listed by matsne"
+    )
 
     # ── Status ───────────────────────────────────────────────
     is_in_force: bool = Field(

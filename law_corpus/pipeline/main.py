@@ -62,7 +62,8 @@ def scrape(
 
         async with SessionManager() as session:
             scraper = MatsneScraper(session)
-            results = await scraper.scrape_all(priorities=priority or None)
+            law_ids = [l.strip() for l in laws.split(",")] if laws else None
+            results = await scraper.scrape_all(priorities=priority or None, law_ids=law_ids)
             console.print(f"[green]✓[/green] Scraped {len(results)} documents")
 
     _run(_scrape())

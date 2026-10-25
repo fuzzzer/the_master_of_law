@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin, urlparse, parse_qs, urlencode
+from urllib.robotparser import RobotFileParser
 
 from bs4 import BeautifulSoup
 
@@ -40,6 +41,8 @@ BASE_URL = "https://matsne.gov.ge"
 CONSOLIDATED_LABEL = "კონსოლიდირებული ვერსია (საბოლოო)"
 # Label for the original (initial) version — we must NEVER have this.
 ORIGINAL_LABEL = "პირველადი სახე"
+# Opening notice of an act that is no longer in force ("lost force").
+LOST_FORCE_LABEL = "ძალადაკარგულია"
 
 SEED_LAWS: list[dict[str, Any]] = [
     {"document_id": "constitution", "title_ka": "საქართველოს კონსტიტუცია", "title_en": "Constitution of Georgia", "url": "https://matsne.gov.ge/ka/document/view/30346", "priority": "P0", "document_type": "constitution"},
@@ -54,10 +57,15 @@ SEED_LAWS: list[dict[str, Any]] = [
     {"document_id": "labour_code", "title_ka": "შრომის კოდექსი", "title_en": "Labour Code", "url": "https://matsne.gov.ge/ka/document/view/1155567", "priority": "P1", "document_type": "code"},
     {"document_id": "entrepreneurial_law", "title_ka": "მეწარმეთა შესახებ საქართველოს კანონი", "title_en": "Law on Entrepreneurs", "url": "https://matsne.gov.ge/ka/document/view/5765049", "priority": "P1", "document_type": "law"},
     {"document_id": "consumer_rights_law", "title_ka": "მომხმარებელთა უფლებების დაცვის შესახებ", "title_en": "Consumer Rights Law", "url": "https://matsne.gov.ge/ka/document/view/3484942", "priority": "P1", "document_type": "law"},
-    {"document_id": "personal_data_law", "title_ka": "პერსონალურ მონაცემთა დაცვის შესახებ", "title_en": "Personal Data Protection Law", "url": "https://matsne.gov.ge/ka/document/view/1561437", "priority": "P2", "document_type": "law"},
+    {"document_id": "personal_data_law", "title_ka": "პერსონალურ მონაცემთა დაცვის შესახებ", "title_en": "Personal Data Protection Law", "url": "https://matsne.gov.ge/ka/document/view/5827307", "priority": "P2", "document_type": "law"},
     {"document_id": "election_code", "title_ka": "საარჩევნო კოდექსი", "title_en": "Election Code", "url": "https://matsne.gov.ge/ka/document/view/1557168", "priority": "P2", "document_type": "code"},
     {"document_id": "customs_code", "title_ka": "საბაჟო კოდექსი", "title_en": "Customs Code", "url": "https://matsne.gov.ge/ka/document/view/4596066", "priority": "P2", "document_type": "code"},
 ]
+
+
+class RobotsDisallowedError(Exception):
+    """Raised when matsne.gov.ge's robots.txt disallows a URL for our user agent."""
+    pass
 
 
 class ConsolidatedVersionError(Exception):
@@ -73,6 +81,19 @@ class MatsneScraper(BaseScraper):
         self._cache_dir = settings.raw_html_dir
         self._metadata_dir = settings.raw_metadata_dir
         self._tracker = ProgressTracker("scraper")
+        self._robots: RobotFileParser | None = None
+
+    async def _ensure_robots(self) -> RobotFileParser:
+        """Fetch robots.txt once; adopt its Crawl-delay for matsne.gov.ge."""
+        if self._robots is None:
+            response = await self.session.get(f"{BASE_URL}/robots.txt")
+            robots = RobotFileParser()
+            robots.parse(response.text.splitlines())
+            delay = robots.crawl_delay(settings.scrape_user_agent)
+            if delay:
+                self.session.rate_limiter.honour_crawl_delay(urlparse(BASE_URL).hostname, float(delay))
+            self._robots = robots
+        return self._robots
 
     async def discover_laws(self, priority: str | None = None) -> list[dict]:
         laws = list(SEED_LAWS)
@@ -98,6 +119,9 @@ class MatsneScraper(BaseScraper):
                 self._cache_path(document_id).unlink(missing_ok=True)
 
         consolidated_url = self._to_consolidated_url(url)
+        robots = await self._ensure_robots()
+        if not robots.can_fetch(settings.scrape_user_agent, consolidated_url):
+            raise RobotsDisallowedError(f"robots.txt disallows {consolidated_url}")
         logger.info("Scraping consolidated version: %s", consolidated_url)
         response = await self.session.get(consolidated_url)
         raw_bytes = response.content
@@ -115,6 +139,9 @@ class MatsneScraper(BaseScraper):
         logger.info(
             "Verified %s: %s", document_id, version_label or "consolidated ✓",
         )
+        lost_force = self.extract_version_info(text)["lost_force_notice"]
+        if lost_force:
+            logger.warning("%s is no longer in force: %s", document_id, lost_force)
 
         result = ScrapeResult(
             url=consolidated_url,
@@ -133,10 +160,16 @@ class MatsneScraper(BaseScraper):
         self._write_cache(document_id, result)
         return result
 
-    async def scrape_all(self, priorities: list[str] | None = None) -> list[ScrapeResult]:
+    async def scrape_all(
+        self,
+        priorities: list[str] | None = None,
+        law_ids: list[str] | None = None,
+    ) -> list[ScrapeResult]:
         laws = await self.discover_laws()
         if priorities:
             laws = [l for l in laws if l.get("priority") in priorities]
+        if law_ids:
+            laws = [l for l in laws if l["document_id"] in law_ids]
 
         results: list[ScrapeResult] = []
         for law in laws:
@@ -164,7 +197,7 @@ class MatsneScraper(BaseScraper):
                 results.append(result)
                 self._tracker.mark_completed(doc_id)
                 self._save_law_metadata(law, result)
-            except ConsolidatedVersionError as exc:
+            except (ConsolidatedVersionError, RobotsDisallowedError) as exc:
                 logger.error("Version error for %s: %s", doc_id, exc)
                 self._tracker.mark_failed(doc_id, str(exc))
             except Exception as exc:
@@ -227,6 +260,38 @@ class MatsneScraper(BaseScraper):
         return None
 
     @staticmethod
+    def extract_version_info(html_text: str) -> dict[str, Any]:
+        """Consolidated version shown on a matsne page.
+
+        Returns ``publication_id`` (matsne's revision number), ``version_date``
+        (ISO date the consolidated version is dated, as listed by matsne),
+        ``document_number`` and, for an act that has lost force,
+        ``lost_force_notice`` plus ``replaced_by_matsne_id``; values are
+        ``None`` when the page lacks them.
+        """
+        soup = BeautifulSoup(html_text, "lxml")
+        info: dict[str, Any] = {
+            "publication_id": None, "version_date": None, "document_number": None,
+            "lost_force_notice": None, "replaced_by_matsne_id": None,
+        }
+        first_paragraph = soup.select_one("#maindoc p")
+        if first_paragraph is not None and LOST_FORCE_LABEL in first_paragraph.get_text():
+            info["lost_force_notice"] = first_paragraph.get_text(" ", strip=True)
+            link = first_paragraph.find("a", class_="DocumentLink", href=True)
+            replaced = re.match(r"document:(\d+)", link["href"]) if link else None
+            info["replaced_by_matsne_id"] = replaced.group(1) if replaced else None
+        selected = soup.select_one("#publication-switcher option[selected]")
+        if selected is not None:
+            info["publication_id"] = selected.get("value")
+            day = re.match(r"(\d{2})/(\d{2})/(\d{4})", selected.get_text(strip=True))
+            if day:
+                info["version_date"] = f"{day.group(3)}-{day.group(2)}-{day.group(1)}"
+        number = soup.find(attrs={"title": "დოკუმენტის ნომერი"})
+        if number is not None:
+            info["document_number"] = number.get_text(strip=True)
+        return info
+
+    @staticmethod
     def _extract_title(soup: BeautifulSoup) -> str | None:
         h1 = soup.find("h1")
         return h1.get_text(strip=True) if h1 else None
@@ -270,6 +335,7 @@ class MatsneScraper(BaseScraper):
             "url": result.url, "document_id": doc_id, "title": result.discovered_title,
             "scraped_at": result.scraped_at.isoformat(), "content_hash": result.content_hash,
             "version": "consolidated_final",
+            **self.extract_version_info(result.content.decode("utf-8", errors="replace")),
         }, ensure_ascii=False, indent=2), encoding="utf-8")
 
     def _save_law_metadata(self, law: dict, result: ScrapeResult) -> None:
@@ -278,6 +344,7 @@ class MatsneScraper(BaseScraper):
             "scraped_at": result.scraped_at.isoformat(),
             "content_hash": result.content_hash,
             "version": "consolidated_final",
+            **self.extract_version_info(result.content.decode("utf-8", errors="replace")),
         }
         (self._metadata_dir / f"{law['document_id']}.json").write_text(
             json.dumps(merged, ensure_ascii=False, indent=2), encoding="utf-8")

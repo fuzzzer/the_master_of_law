@@ -70,6 +70,10 @@ User Message + RAGCollectionConfig (feature flags)
 - **Article store (mechanism A)** — SQLite+FTS5 `law_corpus/data/georgian_laws/article_store.db`
   (12 codes, 5,325 articles, 18,314 paragraphs), built by
   `law_corpus/scripts/build_article_store.py` (pipeline step; also in incremental update).
+  Schema version 2 (2026-10-25) adds `official_url` (matsne `#part_N` anchor), `version_date`,
+  `in_force` (future wordings stored apart) and per-code `version_url`/`retrieved_at`; superscript
+  articles are keyed `166-1` (older stores: `1661`, still read). Check with
+  `law_corpus/scripts/verify_article_store.py`, freshness with `check_freshness.py`.
   Backend access: `article_store_service` (`get_article(code, article, paragraph)`,
   `fts_search`, `get_code_full_text`). Deterministic (code, article, paragraph) → full text + matsne anchor.
 - **Navigation tools (mechanism B)** — Gemini tools `get_article` / `browse_code`

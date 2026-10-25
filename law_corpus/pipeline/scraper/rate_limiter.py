@@ -43,7 +43,7 @@ class RateLimiter:
         # Tracks the monotonic time of the last request per host.
         self._last_request: dict[str, float] = defaultdict(float)
         # Current delay per host (increases on errors, resets on success).
-        self._current_delay: dict[str, float] = defaultdict(lambda: min_delay)
+        self._current_delay: dict[str, float] = defaultdict(lambda: self.min_delay)
         # Lock per host to serialise access.
         self._locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
@@ -58,6 +58,13 @@ class RateLimiter:
                 logger.debug("Rate limiter: sleeping %.1fs for %s", wait, host)
                 await asyncio.sleep(wait)
             self._last_request[host] = time.monotonic()
+
+    def honour_crawl_delay(self, host: str, seconds: float) -> None:
+        """Raise the minimum delay to a robots.txt ``Crawl-delay`` (never lowers it)."""
+        if seconds > self.min_delay:
+            self.min_delay = seconds
+            self._current_delay[host] = max(self._current_delay[host], seconds)
+            logger.info("Rate limiter: %s asks for %.0fs between requests", host, seconds)
 
     def report_success(self, host: str) -> None:
         """Reset the delay for *host* after a successful request."""
