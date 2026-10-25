@@ -275,7 +275,13 @@ class _ApiKeyTileState extends State<_ApiKeyTile> {
 
   Future<void> _change() async {
     await context.push('/profile/api-key');
-    if (mounted) setState(() => _key = _readKey());
+    // A block, not an arrow: an arrow would return the Future to setState,
+    // which asserts in debug builds, and the row kept the old key.
+    if (mounted) {
+      setState(() {
+        _key = _readKey();
+      });
+    }
   }
 
   @override

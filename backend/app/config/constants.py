@@ -101,6 +101,12 @@ GEMINI_TEMPERATURE = 1
 GEMINI_MAX_OUTPUT_TOKENS = 8192
 GEMINI_TOP_P = 0.8
 
+# ── Time limits ──────────────────────────────────────────────
+# One model request once hung for 27 minutes: the SDK sets no limit of its
+# own, so a stalled connection held the turn (and the user) indefinitely.
+MODEL_REQUEST_TIMEOUT_S = 120   # one HTTP request to the model provider
+TURN_TIMEOUT_S = 300            # a whole chat turn: plan, lookups, answer, checks
+
 # ── Guardrails ───────────────────────────────────────────────
 
 GUARDRAIL_ENABLED: bool = True
@@ -110,7 +116,9 @@ GUARDRAIL_CONFIDENCE_THRESHOLD: float = 0.7
 # disabled. The old value was 50, which is fine for the ANSWER and fatal on a
 # thinking model, where reasoning is drawn from the same allowance. Sized so
 # that re-enabling thinking here could not silently empty the response again.
-GUARDRAIL_MAX_OUTPUT_TOKENS: int = 256
+# 512 since the classifier also writes a short Georgian lawful alternative
+# for a refused request.
+GUARDRAIL_MAX_OUTPUT_TOKENS: int = 512
 
 # There is deliberately NO GUARDRAIL_MODEL here. One was declared and pinned
 # at "gemini-2.0-flash", imported by guardrail_service, and then never read —
@@ -136,6 +144,21 @@ DEADLINE_GUARD_KA = (
     "\n\n⚠️ სამართლებრივ ქმედებებს კანონით დადგენილი ვადები აქვს — "
     "მოქმედების დაწყებამდე აუცილებლად გადაამოწმეთ შესაბამისი ვადა "
     "კანონში ან იურისტთან."
+)
+
+# Appended when a sentence that claimed court practice without naming a case
+# had to be removed. Worded so it makes no practice claim itself.
+PRACTICE_CLAIM_REMOVED_KA = (
+    "\n\n⚠️ შენიშვნა: პასუხიდან ამოღებულია წინადადება, რომელიც სასამართლოს "
+    "გადაწყვეტილებებს ეყრდნობოდა კონკრეტული საქმის ნომრის მითითების გარეშე."
+)
+
+# Returned when no answer could be produced at all (the lookup loop ran out
+# and the forced final answer came back empty). Never an empty bubble.
+COULD_NOT_COMPLETE_KA = (
+    "ბოდიში, ამ კითხვაზე პასუხის მომზადება ბოლომდე ვერ მოვახერხე. "
+    "გთხოვთ, სცადოთ თავიდან ან კითხვა უფრო მოკლედ და კონკრეტულად "
+    "ჩამოაყალიბოთ. თუ საქმე სასწრაფოა ან ვადა იწურება, მიმართეთ ადვოკატს."
 )
 
 LEGAL_DISCLAIMER_KA = (

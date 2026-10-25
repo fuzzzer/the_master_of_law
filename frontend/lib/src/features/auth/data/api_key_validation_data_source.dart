@@ -24,9 +24,10 @@ enum ApiKeyCheck {
 /// asks Google directly and costs no tokens, so the answer is available while
 /// the user still has the key on their clipboard.
 class ApiKeyValidationDataSource {
-  ApiKeyValidationDataSource() : _httpClient = sl.get<FuzzzyLawHttpClient>();
+  ApiKeyValidationDataSource({HttpClientInterface? httpClient})
+    : _httpClient = httpClient ?? sl.get<FuzzzyLawHttpClient>();
 
-  final FuzzzyLawHttpClient _httpClient;
+  final HttpClientInterface _httpClient;
 
   Future<ApiKeyCheck> validate() async {
     final base = dotenv.env['API_BASE_URL'] ?? 'http://127.0.0.1:8000';
@@ -37,6 +38,13 @@ class ApiKeyValidationDataSource {
       return response.data?['valid'] == true
           ? ApiKeyCheck.valid
           : ApiKeyCheck.invalid;
+    } on UnauthorizedException {
+      // The http client turns Dio's 401/403 into these before they reach
+      // here, so without these two clauses a key Google refused read as
+      // "server unreachable" and sent the reader to check their network.
+      return ApiKeyCheck.invalid;
+    } on ForbiddenException {
+      return ApiKeyCheck.invalid;
     } on DioException catch (e) {
       final status = e.response?.statusCode;
       if (status == 401 || status == 403) return ApiKeyCheck.invalid;

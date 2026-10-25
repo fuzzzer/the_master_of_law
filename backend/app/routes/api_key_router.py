@@ -52,6 +52,10 @@ async def validate_caller_key():
     good key until the first real request fails — by which point the user has
     typed a legal question and is watching a spinner. Listing models costs no
     tokens and no quota, so the check is free to run at paste time.
+
+    A Google Cloud key (Vertex AI express mode) cannot list models — Vertex
+    answers 401 "API keys are not supported by this API" for that call — so
+    it is checked with a token count instead, which is equally free.
     """
     key = get_byok_key()
     if not key:
@@ -64,13 +68,18 @@ async def validate_caller_key():
             },
         )
 
-    from app.integrations.vertex_ai_client import create_genai_client
+    from app.integrations.vertex_ai_client import create_genai_client, is_ai_studio_key
 
     try:
         client = create_genai_client()
         count = 0
-        async for _ in await client.aio.models.list():
-            count += 1
+        if is_ai_studio_key(key):
+            async for _ in await client.aio.models.list():
+                count += 1
+        else:
+            from app.services.model_config_service import cheap_model
+
+            await client.aio.models.count_tokens(model=await cheap_model(), contents="ok")
     except Exception as e:  # noqa: BLE001
         from app.utils.provider_errors import classify
 
@@ -83,10 +92,13 @@ async def validate_caller_key():
                 status_code=401,
                 content={
                     "error": "byok_key_invalid",
-                    "message": "გასაღები არ მუშაობს. შეამოწმეთ, რომ სწორად დააკოპირეთ "
-                               "და რომ Generative Language API ჩართულია.",
-                    "message_en": "The key was rejected by Google. Check it was copied "
-                                  "correctly and that the Generative Language API is enabled.",
+                    "message": "გასაღები არ მუშაობს. Google AI Studio-ს გასაღებისთვის "
+                               "შეამოწმეთ, რომ სრულად დააკოპირეთ და Generative Language API "
+                               "ჩართულია; Google Cloud-ის გასაღებისთვის — რომ Vertex AI API "
+                               "ჩართულია.",
+                    "message_en": "The key was rejected by Google. For an AI Studio key, check "
+                                  "it was copied whole and the Generative Language API is "
+                                  "enabled; for a Google Cloud key, that the Vertex AI API is enabled.",
                 },
             )
         return JSONResponse(

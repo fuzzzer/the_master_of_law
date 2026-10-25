@@ -293,19 +293,23 @@ class TestPracticeAttributionGuard:
         gemini.generate = AsyncMock()
         svc = AgentPipelineService(gemini=gemini, citation_svc=MagicMock())
         text = "სასამართლო პრაქტიკის თანახმად (ას-543-2020), ეს დაუშვებელია."
-        out = await svc._practice_attribution_guard(text, [])
+        chunks = [{"metadata": {"_collection": "court_practice", "case_id": "ას-543-2020"}}]
+        out = await svc._practice_attribution_guard(text, chunks)
         assert out == text
         gemini.generate.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_no_court_context_untouched(self):
+    async def test_no_court_context_claim_is_restated_as_general(self):
+        """With no rulings to cite, a practice claim may not stand (2026-10-24 eval)."""
         gemini = MagicMock()
-        gemini.generate = AsyncMock()
+        gemini.generate = AsyncMock(return_value="კანონის მიხედვით, ეს დაუშვებელია.")
         svc = AgentPipelineService(gemini=gemini, citation_svc=MagicMock())
         text = "სასამართლო პრაქტიკის თანახმად, ეს დაუშვებელია."
-        out = await svc._practice_attribution_guard(text, [])
-        assert out == text
-        gemini.generate.assert_not_awaited()
+        with patch("app.services.agent_pipeline_service.record_step"):
+            out = await svc._practice_attribution_guard(text, [])
+        assert out == "კანონის მიხედვით, ეს დაუშვებელია."
+        prompt = gemini.generate.await_args.kwargs["prompt"]
+        assert "No court decision is available" in prompt
 
 
 class TestFaithfulnessPass:

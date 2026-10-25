@@ -33,6 +33,7 @@ class ProviderErrorKind(str, Enum):
     INVALID_KEY = "invalid_key"              # the caller's own key — only they can fix it
     CONTEXT_TOO_LONG = "context_too_long"    # prompt over the model's window — shorten it
     MODEL_REFUSED = "model_refused"          # the model declined — rephrase or switch model
+    TIMEOUT = "timeout"                      # a request or the whole turn ran too long
     UNKNOWN = "unknown"                      # a real bug — surface as 500
 
 
@@ -81,9 +82,25 @@ _UNKNOWN_KA = "დაფიქსირდა შეცდომა. გთხ�
 # what they must do. Left unclassified this arrives as "an error occurred",
 # and the user has no way to learn that their key expired.
 _INVALID_KEY_KA = (
-    "თქვენი Google-ის გასაღები არ მუშაობს. გთხოვთ, შეამოწმოთ ან დაამატოთ ახალი "
-    "გასაღები პარამეტრებში."
+    "თქვენი Google-ის გასაღები არ მუშაობს. შეამოწმეთ, რომ ეს Google AI Studio-ს "
+    "(იწყება „AIza“-თი) ან Google Cloud-ის Vertex AI გასაღებია და სრულადაა ჩასმული, "
+    "ან დაამატეთ ახალი გასაღები პარამეტრებში."
 )
+
+_TIMEOUT_KA = (
+    "პასუხის მომზადებას ზედმეტად დიდი დრო დასჭირდა და ის შეწყდა. "
+    "გთხოვთ, სცადოთ თავიდან — შეგიძლიათ კითხვა უფრო მოკლედ ჩამოაყალიბოთ."
+)
+
+
+class TurnTimeoutError(Exception):
+    """A chat turn ran past its overall time limit (TURN_TIMEOUT_S)."""
+
+
+def _is_timeout(exc: BaseException) -> bool:
+    """The turn's own cap, or an HTTP client timeout (httpx ReadTimeout etc.)."""
+    return isinstance(exc, (TurnTimeoutError, TimeoutError)) or "Timeout" in type(exc).__name__
+
 
 # Quota and overload BOTH surface as 429 on the Gemini Developer API, so the
 # status code alone cannot separate them — "exceeded your current quota"
@@ -267,6 +284,14 @@ def classify(exc: BaseException) -> ProviderError:
             status_code=401,
             error_code="byok_key_invalid",
             message_ka=_INVALID_KEY_KA,
+        )
+
+    if _is_timeout(exc):
+        return ProviderError(
+            kind=ProviderErrorKind.TIMEOUT,
+            status_code=504,
+            error_code="ai_timeout",
+            message_ka=_TIMEOUT_KA,
         )
 
     if any(m in text for m in _QUOTA_MARKERS):

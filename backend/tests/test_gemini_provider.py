@@ -31,11 +31,28 @@ def test_create_genai_client_uses_vertex_by_default():
 
 
 def test_create_genai_client_uses_api_key_when_set():
-    with patch.object(vac.settings, "gemini_api_key", "test-key"), \
+    key = "AIza" + "T" * 35  # an AI Studio key goes to the Gemini Developer API
+    with patch.object(vac.settings, "gemini_api_key", key), \
          patch.object(vac.genai, "Client") as client_cls:
         vac.create_genai_client()
 
-    assert client_cls.call_args.kwargs == {"api_key": "test-key"}
+    kwargs = client_cls.call_args.kwargs
+    assert kwargs["api_key"] == key
+    assert "vertexai" not in kwargs
+
+
+def test_every_client_has_a_request_time_limit():
+    """The SDK sets no timeout; one request once hung for 27 minutes."""
+    from app.config.constants import MODEL_REQUEST_TIMEOUT_S
+
+    for key in ("", "test-key"):
+        vac.reset_client_cache()
+        with patch.object(vac.settings, "gemini_api_key", key), \
+             patch.object(vac.genai, "Client") as client_cls:
+            vac.create_genai_client()
+        options = client_cls.call_args.kwargs["http_options"]
+        assert options.timeout == MODEL_REQUEST_TIMEOUT_S * 1000
+    vac.reset_client_cache()
 
 
 def test_both_clients_share_the_factory():

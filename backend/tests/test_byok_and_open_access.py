@@ -10,7 +10,7 @@ keep that from regressing.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
@@ -51,7 +51,17 @@ class TestClientResolution:
         set_byok_key(KEY_A)
         with patch.object(mod.genai, "Client") as ctor:
             mod.create_genai_client()
-        ctor.assert_called_once_with(api_key=KEY_A)
+        ctor.assert_called_once_with(api_key=KEY_A, http_options=ANY)
+
+    def test_google_cloud_key_goes_to_vertex(self, clean_context):
+        """A Google Cloud key is refused by AI Studio; it must use Vertex AI."""
+        mod = self._fresh_factory()
+        set_byok_key("AQ.Ab8RN6" + "x" * 40)
+        with patch.object(mod.genai, "Client") as ctor:
+            mod.create_genai_client()
+        ctor.assert_called_once_with(
+            vertexai=True, api_key="AQ.Ab8RN6" + "x" * 40, http_options=ANY,
+        )
 
     def test_two_callers_get_two_clients(self, clean_context):
         """The regression that would silently bill user A for user B's chats."""
@@ -82,7 +92,7 @@ class TestClientResolution:
             st.gemini_api_key = "AIza" + "S" * 35
             with patch.object(mod.genai, "Client") as ctor:
                 mod.create_genai_client()
-        ctor.assert_called_once_with(api_key="AIza" + "S" * 35)
+        ctor.assert_called_once_with(api_key="AIza" + "S" * 35, http_options=ANY)
 
     def test_falls_back_to_vertex(self, clean_context):
         """No key anywhere → Vertex with ADC, the original behaviour."""
@@ -93,7 +103,9 @@ class TestClientResolution:
             st.google_cloud_location = "global"
             with patch.object(mod.genai, "Client") as ctor:
                 mod.create_genai_client()
-        ctor.assert_called_once_with(vertexai=True, project="proj", location="global")
+        ctor.assert_called_once_with(
+            vertexai=True, project="proj", location="global", http_options=ANY,
+        )
 
 
 class TestClientsAreNotPinned:
@@ -132,10 +144,25 @@ class TestKeyShape:
         "AIza",
         "AIza" + "A" * 34,                       # one char short
         "AIza" + "A" * 36,                       # one char long
-        "BIza" + "A" * 35,                       # wrong prefix
         "AIza" + "A" * 30 + " " + "A" * 4,       # pasted with whitespace
     ])
     def test_rejects_everything_else(self, bad):
+        from app.middleware.byok_middleware import looks_like_google_key
+
+        assert not looks_like_google_key(bad)
+
+    @pytest.mark.parametrize("cloud", [
+        "AQ.Ab8RN6" + "x" * 40,                  # Vertex AI express-mode shape
+        "BIza" + "A" * 35,                       # not AI Studio: tried as a Cloud key
+    ])
+    def test_accepts_google_cloud_keys(self, cloud):
+        """A Google Cloud (Vertex AI) key is accepted and checked live."""
+        from app.middleware.byok_middleware import looks_like_google_key
+
+        assert looks_like_google_key(cloud)
+
+    @pytest.mark.parametrize("bad", ["https://aistudio.google.com/apikey", "short.key"])
+    def test_rejects_urls_and_fragments(self, bad):
         from app.middleware.byok_middleware import looks_like_google_key
 
         assert not looks_like_google_key(bad)
@@ -185,6 +212,13 @@ class TestByokGating:
         )
         assert r.status_code == 401
         assert r.json()["error"] == "byok_key_invalid"
+        assert "AIza" in r.json()["message"] and "Vertex AI" in r.json()["message"]
+
+    def test_missing_key_message_names_both_accepted_keys(self):
+        client = self._client(byok_required=True, byok_key_header="X-API-Key")
+        message = client.post(CHAT_PATH, json={"message": "hi"}).json()["message"]
+        assert "Google AI Studio" in message and "aistudio.google.com/apikey" in message
+        assert "Google Cloud" in message and "Vertex AI" in message
 
     def test_disabled_byok_passes_everything_through(self):
         """With BYOK off the header is a legacy access key, not a credential."""

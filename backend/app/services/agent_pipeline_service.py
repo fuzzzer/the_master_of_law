@@ -28,7 +28,7 @@ from typing import Any
 
 from google.genai import types
 
-from app.config.constants import GEMINI_TEMPERATURE
+from app.config.constants import COULD_NOT_COMPLETE_KA, GEMINI_TEMPERATURE, TURN_TIMEOUT_S
 from app.config.settings import settings
 from app.integrations.vertex_ai_client import VertexAIClient, get_vertex_ai_client
 from app.prompts.agent_planning import AGENT_PLANNER, CITATION_VERIFIER, FAITHFULNESS_CHECKER
@@ -37,6 +37,7 @@ from app.services.rag_retrieval_service import RAGRetrievalService, get_rag_serv
 from app.services.trace_service import record_step
 from app.tools.case_tools import ALWAYS_TOOLS, CASE_CREATION_TOOLS, FULL_CASE_TOOLS
 from app.utils.logger import get_logger
+from app.utils.provider_errors import TurnTimeoutError
 from app.services.model_config_service import cheap_model, strong_model
 
 logger = get_logger(__name__)
@@ -45,7 +46,15 @@ logger = get_logger(__name__)
 
 MAX_VERIFY_ITERATIONS = 2
 MAX_TOOL_CALLS_PER_MESSAGE = 5
+# With a whole code in the prompt every lookup round resends it (~75k tokens
+# for the Labour Code), and the articles are already there to read.
+MAX_TOOL_CALLS_WITH_FULL_CODE = 2
 PLANNER_HISTORY_WINDOW = 6  # last N messages for planning
+FINAL_ANSWER_NUDGE = (
+    "The lookup budget for this question is used up. Write the final answer to the "
+    "user's question NOW, without calling any tools, using ONLY the law texts above. "
+    "Where a point could not be verified in them, say so plainly."
+)
 
 
 # ── Data classes ─────────────────────────────────────────────
@@ -154,9 +163,45 @@ class AgentPipelineService:
             Redis client for tool confirmation tracking.
         is_case_chat : bool
             Whether this is a case intake conversation.
-        """
-        history = conversation_history or []
 
+        Raises TurnTimeoutError when the whole turn runs past TURN_TIMEOUT_S;
+        callers turn it into a Georgian message via provider_errors.classify.
+        """
+        try:
+            return await asyncio.wait_for(
+                self._run(
+                    user_message=user_message,
+                    history=conversation_history or [],
+                    system_prompt=system_prompt,
+                    rag_collections=rag_collections,
+                    case_file_id=case_file_id,
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    db=db,
+                    redis_client=redis_client,
+                    is_case_chat=is_case_chat,
+                ),
+                timeout=TURN_TIMEOUT_S,
+            )
+        except TimeoutError as exc:
+            logger.warning("pipeline_turn_timeout", limit_s=TURN_TIMEOUT_S)
+            record_step("turn_timeout", limit_s=TURN_TIMEOUT_S)
+            raise TurnTimeoutError(f"turn exceeded {TURN_TIMEOUT_S} s") from exc
+
+    async def _run(
+        self,
+        user_message: str,
+        history: list[dict[str, str]],
+        system_prompt: str,
+        rag_collections: list[str] | None,
+        case_file_id: str | None,
+        user_id: str | None,
+        conversation_id: str | None,
+        db: Any,
+        redis_client: Any,
+        is_case_chat: bool,
+    ) -> PipelineResult:
+        """The three phases plus the generation contract, without the time cap."""
         # ── Phase 1: Plan ────────────────────────────────────
         plan = await self._phase_1_plan(user_message, history)
         logger.info(
@@ -189,6 +234,15 @@ class AgentPipelineService:
             redis_client=redis_client,
             is_case_chat=is_case_chat,
         )
+        if response_text == COULD_NOT_COMPLETE_KA:
+            # Nothing to verify or repair; guards would only bolt warnings
+            # onto an apology.
+            return PipelineResult(
+                response_text=response_text,
+                chunks=chunks,
+                plan=plan,
+                tool_results=tool_results,
+            )
 
         # ── Phase 3: Verify ──────────────────────────────────
         verified_response, verified_citations, iterations = await self._phase_3_verify(
@@ -216,6 +270,7 @@ class AgentPipelineService:
         verified_response = self._apply_uncertainty_policy(
             verified_response, plan, chunks, tool_results, full_code_injected
         )
+        verified_response = await self._cited_terms_guard(verified_response, user_message)
         verified_response = self._apply_deadline_guard(verified_response)
         verified_response = self._repair_matsne_links(
             verified_response, chunks, verified_citations
@@ -345,16 +400,16 @@ class AgentPipelineService:
             logger.info("pipeline_phase_2_rag_done", chunks=len(chunks))
 
         # Stage A2: whole-code injection (grounding mechanism C, flag-gated).
-        # When the full code is in context, statute chunks are redundant —
-        # court practice and threshold chunks stay.
+        # Chunks of the injected code are redundant; every other code's
+        # chunks, court practice and thresholds stay — a question about
+        # property bought with salaries still needs the Civil Code.
         full_code_context = ""
         if settings.full_code_injection and plan.needs_rag:
             full_code_context = await self._build_full_code_context(user_message)
             if full_code_context:
                 chunks = [
                     c for c in chunks
-                    if (c.get("metadata") or {}).get("_collection") != "georgian_laws"
-                    or (c.get("metadata") or {}).get("chunk_type") == "threshold"
+                    if not self._chunk_in_injected_code(c, full_code_context)
                 ]
 
         # Stage B: Create native chat session with history + tools
@@ -395,7 +450,11 @@ class AgentPipelineService:
         tool_results: list[ToolResultInfo] = []
         response_text = ""
 
-        for iteration in range(MAX_TOOL_CALLS_PER_MESSAGE + 1):
+        max_tool_rounds = (
+            MAX_TOOL_CALLS_WITH_FULL_CODE if full_code_context
+            else MAX_TOOL_CALLS_PER_MESSAGE
+        )
+        for iteration in range(max_tool_rounds + 1):
             response = await chat.send_message(full_message)
 
             # Collect ALL function calls in this turn. Gemini emits parallel
@@ -490,7 +549,55 @@ class AgentPipelineService:
         if not response_text and response.text:
             response_text = response.text
 
+        if not response_text:
+            response_text = await self._force_final_answer(
+                user_message=user_message,
+                system_prompt=system_prompt,
+                sources="\n".join(message_parts[:-1]),
+                tool_results=tool_results,
+            )
+
         return response_text, chunks, tool_results, bool(full_code_context)
+
+    async def _force_final_answer(
+        self,
+        user_message: str,
+        system_prompt: str,
+        sources: str,
+        tool_results: list[ToolResultInfo],
+    ) -> str:
+        """The answer must never come back empty.
+
+        The tool loop can spend every lookup turn without writing a reply, or
+        the model can return no text at all (an exhausted output budget). One
+        tool-free call then answers from what was already gathered. If even
+        that yields no text, the user gets a clear "could not complete"
+        message instead of silence.
+        """
+        looked_up = "\n\n".join(
+            f"{t.result.get('code', '')}, {t.result.get('article', '')}\n"
+            f"   URL: {t.result.get('url', '')}\n"
+            f"   {str(t.result.get('content', ''))[:2000]}"
+            for t in tool_results
+            if t.result.get("found") and t.result.get("content")
+        )
+        parts = [sources] if sources else []
+        if looked_up:
+            parts.append(f"LAW ARTICLES LOOKED UP WITH TOOLS:\n{looked_up}\n")
+        parts.append(FINAL_ANSWER_NUDGE)
+        parts.append(user_message)
+        record_step("final_answer_forced", tool_calls=len(tool_results))
+        # A provider failure here propagates on purpose: its own Georgian
+        # message (quota, overload, bad key) says more than a generic one.
+        text = await self.gemini.generate(
+            prompt="\n".join(parts),
+            system_instruction=system_prompt or None,
+            model_name=await strong_model(),
+        )
+        if text and text.strip():
+            return text
+        record_step("answer_not_completed")
+        return COULD_NOT_COMPLETE_KA
 
     async def _execute_tool(
         self,
@@ -546,6 +653,11 @@ class AgentPipelineService:
         Only unambiguous domain→code mappings are injected
         (FULL_CODE_INJECTION_DOMAIN_CODES) and only when every code fully fits
         the char budget — a truncated code would defeat the guarantee.
+
+        A question that also touches another domain gets no injection: "we
+        both worked and bought a flat with our salaries" is a family-property
+        question, and the whole Labour Code would only crowd it out (and cost
+        a full code's tokens on every lookup round).
         """
         from app.config.constants import FULL_CODE_INJECTION_DOMAIN_CODES
         from app.services.article_store_service import get_article_store_service
@@ -553,7 +665,7 @@ class AgentPipelineService:
 
         classification = KeywordClassifier().classify(user_message)
         codes = FULL_CODE_INJECTION_DOMAIN_CODES.get(classification.primary, [])
-        if not codes or classification.confidence <= 0.1:
+        if not codes or classification.confidence <= 0.1 or classification.secondary:
             return ""
 
         store = get_article_store_service()
@@ -592,6 +704,15 @@ class AgentPipelineService:
             codes=[i["code"] for i in injected],
         )
         return "\n\n".join(parts)
+
+    @staticmethod
+    def _chunk_in_injected_code(chunk: dict, full_code_context: str) -> bool:
+        """True for a statute chunk whose article is already in the injected code."""
+        meta = chunk.get("metadata") or {}
+        if meta.get("_collection") != "georgian_laws" or meta.get("chunk_type") == "threshold":
+            return False
+        url = meta.get("article_url", "")
+        return bool(url) and f"URL: {url}\n" in full_code_context
 
     async def _handle_get_article(self, args: dict) -> dict:
         """get_article tool — deterministic full-article lookup via the article store."""
@@ -1177,25 +1298,60 @@ class AgentPipelineService:
             record_step("language_purity_fixups", replaced=applied)
         return fixed
 
+    # A sentence that claims what court practice says. Quoting the statutory
+    # cassation grounds ("uniform court practice", "departs from practice")
+    # is not a claim and is exempt.
     _PRACTICE_CLAIM_RE = re.compile(
-        r"სასამართლო პრაქტიკ|პრაქტიკის (?:თანახმად|მიხედვით)|პრაქტიკით დადგენილ"
-        r"|უზენაესმა|უზენაესი სასამართლოს განმარტ"
+        r"სასამართლო(?:ს)?\s+პრაქტიკ|პრაქტიკის\s+(?:თანახმად|მიხედვით)|პრაქტიკით\s+დადგენილ"
+        r"|დამკვიდრებულ\w*\s+(?:პრაქტიკ|განმარტებ|მიდგომ)"
+        r"|უზენაეს(?:ი|მა)\s+სასამართლო(?:ს|მ)?\s+(?:\w+\s+)?(?:განმარტ|პრაქტიკ|მიდგომ|პოზიცი)"
+        r"|საკასაციო\s+პალატ\w*\s+(?:\w+\s+)?(?:განმარტ|პრაქტიკ|მიდგომ)"
     )
+    _PRACTICE_ADMISSIBILITY_RE = re.compile(r"ერთგვაროვან|ჩამოყალიბ|გადახვევ|გადაუხვ")
+    # A full stop ends a sentence only before whitespace, so links
+    # (matsne.gov.ge) and article numbers (48.8) stay whole.
+    _SENTENCE_END_RE = re.compile(r"[.!?](?=\s|$)|\n")
+    _EMPTY_BULLET_RE = re.compile(r"(?m)^[ \t]*(?:[-*•]|\d+\.)[ \t*]*$\n?")
+
+    @classmethod
+    def _sentence_around(cls, text: str, pos: int) -> str:
+        start = max((m.end() for m in cls._SENTENCE_END_RE.finditer(text, 0, pos)), default=0)
+        end_match = cls._SENTENCE_END_RE.search(text, pos)
+        end = end_match.end() if end_match else len(text)
+        return text[start:end].strip()
+
+    @classmethod
+    def _unsourced_practice_sentences(cls, text: str, known_cases: list[str]) -> list[str]:
+        """Practice-claim sentences that name no case from the retrieved rulings."""
+        from app.services.citation_service import CASE_NUMBER_PATTERN
+
+        known = set(known_cases)
+        flagged: list[str] = []
+        for m in cls._PRACTICE_CLAIM_RE.finditer(text):
+            sentence = cls._sentence_around(text, m.start())
+            if cls._PRACTICE_ADMISSIBILITY_RE.search(sentence):
+                continue
+            if any(c in known for c in CASE_NUMBER_PATTERN.findall(sentence)):
+                continue
+            if sentence not in flagged:
+                flagged.append(sentence)
+        return flagged
 
     async def _practice_attribution_guard(
         self, response_text: str, chunks: list[dict]
     ) -> str:
-        """Court-practice claims must name their case or stop claiming practice.
+        """"Court practice says" must name a real case from the retrieved rulings.
 
-        When the response asserts "სასამართლო პრაქტიკის თანახმად…" without any
-        case number while court decisions ARE in context, one Flash pass either
-        attaches the supporting case №s from context (only if they truly
-        support the claim) or rephrases the claim without practice attribution.
+        Every sentence that claims court practice without naming one of the
+        cases actually in context gets one Flash pass: attach the supporting
+        case number (only if it truly supports the claim) or restate the
+        sentence as a general legal point without claiming practice. With no
+        rulings in context the second is the only option — in the 2026-10-24
+        evaluation the app "quoted" the Supreme Court against the Civil Code
+        with no ruling to cite. Whatever still claims practice afterwards is
+        removed, and the answer says that something was removed.
         """
-        if not response_text or not self._PRACTICE_CLAIM_RE.search(response_text):
-            return response_text
-        from app.services.citation_service import CASE_NUMBER_PATTERN
-        if CASE_NUMBER_PATTERN.search(response_text):
+        if not response_text:
             return response_text
         court_cases = sorted({
             (c.get("metadata") or {}).get("case_id", "")
@@ -1203,21 +1359,27 @@ class AgentPipelineService:
             if (c.get("metadata") or {}).get("_collection")
             in ("court_practice", "grand_chamber")
         } - {""})
-        if not court_cases:
+        flagged = self._unsourced_practice_sentences(response_text, court_cases)
+        if not flagged:
             return response_text
 
+        options = (
+            "If one of these court decisions, which are actually in its context, "
+            f"genuinely supports the sentence, attach its number: {', '.join(court_cases)} "
+            "(e.g. „(საქმე №ას-543-2020)\"). Otherwise restate it "
+            if court_cases else
+            "No court decision is available in its context, so restate it "
+        )
+        flagged_list = "\n".join(f"- {f}" for f in flagged)
         prompt = (
-            "You are an editor for a Georgian legal AI. The response below claims court "
-            "practice (e.g. „სასამართლო პრაქტიკის თანახმად…\") WITHOUT citing any case "
-            "number. The court decisions actually available in its context are: "
-            f"{', '.join(court_cases)}.\n"
-            "For every practice-based claim: if one of these cases genuinely supports it "
-            "(you saw its text in the response's reasoning), attach that case number "
-            "(e.g. „(საქმე №ას-543-2020)\"); otherwise rephrase the sentence so it does "
-            "NOT claim court practice (state it as a general legal principle or drop it). "
-            "NEVER invent a case number. Keep everything else unchanged, respond in "
-            "Georgian, return the full corrected response text only.\n\n"
-            f"═══ RESPONSE ═══\n{response_text}"
+            "You are an editor for a Georgian legal AI. The sentences listed below claim "
+            "what court practice says (e.g. „სასამართლო პრაქტიკის თანახმად…\") WITHOUT "
+            f"naming a court case. For each one: {options}"
+            "as a general legal point that does NOT claim court practice or the Supreme "
+            "Court's view, or drop it. A sentence that only says no ruling is available may "
+            "stay as such, worded without „პრაქტიკა\". NEVER invent a case number. Keep everything else "
+            "unchanged, respond in Georgian, return the full corrected response text only."
+            f"\n\n═══ SENTENCES ═══\n{flagged_list}\n\n═══ RESPONSE ═══\n{response_text}"
         )
         try:
             repaired = await self.gemini.generate(
@@ -1226,15 +1388,113 @@ class AgentPipelineService:
                 model_name=await cheap_model(),
             )
             if repaired and repaired.strip():
-                record_step(
-                    "practice_attribution_guard",
-                    available_cases=court_cases,
-                    corrected_text=repaired,
-                )
-                return repaired
+                response_text = repaired
         except Exception as e:
             logger.warning("practice_attribution_guard_failed", error=str(e))
+
+        removed = self._unsourced_practice_sentences(response_text, court_cases)
+        for sentence in removed:
+            response_text = response_text.replace(sentence, "")
+        if removed:
+            from app.config.constants import PRACTICE_CLAIM_REMOVED_KA
+            response_text = (
+                self._EMPTY_BULLET_RE.sub("", response_text).rstrip()
+                + PRACTICE_CLAIM_REMOVED_KA
+            )
+        record_step(
+            "practice_attribution_guard",
+            available_cases=court_cases,
+            flagged=flagged,
+            removed=removed,
+            corrected_text=response_text,
+        )
         return response_text
+
+    # A deadline or amount: "14 დღის", "ერთი თვის", "3 წლის", "500 ლარი", "5%".
+    _NUMBER_WORDS = {
+        "ერთ": "1", "ორ": "2", "სამ": "3", "ოთხ": "4", "ხუთ": "5", "ექვს": "6",
+        "შვიდ": "7", "რვა": "8", "ცხრა": "9", "ათ": "10", "თოთხმეტ": "14",
+        "თხუთმეტ": "15", "ოც": "20", "ოცდაათ": "30", "სამოც": "60", "ას": "100",
+    }
+    _TERM_RE = re.compile(
+        r"(?<!\w)(\d+(?:[.,]\d+)?|" + "|".join(sorted(_NUMBER_WORDS, key=len, reverse=True))
+        + r")(?:ი|ის|ით)?\s*-?\s*(დღ|კვირ|თვ|წელ|წლ|საათ|ლარ|პროცენტ|%)\w*"
+    )
+    _ASKS_FOR_TERM_RE = re.compile(
+        r"ვადა|როდემდე|რამდენ|რა\s+დროში|რა\s+თანხ|რა\s+ოდენობ|რამხელა"
+    )
+
+    @classmethod
+    def _terms_in(cls, text: str) -> set[tuple[str, str]]:
+        """Normalised (number, unit) pairs: "ერთი თვის" and "1 თვე" are equal."""
+        out = set()
+        for m in cls._TERM_RE.finditer(text):
+            number = cls._NUMBER_WORDS.get(m.group(1), m.group(1).replace(",", "."))
+            unit = "წ" if m.group(2) in ("წელ", "წლ") else ("%" if m.group(2) == "პროცენტ" else m.group(2))
+            out.add((number, unit))
+        return out
+
+    async def _cited_terms_guard(self, response_text: str, user_message: str) -> str:
+        """A deadline or amount in a cited article must reach the answer.
+
+        When the user asks "by when" or "how much", or the answer advises a
+        legal step, and the articles the answer itself cites contain day,
+        month, year or money terms that the answer never states, one Flash
+        pass adds the relevant ones from the article text (the 2026-10-24
+        evaluation found answers that left a deadline out although the cited
+        article held it). Terms are taken only from the cited articles.
+        """
+        if not response_text:
+            return response_text
+        if not (
+            self._ASKS_FOR_TERM_RE.search(user_message)
+            or self._ACTION_ADVICE_RE.search(response_text)
+        ):
+            return response_text
+        stated = self._terms_in(response_text)
+        from app.services.article_store_service import get_article_store_service
+        store = get_article_store_service()
+        cited_terms: set[tuple[str, str]] = set()
+        missing: list[str] = []
+        for cit in self.citation_svc.extract_citations(response_text)[:8]:
+            if cit.get("code_name", "Unknown") == "Unknown":
+                continue
+            art = store.get_article(cit["code_name"], cit["article_number"])
+            if not art:
+                continue
+            content = art["content_ka"]
+            for m in self._TERM_RE.finditer(content):
+                cited_terms |= self._terms_in(m.group(0))
+                missing.append(
+                    f"- {art['code_name']}, {art['article_number']}: „{m.group(0)}\" — "
+                    f"{self._sentence_around(content, m.start())[:300]}"
+                )
+        # Stating any term of the cited articles counts: the guard catches the
+        # answer that names the article and then leaves its number out.
+        if not missing or cited_terms & stated:
+            return response_text
+        missing = list(dict.fromkeys(missing))[:12]
+        prompt = (
+            "You are an editor for a Georgian legal AI. The answer below cites articles "
+            "that contain these deadlines or amounts, but the answer states none of them:\n"
+            + "\n".join(missing)
+            + "\n\nIf one of them answers the user's question or governs a step the answer "
+            "advises, state it explicitly, exactly as in the article, in the paragraph that "
+            "cites that article. Leave out terms that are not relevant to this user. Change "
+            "nothing else, respond in Georgian, return the full corrected answer only."
+            f"\n\n═══ USER QUESTION ═══\n{user_message}\n\n═══ ANSWER ═══\n{response_text}"
+        )
+        try:
+            repaired = await self.gemini.generate(
+                prompt=prompt, temperature=0.2, model_name=await cheap_model(),
+            )
+        except Exception as e:
+            logger.warning("cited_terms_guard_failed", error=str(e))
+            return response_text
+        if not repaired or not repaired.strip():
+            return response_text
+        record_step("cited_terms_added", terms=missing, corrected_text=repaired)
+        return repaired
 
     _ACTION_ADVICE_RE = re.compile(
         r"სასამართლო|საჩივ|სარჩელ|გაასაჩივრ|იჩივლ|მიმართ"

@@ -222,3 +222,57 @@ class TestGuardrailCallContract:
         decision = await guardrail_service.classify("რა ამინდია დღეს?")
         assert decision.category == "off_topic"
         assert decision.confidence == 0.95
+
+
+class TestRefusalOffersALawfulWay:
+    """A refused request must say what the person can lawfully do, and point to
+    a lawyer (2026-10-24/25: the canned one-liner scored 0 of 1 on this)."""
+
+    def test_refusal_carries_the_classifiers_alternative_and_a_lawyer(self):
+        d = GuardrailDecision(
+            category="harmful", confidence=0.9, should_proceed=False,
+            lawful_alternative="ქირის შემოსავალი დეკლარაციით გადაიხადეთ შეღავათიანი განაკვეთით.",
+        )
+        text = d.response_text
+        assert "ვერ დაგეხმარებით" in text
+        assert "შეღავათიანი განაკვეთით" in text
+        assert "ადვოკატ" in text
+
+    def test_without_one_a_general_lawful_alternative_stands_in(self):
+        d = GuardrailDecision(category="harmful", confidence=0.9, should_proceed=False)
+        assert "კანონიერი გზები" in d.response_text
+        assert "ადვოკატ" in d.response_text
+
+    @pytest.mark.asyncio
+    async def test_the_alternative_is_read_from_the_classifier(self, guardrail_service):
+        guardrail_service._gemini.generate.return_value = json.dumps({
+            "category": "harmful", "confidence": 0.95,
+            "lawful_alternative": "მიმართეთ აღსრულების ბიუროს განვადებისთვის.",
+        })
+        decision = await guardrail_service.classify("როგორ დავმალო ქონება აღმასრულებლისგან?")
+        assert decision.should_proceed is False
+        assert "განვადებისთვის" in decision.response_text
+
+    @pytest.mark.asyncio
+    async def test_other_categories_never_carry_an_alternative(self, guardrail_service):
+        guardrail_service._gemini.generate.return_value = json.dumps({
+            "category": "legal", "confidence": 0.9, "lawful_alternative": "x",
+        })
+        decision = await guardrail_service.classify("სამსახურიდან გამათავისუფლეს")
+        assert decision.lawful_alternative == ""
+        assert decision.response_text is None
+
+    def test_prompt_asks_for_an_alternative_only_for_harmful(self):
+        from app.prompts.guardrail import GUARDRAIL_CLASSIFIER
+
+        rendered = GUARDRAIL_CLASSIFIER.render(user_message="ტესტი")
+        assert '"lawful_alternative"' in rendered
+        assert 'ONLY for "harmful"' in rendered
+
+
+def test_chat_prompt_refuses_with_a_lawful_way_and_names_when_to_see_a_lawyer():
+    from app.prompts.chat import CHAT_SYSTEM
+
+    t = CHAT_SYSTEM.template
+    assert "UNLAWFUL REQUESTS" in t and "lawful way to the legitimate goal" in t
+    assert "LAWYER" in t and "ადვოკატი" in t and "იურიდიული დახმარების სამსახური" in t

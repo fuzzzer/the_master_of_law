@@ -80,8 +80,8 @@ class _ApiKeyPromptPageState extends State<ApiKeyPromptPage> {
           if (mounted) {
             setState(
               () => _error =
-                  'გასაღები არ მუშაობს. შეამოწმეთ, სრულად დააკოპირეთ '
-                  'თუ არა Google AI Studio-დან.',
+                  'გასაღები არ მუშაობს. შეამოწმეთ, რომ Google AI Studio-ს '
+                  'ან Google Cloud-ის გასაღები სრულად ჩასვით, და სცადეთ ხელახლა.',
             );
           }
         case ApiKeyCheck.unreachable:

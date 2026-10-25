@@ -156,3 +156,25 @@ class TestGlobalRegistry:
         )
         assert "Criminal Code" in rendered
         assert "Article 11" in rendered
+
+
+class TestChatSystemBalance:
+    """Case predictions leaned to the user (2026-10-24 eval: 12 wrong outcomes,
+    four of them prosecutor appeals the app said would fail)."""
+
+    def test_outcome_rule_asks_for_the_other_sides_case_and_honest_odds(self):
+        from app.prompts.chat import CHAT_SYSTEM
+
+        t = CHAT_SYSTEM.template
+        assert "OUTCOME ASSESSMENT" in t
+        assert "strongest arguments of the OTHER side" in t
+        assert "prosecutor" in t
+        assert "likelihood with honest uncertainty" in t
+        assert "Never promise a result" in t
+
+    def test_outcome_rule_is_general_not_item_specific(self):
+        from app.prompts.chat import CHAT_SYSTEM
+
+        t = CHAT_SYSTEM.template
+        for specific in ("ოჯახში ძალადობ", "126", "პენსი", "ჯარიმა"):
+            assert specific not in t

@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from app.config.request_context import get_byok_key
 from app.config.settings import settings
 from app.integrations.chroma_client import ChromaClient, get_chroma_client
 from app.integrations.vertex_embedding_client import get_embedding_client
@@ -143,27 +144,54 @@ class LawBrowserService:
         self, query: str, domain: str | None = None, top_k: int = 20,
     ) -> list[dict[str, Any]]:
         """
-        Search laws by query text.
+        Search laws by query text (free, no key needed).
 
-        Uses vector search for semantic matching.
+        Uses vector search for semantic matching when a model credential is
+        available. The search is free and needs no key, but turning the query
+        into a vector is a model call: on the open-access server a caller
+        without a key has no credential at all, and every search used to come
+        back empty. Without one, or when vector search fails or finds nothing,
+        the article store's keyword search answers instead.
         """
-        try:
-            client = get_embedding_client()
-            embedding = client.embed_query(query)
-        except Exception as e:
-            logger.error("search_embedding_failed", error=str(e))
-            return []
+        if self._can_embed():
+            try:
+                embedding = get_embedding_client().embed_query(query)
+                results = self.chroma.vector_search(
+                    query_embedding=embedding,
+                    top_k=top_k,
+                    collections=["georgian_laws"],
+                    where={"code_name": domain} if domain else None,
+                )
+                if results:
+                    return results
+            except Exception as e:
+                logger.warning("search_embedding_failed", error=str(e))
+        return self._keyword_search(query, domain, top_k)
 
-        where = None
-        if domain:
-            where = {"code_name": domain}
+    @staticmethod
+    def _can_embed() -> bool:
+        """False when no credential could pay for the query embedding."""
+        return not settings.byok_required or bool(get_byok_key())
 
-        return self.chroma.vector_search(
-            query_embedding=embedding,
-            top_k=top_k,
-            collections=["georgian_laws"],
-            where=where,
-        )
+    @staticmethod
+    def _keyword_search(query: str, domain: str | None, top_k: int) -> list[dict[str, Any]]:
+        from app.services.article_store_service import get_article_store_service
+
+        hits = get_article_store_service().keyword_search(query, limit=top_k, code=domain)
+        return [
+            {
+                "chunk_id": h["article_id"],
+                "content": h["content_ka"],
+                "metadata": {
+                    "code_name": h["code_name"],
+                    "article_number": h["article_number"],
+                    "article_title": h["article_title"] or "",
+                    "article_url": h["article_url"],
+                    "search": "keyword",
+                },
+            }
+            for h in hits
+        ]
 
     def _load_code_index(self) -> dict:
         if self._code_index is not None:

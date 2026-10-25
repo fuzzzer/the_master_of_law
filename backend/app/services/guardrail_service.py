@@ -39,8 +39,23 @@ GUARDRAIL_RESPONSES = {
         "ბოდიში, მე მხოლოდ სამართლებრივ საკითხებში შემიძლია დახმარება. "
         "გთხოვთ, აღწერეთ თქვენი იურიდიული სიტუაცია."
     ),
-    "harmful": "ბოდიში, ამ ტიპის მოთხოვნაზე პასუხის გაცემა არ შემიძლია.",
+    "harmful": (
+        "ბოდიში, კანონის დარღვევაში — მაგალითად, დოკუმენტის გაყალბებაში, შემოსავლის ან "
+        "ქონების დამალვაში, ვინმეს მოტყუებაში ან ზიანის მიყენებაში — ვერ დაგეხმარებით."
+    ),
 }
+
+# A refusal alone leaves the person with nothing to do. When the classifier
+# gave no situation-specific alternative, this general one stands in.
+HARMFUL_GENERAL_ALTERNATIVE_KA = (
+    "სამაგიეროდ, შემიძლია აგიხსნათ, რას გავალდებულებთ კანონი თქვენს სიტუაციაში და "
+    "რა კანონიერი გზები გაქვთ — მაგალითად, შეღავათები, განვადება, შესაბამისი "
+    "უწყებისთვის მიმართვა ან დავის კანონიერად გადაწყვეტა."
+)
+HARMFUL_LAWYER_KA = (
+    "თუ სამართლებრივი რისკის წინაშე დგახართ, მიმართეთ ადვოკატს ან იურიდიული "
+    "დახმარების სამსახურს."
+)
 
 
 @dataclass(frozen=True)
@@ -48,11 +63,21 @@ class GuardrailDecision:
     category: str       # "legal" | "greeting" | "off_topic" | "harmful"
     confidence: float | None   # 0.0 – 1.0; None = classifier unavailable
     should_proceed: bool  # True = run RAG pipeline, False = return canned response
+    lawful_alternative: str = ""  # harmful only: what the person may lawfully do instead
 
     @property
     def response_text(self) -> str | None:
-        """Returns a canned response for non-legal categories, or None if legal."""
-        return GUARDRAIL_RESPONSES.get(self.category)
+        """Returns a canned response for non-legal categories, or None if legal.
+
+        A refused request also says what the person can lawfully do and
+        points them to a lawyer: a bare one-line refusal was all the 2026-10-24
+        evaluation's unlawful requests got.
+        """
+        canned = GUARDRAIL_RESPONSES.get(self.category)
+        if self.category != "harmful":
+            return canned
+        alternative = self.lawful_alternative.strip() or HARMFUL_GENERAL_ALTERNATIVE_KA
+        return f"{canned}\n\n{alternative}\n\n{HARMFUL_LAWYER_KA}"
 
 
 class GuardrailService:
@@ -113,6 +138,9 @@ class GuardrailService:
             parsed = json.loads(raw)
             category = parsed.get("category", "legal")
             confidence = float(parsed.get("confidence", 0.5))
+            alternative = parsed.get("lawful_alternative") or ""
+            if not isinstance(alternative, str):
+                alternative = ""
         except Exception as e:
             return self._fail_open("exception", str(e))
 
@@ -132,6 +160,7 @@ class GuardrailService:
             category=category,
             confidence=confidence,
             should_proceed=should_proceed,
+            lawful_alternative=alternative[:600] if category == "harmful" else "",
         )
 
     @staticmethod

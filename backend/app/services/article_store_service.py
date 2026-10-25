@@ -233,6 +233,45 @@ class ArticleStoreService:
             return []
         return [self._row_to_article(r) for r in rows]
 
+    def keyword_search(
+        self, query: str, limit: int = 20, code: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Keyword search that needs no model call, ranked by BM25.
+
+        Georgian words carry case endings ("ხელშეკრულების", "ხელშეკრულებით"),
+        so each word is matched by its stem as a prefix, and any word may
+        match (OR) — exact all-words matching finds almost nothing for an
+        everyday question.
+        """
+        if not self.is_available:
+            return []
+        words = [w for w in re.findall(r"\w+", query.lower()) if len(w) >= 3][:12]
+        if not words:
+            return []
+        match_expr = " OR ".join(
+            '"' + (w[:-2] if len(w) > 5 else w) + '"*' for w in words
+        )
+        sql = (
+            "SELECT a.* FROM articles_fts f JOIN articles a ON a.article_id = f.article_id "
+            "WHERE articles_fts MATCH ? AND a.is_repealed = 0"
+        )
+        params: list[Any] = [match_expr]
+        if code:
+            doc_id = self.resolve_code(code)
+            if not doc_id:
+                return []
+            sql += " AND a.document_id = ?"
+            params.append(doc_id)
+        sql += " ORDER BY bm25(articles_fts) LIMIT ?"
+        params.append(limit)
+        try:
+            with self._connect() as conn:
+                rows = conn.execute(sql, params).fetchall()
+        except sqlite3.OperationalError as e:
+            logger.warning("article_store_keyword_search_failed", error=str(e), query=query[:80])
+            return []
+        return [self._row_to_article(r) for r in rows]
+
     def has_article_url(self, url: str) -> bool:
         """True if the URL byte-matches a store article URL (cached set)."""
         if not self.is_available:
