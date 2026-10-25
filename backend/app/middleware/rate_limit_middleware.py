@@ -81,8 +81,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if not request.url.path.startswith("/api/v1/"):
             return await call_next(request)
 
-        # Skip rate limiting for health checks and law browsing
-        if request.url.path.startswith(("/api/v1/health", "/api/v1/laws/")):
+        # Skip rate limiting for health checks and law browsing; the law
+        # connector is limited by its own middleware under its own policy.
+        if request.url.path.startswith(("/api/v1/health", "/api/v1/laws/", "/api/v1/connector")):
             return await call_next(request)
 
         # Get user info from request state (set by auth middleware)

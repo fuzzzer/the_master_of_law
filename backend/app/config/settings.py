@@ -8,6 +8,7 @@ Usage:
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -180,6 +181,50 @@ class Settings(BaseSettings):
                     "needs no client change.",
     )
 
+    # ── Law connector (MCP server + REST mirror for outside AI agents) ──
+    # OFF by default: with this false no connector route exists and the
+    # deployed server behaves exactly as before. Free versus paid is an open
+    # owner decision, so both access modes are built and the mode is config.
+    connector_enabled: bool = Field(
+        default=False,
+        description="Mount the law connector: the MCP server at /mcp and the "
+                    "REST mirror at /api/v1/connector.",
+    )
+    connector_access_mode: Literal["open", "api_key", "oauth"] = Field(
+        default="open",
+        description="open = anyone, rate limited per IP; api_key = Bearer key "
+                    "from connector_api_keys_file with per-user quotas; oauth = "
+                    "Bearer JWT from connector_oauth_issuer with per-user quotas.",
+    )
+    connector_public_base_url: str = Field(
+        default="http://localhost:8000",
+        description="Public origin the connector is reached at; written into "
+                    "the OpenAPI servers list and the OAuth resource metadata.",
+    )
+    connector_rate_limit_per_minute: int = Field(
+        default=30,
+        description="Requests per minute per caller (per IP in open mode, per "
+                    "user in the signed-in modes).",
+    )
+    connector_daily_quota: int = Field(
+        default=1000,
+        description="Requests per day per signed-in user, unless the user's "
+                    "key entry sets its own daily_quota.",
+    )
+    connector_api_keys_file: Path = Field(
+        default=Path("connector_api_keys.json"),
+        description='{"<sha256 of key>": {"user": "...", "daily_quota": 1000}}. '
+                    "Only hashes are stored; the key itself is never on disk.",
+    )
+    connector_oauth_issuer: str = Field(default="")
+    connector_oauth_audience: str = Field(default="")
+    connector_oauth_jwks_url: str = Field(default="")
+    connector_allowed_hosts: str = Field(
+        default="",
+        description="Comma-separated Host values the MCP endpoint accepts "
+                    "(DNS-rebinding protection). Empty = any host.",
+    )
+
     # ── Temporary Staging Auth ───────────────────────────────
     admin_api_key: str = Field(default="")
     api_keys_file: Path = Field(default=Path("api_keys.json"))
@@ -209,6 +254,11 @@ class Settings(BaseSettings):
     def cors_origins(self) -> list[str]:
         """Parse comma-separated CORS origins into a list."""
         return [o.strip() for o in self.app_cors_origins.split(",") if o.strip()]
+
+    @property
+    def connector_allowed_host_list(self) -> list[str]:
+        """Parse comma-separated connector hosts into a list."""
+        return [h.strip() for h in self.connector_allowed_hosts.split(",") if h.strip()]
 
     @property
     def is_production(self) -> bool:

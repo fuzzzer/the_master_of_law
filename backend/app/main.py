@@ -28,22 +28,23 @@ from app.middleware.firebase_auth_middleware import FirebaseAuthMiddleware
 from app.middleware.rate_limit_middleware import RateLimitMiddleware
 from app.routes import (
     account_router,
+    api_key_router,
     auth_router,
     case_agent_router,
     case_file_router,
     chat_router,
+    contacts_router,
     conversation_router,
     feedback_router,
     health_router,
     law_browser_router,
+    model_router,
     questionnaire_router,
     rag_router,
     trace_router,
     ws_chat_router,
-    api_key_router,
-    contacts_router,
-    model_router,
 )
+from app.routes.connector_mcp import install_law_connector
 from app.utils.logger import get_logger, setup_logging
 
 
@@ -80,7 +81,14 @@ async def lifespan(app: FastAPI):
         # Don't crash — the /health/ready endpoint will report degraded
 
     logger.info("app_started")
-    yield
+    connector_mcp = getattr(app.state, "connector_mcp", None)
+    if connector_mcp is None:
+        yield
+    else:
+        # The MCP endpoint's session manager lives as long as the app.
+        async with connector_mcp.session_manager.run():
+            logger.info("law_connector_ready", access_mode=settings.connector_access_mode)
+            yield
 
     # ── Shutdown ─────────────────────────────────────────
     logger.info("app_shutting_down")
@@ -118,6 +126,10 @@ def create_app() -> FastAPI:
     #     any database work, and is plain ASGI so it also covers the chat
     #     WebSocket, which the BaseHTTPMiddleware layers above never see.
     app.add_middleware(ByokMiddleware)
+    # 3c. Law connector (feature flag, default off): its own routes and its
+    #     own access control, for outside AI agents. Off = nothing mounted.
+    if settings.connector_enabled:
+        install_law_connector(app)
     # 4. Error handler (outermost app layer, catches all unhandled exceptions)
     app.add_middleware(ErrorHandlerMiddleware)
     # 5. CORS (always outermost for browser requests)
