@@ -307,6 +307,41 @@ class ChromaClient:
                     })
         return items
 
+    def find_documents_containing(
+        self,
+        terms: list[str],
+        collections: list[str],
+        limit: int = 20,
+    ) -> list[dict[str, Any]]:
+        """Chunks whose text contains every term (no embedding, no model call).
+
+        Used where a lookup must work without anyone's model key, e.g. the
+        law connector's court-practice search.
+        """
+        if not terms:
+            return []
+        clauses = [{"$contains": t} for t in terms]
+        where_document = clauses[0] if len(clauses) == 1 else {"$and": clauses}
+        items: list[dict[str, Any]] = []
+        for col_name in collections:
+            col = self._collections.get(col_name)
+            if col is None:
+                continue
+            results = col.get(
+                where_document=where_document,
+                limit=limit,
+                include=["documents", "metadatas"],
+            )
+            for i, chunk_id in enumerate(results["ids"]):
+                meta = dict(results["metadatas"][i] or {}) if results["metadatas"] else {}
+                meta["_collection"] = col_name
+                items.append({
+                    "chunk_id": chunk_id,
+                    "content": results["documents"][i] if results["documents"] else "",
+                    "metadata": meta,
+                })
+        return items
+
     def count(self, collection_name: str | None = None) -> int:
         """Return total number of documents, optionally for a specific collection."""
         if collection_name:
