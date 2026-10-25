@@ -1,0 +1,63 @@
+{
+ "about": "Lean set actually run for the 2026-10-25 baseline under the owner's spending cap: 20 items (16 tuning, 4 held-back). The runner stopped at the scorecard's cost share after two empty answers cost about USD 0.4 each (whole Labour Code injected, lookup loop). Held-back court cases were not reached, so the held-back outcome target cannot be measured on this set; court outcome is reported on the 3 tuning cases as counts only. The final run must use this same set. 'planned_30' is the intended lean set for a later run within budget.",
+ "tuning": [
+  "SC-TEN-1",
+  "SC-TEN-2",
+  "SC-LAB-1",
+  "SC-LAB-2",
+  "SC-LAB-3",
+  "SC-CON-1",
+  "SC-CON-2",
+  "SC-FAM-2",
+  "SC-INH-1",
+  "TG-PROS-1",
+  "TG-WORK-1",
+  "TG-CIVAPP-2",
+  "TG-PRAC-1",
+  "CRIM-201ap-24",
+  "CIVI-as-1042-2023",
+  "CIVI-as-1465-2022"
+ ],
+ "heldback": [
+  "SC-FAM-1",
+  "SC-TRF-2",
+  "SC-EDGE-FRAUD-1",
+  "SC-EDGE-OLD-1"
+ ],
+ "planned_30": {
+  "tuning": [
+   "SC-TEN-1",
+   "SC-TEN-2",
+   "SC-LAB-1",
+   "SC-LAB-2",
+   "SC-LAB-3",
+   "SC-CON-1",
+   "SC-CON-2",
+   "SC-FAM-2",
+   "SC-INH-1",
+   "TG-PROS-1",
+   "TG-WORK-1",
+   "TG-CIVAPP-2",
+   "TG-PRAC-1",
+   "CRIM-201ap-24",
+   "CRIM-1224ap-24",
+   "CRIM-1296ap-24",
+   "CIVI-as-1042-2023",
+   "CIVI-as-1465-2022",
+   "ADMI-bs-767"
+  ],
+  "heldback": [
+   "SC-FAM-1",
+   "SC-TRF-2",
+   "SC-EDGE-FRAUD-1",
+   "SC-EDGE-OLD-1",
+   "TG-PROS-2",
+   "TG-SUP-1",
+   "CRIM-62ap-25",
+   "CRIM-678ap-25",
+   "CIVI-as-381-2024",
+   "CIVI-as-931-2024",
+   "ADMI-bs-948"
+  ]
+ }
+}
