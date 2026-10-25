@@ -49,6 +49,15 @@ class TestOpenApi:
         monkeypatch.setattr(settings, "connector_public_base_url", "https://law-api.example.ge/")
         assert connector_openapi()["servers"] == [{"url": "https://law-api.example.ge"}]
 
+    def test_committed_copy_matches_the_code(self, monkeypatch):
+        """connector/openapi.json is what a GPT editor gets pasted; it must not drift."""
+        import json
+        from pathlib import Path
+
+        monkeypatch.setattr(settings, "connector_public_base_url", "https://law-api.fuzzzycore.com")
+        committed = Path(__file__).resolve().parents[2] / "connector" / "openapi.json"
+        assert json.loads(committed.read_text(encoding="utf-8")) == connector_openapi()
+
     def test_served_without_credentials_even_in_key_mode(self, client, monkeypatch):
         monkeypatch.setattr(settings, "connector_access_mode", "api_key")
         response = client.get("/api/v1/connector/openapi.json")

@@ -1,0 +1,1436 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Fuzzzy Law — Georgian law sources",
+    "description": "Exact texts of Georgian codes with official matsne.gov.ge links and version dates, and real Supreme Court decisions where available. Sources only, not legal advice.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://law-api.fuzzzycore.com"
+    }
+  ],
+  "paths": {
+    "/api/v1/connector/codes": {
+      "get": {
+        "tags": [
+          "law connector"
+        ],
+        "summary": "List available Georgian codes",
+        "description": "Codes with article counts, official links and version dates.",
+        "operationId": "listCodes",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/connector/search": {
+      "get": {
+        "tags": [
+          "law connector"
+        ],
+        "summary": "Search Georgian law articles",
+        "description": "Matching articles with exact snippet, link and version date.\n\nfound=false means nothing matched.",
+        "operationId": "searchLaw",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "What to look for, best in Georgian legal terms.",
+              "title": "Query"
+            },
+            "description": "What to look for, best in Georgian legal terms."
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional: limit to one code.",
+              "title": "Code"
+            },
+            "description": "Optional: limit to one code."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 25,
+              "minimum": 1,
+              "description": "How many articles.",
+              "default": 8,
+              "title": "Limit"
+            },
+            "description": "How many articles."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchLawResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/connector/articles": {
+      "get": {
+        "tags": [
+          "law connector"
+        ],
+        "summary": "Get one article's full text",
+        "description": "Full exact text, paragraphs, link, version date and neighbouring articles.\n\nUse it to check deadlines.",
+        "operationId": "getArticle",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Code id from listCodes (e.g. civil_code) or its Georgian name.",
+              "title": "Code"
+            },
+            "description": "Code id from listCodes (e.g. civil_code) or its Georgian name."
+          },
+          {
+            "name": "article",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Article number, e.g. 369 or 166¹.",
+              "title": "Article"
+            },
+            "description": "Article number, e.g. 369 or 166¹."
+          },
+          {
+            "name": "paragraph",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional paragraph number.",
+              "title": "Paragraph"
+            },
+            "description": "Optional paragraph number."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetArticleResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/connector/structure": {
+      "get": {
+        "tags": [
+          "law connector"
+        ],
+        "summary": "Show a code's chapters or articles",
+        "description": "Chapters of a code, or article numbers and titles.",
+        "operationId": "browseCode",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Code id from listCodes (e.g. civil_code) or its Georgian name.",
+              "title": "Code"
+            },
+            "description": "Code id from listCodes (e.g. civil_code) or its Georgian name."
+          },
+          {
+            "name": "chapter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional chapter to list.",
+              "title": "Chapter"
+            },
+            "description": "Optional chapter to list."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Paging offset.",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Paging offset."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 300,
+              "minimum": 1,
+              "description": "Articles per page.",
+              "default": 200,
+              "title": "Limit"
+            },
+            "description": "Articles per page."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeStructure"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/connector/court-practice": {
+      "get": {
+        "tags": [
+          "law connector"
+        ],
+        "summary": "Find real court decisions",
+        "description": "Supreme Court decisions with case number, date and snippet.\n\nnone_found means do not mention court practice.",
+        "operationId": "findCourtPractice",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Legal issue in Georgian.",
+              "title": "Query"
+            },
+            "description": "Legal issue in Georgian."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 10,
+              "minimum": 1,
+              "description": "How many decisions.",
+              "default": 5,
+              "title": "Limit"
+            },
+            "description": "How many decisions."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CourtPracticeResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/connector/verify-citation": {
+      "post": {
+        "tags": [
+          "law connector"
+        ],
+        "summary": "Check a law citation",
+        "description": "Whether the article exists and what it says, with a word-and-number overlap check.",
+        "operationId": "verifyCitation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyCitationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyCitationResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ArticleHit": {
+        "properties": {
+          "source_url": {
+            "type": "string",
+            "title": "Source Url",
+            "description": "Official matsne.gov.ge link for this text."
+          },
+          "version_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Date",
+            "description": "Date of the consolidated version this text comes from."
+          },
+          "in_force_since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "In Force Since",
+            "description": "Date this article's current wording took effect, if known."
+          },
+          "version_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Note",
+            "description": "Present when a version date is unknown or text may be incomplete."
+          },
+          "notice": {
+            "type": "string",
+            "title": "Notice",
+            "default": "ეს არის კანონის ტექსტი და წყარო, არა იურიდიული კონსულტაცია. ოფიციალური ტექსტი: matsne.gov.ge. This is law text and its source, not legal advice. The official text is on matsne.gov.ge; for important decisions consult a lawyer."
+          },
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Stable id, usable with fetch: article:<code>:<number>."
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "code_name": {
+            "type": "string",
+            "title": "Code Name"
+          },
+          "article_number": {
+            "type": "string",
+            "title": "Article Number",
+            "description": "As printed in the law, e.g. 'მუხლი 369'."
+          },
+          "article_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Article Title"
+          },
+          "paragraph": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paragraph",
+            "description": "Paragraph the snippet is from."
+          },
+          "snippet": {
+            "type": "string",
+            "title": "Snippet",
+            "description": "Exact text copied from the stored article (may be an excerpt)."
+          },
+          "is_repealed": {
+            "type": "boolean",
+            "title": "Is Repealed",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_url",
+          "id",
+          "code",
+          "code_name",
+          "article_number",
+          "snippet"
+        ],
+        "title": "ArticleHit"
+      },
+      "ArticleRef": {
+        "properties": {
+          "article_number": {
+            "type": "string",
+            "title": "Article Number"
+          },
+          "article_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Article Title"
+          }
+        },
+        "type": "object",
+        "required": [
+          "article_number"
+        ],
+        "title": "ArticleRef"
+      },
+      "ArticleText": {
+        "properties": {
+          "source_url": {
+            "type": "string",
+            "title": "Source Url",
+            "description": "Official matsne.gov.ge link for this text."
+          },
+          "version_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Date",
+            "description": "Date of the consolidated version this text comes from."
+          },
+          "in_force_since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "In Force Since",
+            "description": "Date this article's current wording took effect, if known."
+          },
+          "version_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Note",
+            "description": "Present when a version date is unknown or text may be incomplete."
+          },
+          "notice": {
+            "type": "string",
+            "title": "Notice",
+            "default": "ეს არის კანონის ტექსტი და წყარო, არა იურიდიული კონსულტაცია. ოფიციალური ტექსტი: matsne.gov.ge. This is law text and its source, not legal advice. The official text is on matsne.gov.ge; for important decisions consult a lawyer."
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "code_name": {
+            "type": "string",
+            "title": "Code Name"
+          },
+          "article_number": {
+            "type": "string",
+            "title": "Article Number"
+          },
+          "article_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Article Title"
+          },
+          "chapter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "Full stored text of the article, unaltered."
+          },
+          "paragraphs": {
+            "items": {
+              "$ref": "#/components/schemas/Paragraph"
+            },
+            "type": "array",
+            "title": "Paragraphs"
+          },
+          "requested_paragraph": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Paragraph"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "previous_article": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArticleRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "next_article": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArticleRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "is_repealed": {
+            "type": "boolean",
+            "title": "Is Repealed",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_url",
+          "id",
+          "code",
+          "code_name",
+          "article_number",
+          "text",
+          "paragraphs"
+        ],
+        "title": "ArticleText"
+      },
+      "ChapterSummary": {
+        "properties": {
+          "chapter": {
+            "type": "string",
+            "title": "Chapter"
+          },
+          "article_count": {
+            "type": "integer",
+            "title": "Article Count"
+          },
+          "first_article": {
+            "type": "string",
+            "title": "First Article"
+          },
+          "last_article": {
+            "type": "string",
+            "title": "Last Article"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chapter",
+          "article_count",
+          "first_article",
+          "last_article"
+        ],
+        "title": "ChapterSummary"
+      },
+      "CodeList": {
+        "properties": {
+          "codes": {
+            "items": {
+              "$ref": "#/components/schemas/CodeSummary"
+            },
+            "type": "array",
+            "title": "Codes"
+          },
+          "notice": {
+            "type": "string",
+            "title": "Notice",
+            "default": "ეს არის კანონის ტექსტი და წყარო, არა იურიდიული კონსულტაცია. ოფიციალური ტექსტი: matsne.gov.ge. This is law text and its source, not legal advice. The official text is on matsne.gov.ge; for important decisions consult a lawyer."
+          }
+        },
+        "type": "object",
+        "required": [
+          "codes"
+        ],
+        "title": "CodeList"
+      },
+      "CodeStructure": {
+        "properties": {
+          "source_url": {
+            "type": "string",
+            "title": "Source Url",
+            "description": "Official matsne.gov.ge link for this text."
+          },
+          "version_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Date",
+            "description": "Date of the consolidated version this text comes from."
+          },
+          "in_force_since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "In Force Since",
+            "description": "Date this article's current wording took effect, if known."
+          },
+          "version_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Note",
+            "description": "Present when a version date is unknown or text may be incomplete."
+          },
+          "notice": {
+            "type": "string",
+            "title": "Notice",
+            "default": "ეს არის კანონის ტექსტი და წყარო, არა იურიდიული კონსულტაცია. ოფიციალური ტექსტი: matsne.gov.ge. This is law text and its source, not legal advice. The official text is on matsne.gov.ge; for important decisions consult a lawyer."
+          },
+          "found": {
+            "type": "boolean",
+            "title": "Found"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "code_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code Name"
+          },
+          "chapters": {
+            "items": {
+              "$ref": "#/components/schemas/ChapterSummary"
+            },
+            "type": "array",
+            "title": "Chapters"
+          },
+          "articles": {
+            "items": {
+              "$ref": "#/components/schemas/ArticleRef"
+            },
+            "type": "array",
+            "title": "Articles"
+          },
+          "total_articles": {
+            "type": "integer",
+            "title": "Total Articles",
+            "default": 0
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset",
+            "default": 0
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_url",
+          "found",
+          "code"
+        ],
+        "title": "CodeStructure"
+      },
+      "CodeSummary": {
+        "properties": {
+          "source_url": {
+            "type": "string",
+            "title": "Source Url",
+            "description": "Official matsne.gov.ge link for this text."
+          },
+          "version_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Date",
+            "description": "Date of the consolidated version this text comes from."
+          },
+          "in_force_since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "In Force Since",
+            "description": "Date this article's current wording took effect, if known."
+          },
+          "version_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Note",
+            "description": "Present when a version date is unknown or text may be incomplete."
+          },
+          "notice": {
+            "type": "string",
+            "title": "Notice",
+            "default": "ეს არის კანონის ტექსტი და წყარო, არა იურიდიული კონსულტაცია. ოფიციალური ტექსტი: matsne.gov.ge. This is law text and its source, not legal advice. The official text is on matsne.gov.ge; for important decisions consult a lawyer."
+          },
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "Code identifier to pass to other tools, e.g. civil_code."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Official Georgian name of the code."
+          },
+          "article_count": {
+            "type": "integer",
+            "title": "Article Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_url",
+          "code",
+          "name",
+          "article_count"
+        ],
+        "title": "CodeSummary"
+      },
+      "CourtDecision": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Stable id, usable with fetch: case:<collection>:<case id>."
+          },
+          "case_number": {
+            "type": "string",
+            "title": "Case Number"
+          },
+          "court": {
+            "type": "string",
+            "title": "Court"
+          },
+          "collection": {
+            "type": "string",
+            "enum": [
+              "court_practice",
+              "grand_chamber"
+            ],
+            "title": "Collection"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "snippet": {
+            "type": "string",
+            "title": "Snippet",
+            "description": "Exact text copied from the stored decision."
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Url",
+            "description": "Link to the decision or the publication it was taken from."
+          },
+          "link_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link Note"
+          },
+          "notice": {
+            "type": "string",
+            "title": "Notice",
+            "default": "ეს არის კანონის ტექსტი და წყარო, არა იურიდიული კონსულტაცია. ოფიციალური ტექსტი: matsne.gov.ge. This is law text and its source, not legal advice. The official text is on matsne.gov.ge; for important decisions consult a lawyer."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "case_number",
+          "court",
+          "collection",
+          "snippet"
+        ],
+        "title": "CourtDecision"
+      },
+      "CourtPracticeResult": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "found",
+              "none_found",
+              "source_unavailable"
+            ],
+            "title": "Status"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/CourtDecision"
+            },
+            "type": "array",
+            "title": "Results"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "notice": {
+            "type": "string",
+            "title": "Notice",
+            "default": "ეს არის კანონის ტექსტი და წყარო, არა იურიდიული კონსულტაცია. ოფიციალური ტექსტი: matsne.gov.ge. This is law text and its source, not legal advice. The official text is on matsne.gov.ge; for important decisions consult a lawyer."
+          }
+        },
+        "type": "object",
+        "required": [
+          "query",
+          "status",
+          "results",
+          "message"
+        ],
+        "title": "CourtPracticeResult"
+      },
+      "GetArticleResult": {
+        "properties": {
+          "found": {
+            "type": "boolean",
+            "title": "Found"
+          },
+          "article": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArticleText"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "notice": {
+            "type": "string",
+            "title": "Notice",
+            "default": "ეს არის კანონის ტექსტი და წყარო, არა იურიდიული კონსულტაცია. ოფიციალური ტექსტი: matsne.gov.ge. This is law text and its source, not legal advice. The official text is on matsne.gov.ge; for important decisions consult a lawyer."
+          }
+        },
+        "type": "object",
+        "required": [
+          "found"
+        ],
+        "title": "GetArticleResult"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "LexicalCheck": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "default": "Word and number overlap only. This is not a legal judgement; read the text."
+          },
+          "numbers_in_claim": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Numbers In Claim"
+          },
+          "numbers_found_in_text": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Numbers Found In Text"
+          },
+          "numbers_not_in_text": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Numbers Not In Text"
+          },
+          "claim_terms_found": {
+            "type": "integer",
+            "title": "Claim Terms Found"
+          },
+          "claim_terms_total": {
+            "type": "integer",
+            "title": "Claim Terms Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "numbers_in_claim",
+          "numbers_found_in_text",
+          "numbers_not_in_text",
+          "claim_terms_found",
+          "claim_terms_total"
+        ],
+        "title": "LexicalCheck",
+        "description": "Word and number overlap between the claim and the article text."
+      },
+      "Paragraph": {
+        "properties": {
+          "number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "Paragraph"
+      },
+      "SearchLawResult": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "found": {
+            "type": "boolean",
+            "title": "Found"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/ArticleHit"
+            },
+            "type": "array",
+            "title": "Results"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "notice": {
+            "type": "string",
+            "title": "Notice",
+            "default": "ეს არის კანონის ტექსტი და წყარო, არა იურიდიული კონსულტაცია. ოფიციალური ტექსტი: matsne.gov.ge. This is law text and its source, not legal advice. The official text is on matsne.gov.ge; for important decisions consult a lawyer."
+          }
+        },
+        "type": "object",
+        "required": [
+          "query",
+          "found",
+          "results"
+        ],
+        "title": "SearchLawResult"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VerifyCitationRequest": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "Code id or Georgian name, e.g. civil_procedure_code."
+          },
+          "article": {
+            "type": "string",
+            "title": "Article",
+            "description": "Article number, e.g. 369 or 166¹."
+          },
+          "claim": {
+            "type": "string",
+            "title": "Claim",
+            "description": "What the answer claims the article says."
+          },
+          "paragraph": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paragraph",
+            "description": "Paragraph number, if the claim cites one."
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "article",
+          "claim"
+        ],
+        "title": "VerifyCitationRequest"
+      },
+      "VerifyCitationResult": {
+        "properties": {
+          "exists": {
+            "type": "boolean",
+            "title": "Exists"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "article": {
+            "type": "string",
+            "title": "Article"
+          },
+          "claim": {
+            "type": "string",
+            "title": "Claim"
+          },
+          "paragraph_requested": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paragraph Requested"
+          },
+          "paragraph_exists": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paragraph Exists"
+          },
+          "is_repealed": {
+            "type": "boolean",
+            "title": "Is Repealed",
+            "default": false
+          },
+          "article_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Article Number"
+          },
+          "article_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Article Title"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "What the article (or requested paragraph) actually says."
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Url"
+          },
+          "version_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Date"
+          },
+          "in_force_since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "In Force Since"
+          },
+          "version_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Note"
+          },
+          "lexical_check": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LexicalCheck"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "notice": {
+            "type": "string",
+            "title": "Notice",
+            "default": "ეს არის კანონის ტექსტი და წყარო, არა იურიდიული კონსულტაცია. ოფიციალური ტექსტი: matsne.gov.ge. This is law text and its source, not legal advice. The official text is on matsne.gov.ge; for important decisions consult a lawyer."
+          }
+        },
+        "type": "object",
+        "required": [
+          "exists",
+          "code",
+          "article",
+          "claim",
+          "message"
+        ],
+        "title": "VerifyCitationResult"
+      }
+    }
+  }
+}
