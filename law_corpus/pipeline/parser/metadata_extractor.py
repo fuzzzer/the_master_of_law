@@ -81,6 +81,7 @@ class MetadataExtractor:
             publication_id=seed.get("publication_id"),
             version_date=seed.get("version_date"),
             scraped_at=seed.get("scraped_at"),
+            content_hash=seed.get("content_hash"),
             is_in_force=True,
         )
 
